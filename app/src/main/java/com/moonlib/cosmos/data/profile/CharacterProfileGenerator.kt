@@ -98,8 +98,8 @@ object CharacterProfileGenerator {
         val conn = url.openConnection() as HttpURLConnection
         
         conn.requestMethod = "POST"
-        conn.connectTimeout = 15000
-        conn.readTimeout = 15000
+        conn.connectTimeout = 60000
+        conn.readTimeout = 60000
         conn.setRequestProperty("Content-Type", "application/json")
         conn.doOutput = true
 
@@ -162,8 +162,8 @@ object CharacterProfileGenerator {
         val conn = url.openConnection() as HttpURLConnection
         
         conn.requestMethod = "POST"
-        conn.connectTimeout = 15000
-        conn.readTimeout = 15000
+        conn.connectTimeout = 60000
+        conn.readTimeout = 60000
         conn.setRequestProperty("Authorization", "Bearer $apiKey")
         conn.setRequestProperty("Content-Type", "application/json")
         conn.doOutput = true

@@ -46,8 +46,8 @@ suspend fun fetchModelsOnline(
     val url = URL(urlStr)
     val conn = url.openConnection() as HttpURLConnection
     conn.requestMethod = "GET"
-    conn.connectTimeout = 10000
-    conn.readTimeout = 10000
+    conn.connectTimeout = 60000
+    conn.readTimeout = 60000
     
     // 非 Gemini 官方接口需要添加 Bearer token
     if (!isGeminiOfficial) {
