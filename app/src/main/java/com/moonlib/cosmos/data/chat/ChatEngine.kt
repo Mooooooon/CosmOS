@@ -134,6 +134,41 @@ object ChatEngine {
             executeOpenAI(baseUrl, modelName, apiKey, temperature, systemPrompt, recentMessages)
         }
 
+        // ── 拦截并记录本次 AI 通讯日志 ──────────────────────────
+        try {
+            val fullSentPrompt = if (isGeminiOfficial) {
+                val fullPromptBuilder = StringBuilder()
+                fullPromptBuilder.append(systemPrompt).append("\n\n=== 聊天历史纪录 ===\n")
+                for (msg in recentMessages) {
+                    val roleName = if (msg.senderId == "user") "玩家" else "你"
+                    fullPromptBuilder.append("$roleName: ${msg.content}\n")
+                }
+                fullPromptBuilder.append("请记住你是谁，直接输出你作为角色的下一组符合 JSON 格式的回复：")
+                fullPromptBuilder.toString()
+            } else {
+                val sb = StringBuilder()
+                sb.append("[System Prompt]\n").append(systemPrompt).append("\n\n[Chat History]\n")
+                for (msg in recentMessages) {
+                    val role = if (msg.senderId == "user") "User" else "Assistant"
+                    sb.append("$role: ${msg.content}\n")
+                }
+                sb.toString()
+            }
+
+            val userInputText = recentMessages.lastOrNull { it.senderId == "user" }?.content ?: ""
+
+            val logRepo = com.moonlib.cosmos.data.settings.AiLogRepository(context)
+            logRepo.saveLog(
+                characterName = charProfile.name,
+                modelName = modelName,
+                userInput = userInputText,
+                aiResponse = responseText,
+                prompt = fullSentPrompt
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
         // 5. 组装、解析并保存 AI 的回复消息列表
         val currentVirtualTime = VirtualTimeManager.getCurrentTimeMillis()
         val aiMessages = parseAiResponseJson(responseText, contact, currentVirtualTime)

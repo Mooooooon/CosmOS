@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,6 +40,7 @@ fun SettingsMainScreen(
     activeProfileName: String,
     onModelServiceClick: () -> Unit,
     onThemeClick: () -> Unit,
+    onLogsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -98,6 +100,14 @@ fun SettingsMainScreen(
                     title = "模型服务",
                     subtitle = activeProfileName,
                     onClick = onModelServiceClick
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), thickness = 0.5.dp)
+                SettingItem(
+                    icon = Icons.Default.Terminal,
+                    iconBgColor = Color(0xFF10B981),
+                    title = "日志查询",
+                    subtitle = "查看AI通讯与提示词记录",
+                    onClick = onLogsClick
                 )
             }
 

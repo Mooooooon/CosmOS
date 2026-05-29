@@ -11,6 +11,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.moonlib.cosmos.data.settings.AiConfigRepository
 import com.moonlib.cosmos.data.settings.AiProfile
+import com.moonlib.cosmos.data.settings.AiLog
+import com.moonlib.cosmos.data.settings.AiLogRepository
 
 /**
  * 设置内部的子页面路由状态
@@ -20,6 +22,8 @@ sealed interface SettingsScreenState {
     object ProfileList : SettingsScreenState
     data class AddEditProfile(val profileId: String?) : SettingsScreenState
     object ThemeSettings : SettingsScreenState
+    object AiLogsList : SettingsScreenState
+    data class AiLogDetail(val logId: String) : SettingsScreenState
 }
 
 /**
@@ -64,6 +68,8 @@ fun SettingsAppScreen(
             is SettingsScreenState.ProfileList -> currentScreen = SettingsScreenState.Main
             is SettingsScreenState.AddEditProfile -> currentScreen = SettingsScreenState.ProfileList
             is SettingsScreenState.ThemeSettings -> currentScreen = SettingsScreenState.Main
+            is SettingsScreenState.AiLogsList -> currentScreen = SettingsScreenState.Main
+            is SettingsScreenState.AiLogDetail -> currentScreen = SettingsScreenState.AiLogsList
         }
     }
 
@@ -87,6 +93,9 @@ fun SettingsAppScreen(
                     },
                     onThemeClick = {
                         currentScreen = SettingsScreenState.ThemeSettings
+                    },
+                    onLogsClick = {
+                        currentScreen = SettingsScreenState.AiLogsList
                     }
                 )
             }
@@ -143,6 +152,45 @@ fun SettingsAppScreen(
                 ThemeSettingsScreen(
                     onBackClick = {
                         currentScreen = SettingsScreenState.Main
+                    }
+                )
+            }
+
+            // ── 5. AI 通讯日志列表页面 ──────────────────────────────────
+            is SettingsScreenState.AiLogsList -> {
+                val logsRepo = remember { AiLogRepository(context) }
+                var logsList by remember { mutableStateOf(emptyList<AiLog>()) }
+
+                LaunchedEffect(Unit) {
+                    logsList = logsRepo.getLogs()
+                }
+
+                AiLogsListScreen(
+                    logs = logsList,
+                    onBackClick = {
+                        currentScreen = SettingsScreenState.Main
+                    },
+                    onLogClick = { id ->
+                        currentScreen = SettingsScreenState.AiLogDetail(id)
+                    },
+                    onClearLogs = {
+                        logsRepo.clearLogs()
+                        logsList = emptyList()
+                    }
+                )
+            }
+
+            // ── 6. AI 通讯日志详情页面 ──────────────────────────────────
+            is SettingsScreenState.AiLogDetail -> {
+                val logsRepo = remember { AiLogRepository(context) }
+                val log = remember(screen.logId) {
+                    logsRepo.getLogs().firstOrNull { it.id == screen.logId }
+                }
+
+                AiLogDetailScreen(
+                    log = log,
+                    onBackClick = {
+                        currentScreen = SettingsScreenState.AiLogsList
                     }
                 )
             }
