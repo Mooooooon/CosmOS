@@ -60,11 +60,7 @@ fun AppIconItem(
             modifier = Modifier
                 .size(56.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .background(
-                    brush = Brush.linearGradient(
-                        colors = listOf(app.colorStart, app.colorEnd),
-                    ),
-                ),
+                .background(app.color),
             contentAlignment = Alignment.Center,
         ) {
             Icon(

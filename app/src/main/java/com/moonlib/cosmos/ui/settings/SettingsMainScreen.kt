@@ -76,16 +76,14 @@ fun SettingsMainScreen(
             SettingGroup(title = "连接与通信") {
                 SimulatedSettingItem(
                     icon = Icons.Default.Wifi,
-                    iconBgStart = Color(0xFF3B82F6),
-                    iconBgEnd = Color(0xFF1D4ED8),
+                    iconBgColor = Color(0xFF3B82F6),
                     title = "无线网络 (Wi-Fi)",
                     subtitle = "已连接到 CosmOS_SpaceNet"
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), thickness = 0.5.dp)
                 SimulatedSettingItem(
                     icon = Icons.Default.NetworkCell,
-                    iconBgStart = Color(0xFF10B981),
-                    iconBgEnd = Color(0xFF047857),
+                    iconBgColor = Color(0xFF10B981),
                     title = "移动网络",
                     subtitle = "星际 6G · 信号良好"
                 )
@@ -95,8 +93,7 @@ fun SettingsMainScreen(
             SettingGroup(title = "AI 核心配置") {
                 SettingItem(
                     icon = Icons.Default.Psychology,
-                    iconBgStart = Color(0xFF8B5CF6),
-                    iconBgEnd = Color(0xFF6D28D9),
+                    iconBgColor = Color(0xFF8B5CF6),
                     title = "模型服务",
                     subtitle = activeProfileName,
                     onClick = onModelServiceClick
@@ -107,16 +104,14 @@ fun SettingsMainScreen(
             SettingGroup(title = "系统与维护") {
                 SimulatedSettingItem(
                     icon = Icons.Default.Palette,
-                    iconBgStart = Color(0xFFEC4899),
-                    iconBgEnd = Color(0xFFBE185D),
+                    iconBgColor = Color(0xFFEC4899),
                     title = "个性化",
                     subtitle = "当前主题：深空星云"
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), thickness = 0.5.dp)
                 SimulatedSettingItem(
                     icon = Icons.Default.Info,
-                    iconBgStart = Color(0xFFF59E0B),
-                    iconBgEnd = Color(0xFFB45309),
+                    iconBgColor = Color(0xFFF59E0B),
                     title = "关于虚拟手机",
                     subtitle = "CosmOS v1.0.0 (Android 16 兼容)"
                 )
@@ -149,11 +144,7 @@ private fun UserAccountCard() {
                 modifier = Modifier
                     .size(50.dp)
                     .clip(CircleShape)
-                    .background(
-                        Brush.linearGradient(
-                            listOf(Color(0xFF8B5CF6), Color(0xFF3B82F6))
-                        )
-                    ),
+                    .background(Color(0xFF8B5CF6)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -216,8 +207,7 @@ private fun SettingGroup(
 @Composable
 private fun SettingItem(
     icon: ImageVector,
-    iconBgStart: Color,
-    iconBgEnd: Color,
+    iconBgColor: Color,
     title: String,
     subtitle: String,
     onClick: () -> Unit
@@ -233,7 +223,7 @@ private fun SettingItem(
             modifier = Modifier
                 .size(36.dp)
                 .clip(CircleShape)
-                .background(Brush.linearGradient(listOf(iconBgStart, iconBgEnd))),
+                .background(iconBgColor),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -272,8 +262,7 @@ private fun SettingItem(
 @Composable
 private fun SimulatedSettingItem(
     icon: ImageVector,
-    iconBgStart: Color,
-    iconBgEnd: Color,
+    iconBgColor: Color,
     title: String,
     subtitle: String
 ) {
@@ -287,7 +276,7 @@ private fun SimulatedSettingItem(
             modifier = Modifier
                 .size(36.dp)
                 .clip(CircleShape)
-                .background(Brush.linearGradient(listOf(iconBgStart, iconBgEnd))),
+                .background(iconBgColor),
             contentAlignment = Alignment.Center
         ) {
             Icon(

@@ -158,10 +158,10 @@ private fun ProfileCard(
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
-    val serviceColorBrush = when (profile.serviceType) {
-        AiServiceType.OPEN_AI -> Brush.linearGradient(listOf(Color(0xFF10B981), Color(0xFF059669)))
-        AiServiceType.DEEP_SEEK -> Brush.linearGradient(listOf(Color(0xFF3B82F6), Color(0xFF1D4ED8)))
-        AiServiceType.GEMINI -> Brush.linearGradient(listOf(Color(0xFF8B5CF6), Color(0xFF6D28D9)))
+    val serviceColor = when (profile.serviceType) {
+        AiServiceType.OPEN_AI -> Color(0xFF10B981)
+        AiServiceType.DEEP_SEEK -> Color(0xFF3B82F6)
+        AiServiceType.GEMINI -> Color(0xFF8B5CF6)
     }
 
     Card(
@@ -224,7 +224,7 @@ private fun ProfileCard(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(serviceColorBrush)
+                            .background(serviceColor)
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(

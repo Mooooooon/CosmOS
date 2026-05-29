@@ -159,10 +159,10 @@ fun ModelServiceConfigScreen(
                 ) {
                     AiServiceType.values().forEach { type ->
                         val isSelected = serviceType == type
-                        val brandBrush = when (type) {
-                            AiServiceType.OPEN_AI -> Brush.linearGradient(listOf(Color(0xFF10B981), Color(0xFF059669)))
-                            AiServiceType.DEEP_SEEK -> Brush.linearGradient(listOf(Color(0xFF3B82F6), Color(0xFF1D4ED8)))
-                            AiServiceType.GEMINI -> Brush.linearGradient(listOf(Color(0xFF8B5CF6), Color(0xFF6D28D9)))
+                        val brandColor = when (type) {
+                            AiServiceType.OPEN_AI -> Color(0xFF10B981)
+                            AiServiceType.DEEP_SEEK -> Color(0xFF3B82F6)
+                            AiServiceType.GEMINI -> Color(0xFF8B5CF6)
                         }
 
                         Card(
@@ -184,7 +184,7 @@ fun ModelServiceConfigScreen(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .then(
-                                        if (isSelected) Modifier.background(brandBrush) else Modifier
+                                        if (isSelected) Modifier.background(brandColor) else Modifier
                                     ),
                                 contentAlignment = Alignment.Center
                             ) {
