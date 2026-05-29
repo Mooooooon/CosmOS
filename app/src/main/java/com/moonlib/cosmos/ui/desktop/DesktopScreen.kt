@@ -11,6 +11,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.moonlib.cosmos.ui.profile.ProfileAppScreen
 import com.moonlib.cosmos.ui.settings.SettingsAppScreen
 import com.moonlib.cosmos.ui.theme.*
 import kotlin.random.Random
@@ -77,6 +78,8 @@ fun DesktopScreen() {
                             onAppClick = { app ->
                                 if (app.id == "settings") {
                                     activeAppId = "settings"
+                                } else if (app.id == "profile") {
+                                    activeAppId = "profile"
                                 }
                             },
                             modifier = Modifier
@@ -86,6 +89,11 @@ fun DesktopScreen() {
                     }
                 } else if (appId == "settings") {
                     SettingsAppScreen(
+                        onGoBack = { activeAppId = null },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else if (appId == "profile") {
+                    ProfileAppScreen(
                         onGoBack = { activeAppId = null },
                         modifier = Modifier.fillMaxSize()
                     )
