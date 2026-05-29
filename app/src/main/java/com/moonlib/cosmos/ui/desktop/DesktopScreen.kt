@@ -1,5 +1,6 @@
 package com.moonlib.cosmos.ui.desktop
 
+import androidx.compose.animation.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
@@ -8,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
+import com.moonlib.cosmos.ui.settings.SettingsAppScreen
 import com.moonlib.cosmos.ui.theme.*
 import kotlin.random.Random
 
@@ -19,14 +21,15 @@ import kotlin.random.Random
  *   ├── SpaceWallpaper      — 壁纸，matchParentSize，最底层
  *   └── Column（全屏）       — 内容层，从屏幕 y=0 开始
  *       ├── VirtualStatusBar — 第一个子项，天然贴顶
- *       ├── DesktopClock
- *       └── AppGrid
+ *       └── AnimatedContent  — 主显示区，支持在桌面（钟表+图标网格）与打开的 APP 之间滑动切换
  *
  * 系统状态栏已在 MainActivity 中完全隐藏。
  * 使用 [WindowInsets.displayCutout] 获取刘海/打孔屏顶部安全区高度。
  */
 @Composable
 fun DesktopScreen() {
+    var activeAppId by remember { mutableStateOf<String?>(null) }
+
     Box(modifier = Modifier.fillMaxSize()) {
 
         // ── 1. 深空星云壁纸（最底层，覆盖全屏含状态栏区域）────
@@ -42,18 +45,45 @@ fun DesktopScreen() {
             // 作为 Column 第一个子项，天然贴屏幕顶部 y=0，内置精致高度
             VirtualStatusBar()
 
-            Spacer(modifier = Modifier.height(24.dp))
+            // ── 3. 主显示区域切换（含滑入滑出过渡动效） ──────────────
+            AnimatedContent(
+                targetState = activeAppId,
+                transitionSpec = {
+                    (slideInVertically(initialOffsetY = { it }) + fadeIn())
+                        .togetherWith(slideOutVertically(targetOffsetY = { it }) + fadeOut())
+                },
+                label = "AppSwitchTransition",
+                modifier = Modifier.fillMaxSize().weight(1f)
+            ) { appId ->
+                if (appId == null) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Spacer(modifier = Modifier.height(24.dp))
 
-            DesktopClock(modifier = Modifier.fillMaxWidth())
+                        DesktopClock(modifier = Modifier.fillMaxWidth())
 
-            Spacer(modifier = Modifier.weight(1f))
+                        Spacer(modifier = Modifier.weight(1f))
 
-            AppGrid(
-                onAppClick = { /* TODO: 接入 NavController */ },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 24.dp),
-            )
+                        AppGrid(
+                            onAppClick = { app ->
+                                if (app.id == "settings") {
+                                    activeAppId = "settings"
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 24.dp),
+                        )
+                    }
+                } else if (appId == "settings") {
+                    SettingsAppScreen(
+                        onGoBack = { activeAppId = null },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
         }
     }
 }
