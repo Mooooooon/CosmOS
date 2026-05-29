@@ -6,9 +6,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * 玩家与角色人设持久化仓库类
+ * 用户与角色人设持久化仓库类
  * 
- * 职责单一：负责对人设进行增删改查及保证“玩家设定唯一性”的业务逻辑。
+ * 职责单一：负责对人设进行增删改查及保证“用户设定唯一性”的业务逻辑。
  */
 class CharacterProfileRepository(context: Context) {
 
@@ -40,8 +40,8 @@ class CharacterProfileRepository(context: Context) {
 
     /**
      * 保存或更新单个人设配置
-     * 强一致性逻辑：如果当前人设被设为了“玩家设定 (isPlayer == true)”，
-     * 则会自动将其他所有保存的人设的 isPlayer 置为 false，确保“全局有且仅有唯一的玩家设定”。
+     * 强一致性逻辑：如果当前人设被设为了“用户设定 (isPlayer == true)”，
+     * 则会自动将其他所有保存的人设的 isPlayer 置为 false，确保“全局有且仅有唯一的用户设定”。
      */
     fun saveProfile(profile: CharacterProfile) {
         val currentList = getProfiles().toMutableList()
@@ -55,7 +55,7 @@ class CharacterProfileRepository(context: Context) {
             currentList.add(finalProfile)
         }
 
-        // 唯一玩家人设逻辑：若当前保存的设为了玩家设定，则剥夺其他设定的玩家身份
+        // 唯一用户人设逻辑：若当前保存的设为了用户设定，则剥夺其他设定的用户身份
         if (finalProfile.isPlayer) {
             for (i in currentList.indices) {
                 if (currentList[i].id != finalProfile.id && currentList[i].isPlayer) {

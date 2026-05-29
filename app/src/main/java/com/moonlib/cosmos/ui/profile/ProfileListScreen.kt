@@ -36,7 +36,7 @@ import com.moonlib.cosmos.ui.theme.LocalThemeConfig
 /**
  * 档案列表页面
  * 
- * 职责单一：负责渲染玩家唯一人设置顶及角色人设列表视图，处理新建/编辑点击事件。
+ * 职责单一：负责渲染用户唯一人设置顶及角色人设列表视图，处理新建/编辑点击事件。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -121,7 +121,7 @@ fun ProfileListScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding = PaddingValues(bottom = 90.dp, top = 8.dp)
         ) {
-            // ── 1. 置顶“玩家设定”区 ─────────────────────────────────
+            // ── 1. 置顶“用户设定”区 ─────────────────────────────────
             item {
                 Text(
                     text = "用户设定",
@@ -191,7 +191,7 @@ fun ProfileListScreen(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Person,
-                                            contentDescription = "玩家",
+                                            contentDescription = "用户",
                                             tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(20.dp)
                                         )

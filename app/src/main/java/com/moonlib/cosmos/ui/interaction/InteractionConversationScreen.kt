@@ -1,4 +1,4 @@
-package com.moonlib.cosmos.ui.chat
+package com.moonlib.cosmos.ui.interaction
 
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -11,40 +11,48 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.moonlib.cosmos.data.chat.ChatEngine
-import com.moonlib.cosmos.data.chat.ChatMessage
-import com.moonlib.cosmos.data.chat.ChatRepository
+import com.moonlib.cosmos.data.interaction.InteractionEngine
+import com.moonlib.cosmos.data.interaction.InteractionMessage
+import com.moonlib.cosmos.data.interaction.InteractionRepository
+import com.moonlib.cosmos.data.profile.CharacterProfileRepository
 import com.moonlib.cosmos.data.time.VirtualTimeManager
+import com.moonlib.cosmos.ui.chat.AvatarView
+import com.moonlib.cosmos.ui.theme.LocalThemeConfig
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
 /**
- * 聊天会话对话界面
+ * 实体动作互动会话界面
  *
- * 职责单一：负责单次会话的历史记录渲染、用户输入发送以及 AI 异步回复的状态转换与滚动控制。
+ * 职责单一：负责单次实体互动的历史记录渲染、用户输入发送以及 AI 异步回复的状态转换与滚动控制。
+ * 核心亮点：使用正则表达式解析带有括号的文本，将动作部分与说话部分进行高对比度、不同样式的混合渲染。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChatConversationScreen(
-    contactId: String,
+fun InteractionConversationScreen(
+    characterId: String,
     onGoBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -52,25 +60,28 @@ fun ChatConversationScreen(
     val coroutineScope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
-    val chatRepo = remember { ChatRepository(context) }
+    val interactionRepo = remember { InteractionRepository(context) }
+    val profileRepo = remember { CharacterProfileRepository(context) }
+    val chatRepo = remember { com.moonlib.cosmos.data.chat.ChatRepository(context) }
 
-    // 1. 获取联系人详情与用户个人配置
-    val contact = remember(contactId) {
-        chatRepo.getContacts().firstOrNull { it.id == contactId }
+    // 1. 获取对应的角色档案人设
+    val character = remember(characterId) {
+        profileRepo.getProfiles().firstOrNull { it.id == characterId }
     }
-    
-    if (contact == null) {
+
+    if (character == null) {
         Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("未找到该密友", color = MaterialTheme.colorScheme.onBackground)
+            Text("未找到该角色档案", color = MaterialTheme.colorScheme.onBackground)
         }
         return
     }
 
+    // 2. 加载用户自身资料
     val userNickname = remember { chatRepo.getUserNickname() }
     val userAvatar = remember { chatRepo.getUserAvatar() }
 
-    // 2. 状态管理：消息列表、输入框、AI输入状态
-    var messages by remember { mutableStateOf(chatRepo.getMessages(contactId)) }
+    // 3. 状态管理：消息列表、输入框、AI 输入生成状态
+    var messages by remember { mutableStateOf(interactionRepo.getMessages(characterId)) }
     var inputText by remember { mutableStateOf("") }
     var isAiGenerating by remember { mutableStateOf(false) }
 
@@ -92,56 +103,55 @@ fun ChatConversationScreen(
         scrollToBottom(false)
     }
 
-    // 消息发送核心方法
+    // 实体互动发送消息核心方法
     val handleSend: () -> Unit = {
         val text = inputText.trim()
         if (text.isNotBlank() && !isAiGenerating) {
             inputText = ""
-            
-            // 2.1 获取当前的虚拟时间，作为用户消息的时间戳
+
+            // 获取当前的虚拟时间，作为用户实体互动的开始时间
             val currentVirtualTime = VirtualTimeManager.getCurrentTimeMillis()
-            
-            val userMsg = ChatMessage(
+
+            val userMsg = InteractionMessage(
                 id = UUID.randomUUID().toString(),
                 senderId = "user",
                 content = text,
                 timestamp = currentVirtualTime
             )
-            chatRepo.saveMessage(contactId, userMsg)
-            
-            // 发送消息后，我们人为向前微调虚拟时间 15 秒（代表打字与发送的动作耗时）
+            interactionRepo.saveMessage(characterId, userMsg)
+
+            // 实体互动开始，我们向前微调虚拟时间 15 秒（代表肢体动作与语言表达的间隔）
             VirtualTimeManager.updateTime(currentVirtualTime + 15000L)
-            
-            messages = chatRepo.getMessages(contactId) // 实时刷新 UI
-            
-            // 2.2 自动置底
+
+            messages = interactionRepo.getMessages(characterId) // 刷新 UI
+
             scrollToBottom(true)
 
-            // 2.3 开启协程触发 AI 回复
+            // 开启协程触发 AI 回复
             isAiGenerating = true
             coroutineScope.launch {
                 try {
-                    // 模拟网络延迟输入，使“对方正在输入”动画状态更真实
-                    delay(800)
-                    
-                    // 调用 AI 聊天引擎（引擎在内部分析、保存并推进时间）
-                    ChatEngine.getAiResponse(context, contact)
-                    
+                    // 模拟实体面对面的思考对白动作延迟
+                    delay(1000)
+
+                    // 调用实体互动 AI 引擎（引擎内部分析、保存并推进时间）
+                    InteractionEngine.getAiResponse(context, characterId)
+
                     // 刷新消息列表
-                    messages = chatRepo.getMessages(contactId)
+                    messages = interactionRepo.getMessages(characterId)
                     scrollToBottom(true)
                 } catch (e: Exception) {
                     e.printStackTrace()
-                    
-                    // 保存一个系统级假报错消息渲染在左侧，保障健壮性
-                    val errorMsg = ChatMessage(
+
+                    // 保存一个系统级假报错消息渲染在中央，保障健壮性
+                    val errorMsg = InteractionMessage(
                         id = UUID.randomUUID().toString(),
                         senderId = "system",
                         content = "【系统提示】: ${e.localizedMessage ?: "AI 服务暂时开小差啦，请在系统设置中确认 AI 密钥。"}",
                         timestamp = VirtualTimeManager.getCurrentTimeMillis()
                     )
-                    chatRepo.saveMessage(contactId, errorMsg)
-                    messages = chatRepo.getMessages(contactId)
+                    interactionRepo.saveMessage(characterId, errorMsg)
+                    messages = interactionRepo.getMessages(characterId)
                     scrollToBottom(true)
                 } finally {
                     isAiGenerating = false
@@ -158,20 +168,20 @@ fun ChatConversationScreen(
                 title = {
                     Column {
                         Text(
-                            text = contact.nickname,
+                            text = character.name,
                             fontWeight = FontWeight.Bold,
                             fontSize = 17.sp
                         )
                         if (isAiGenerating) {
                             Text(
-                                text = "对方正在输入...",
+                                text = "对方正在回应实体互动...",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(top = 1.dp)
                             )
                         } else {
                             Text(
-                                text = "手机在线",
+                                text = "面对面互动中",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
                                 modifier = Modifier.padding(top = 1.dp)
@@ -181,7 +191,7 @@ fun ChatConversationScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onGoBack) {
-                        Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "返回")
+                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -196,8 +206,7 @@ fun ChatConversationScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            
-            // ─── 3. 消息气泡对话区 ────────────────────────────────────
+            // ─── 1. 实体动作消息渲染区 ─────────────────────────────────
             LazyColumn(
                 state = listState,
                 modifier = Modifier
@@ -210,12 +219,12 @@ fun ChatConversationScreen(
                     items = messages,
                     key = { _, msg -> msg.id }
                 ) { index, msg ->
-                    // 3.1 聚合时间戳显示：如果上一条消息与本条时间差超过 3 分钟，显示时间戳
+                    // 如果上一条消息与本条时间差超过 3 分钟，显示时间戳
                     val showTimeLabel = if (index == 0) {
                         true
                     } else {
                         val prevMsg = messages[index - 1]
-                        msg.timestamp - prevMsg.timestamp > 3 * 60 * 1000 // 3 分钟
+                        msg.timestamp - prevMsg.timestamp > 3 * 60 * 1000
                     }
 
                     Column(modifier = Modifier.fillMaxWidth()) {
@@ -228,44 +237,44 @@ fun ChatConversationScreen(
                             )
                         }
 
-                        // 3.2 渲染气泡
+                        // 根据发送方进行左右气泡渲染
                         when (msg.senderId) {
                             "user" -> {
-                                UserMessageRow(
+                                UserInteractionRow(
                                     content = msg.content,
                                     userNickname = userNickname,
                                     userAvatar = userAvatar,
                                     onDelete = {
-                                        chatRepo.deleteMessage(contactId, msg.id)
-                                        messages = chatRepo.getMessages(contactId)
-                                        Toast.makeText(context, "消息已删除", Toast.LENGTH_SHORT).show()
+                                        interactionRepo.deleteMessage(characterId, msg.id)
+                                        messages = interactionRepo.getMessages(characterId)
+                                        Toast.makeText(context, "互动已删除", Toast.LENGTH_SHORT).show()
                                     },
                                     onResend = {
-                                        // 1. 回调系统时间到这条消息发送的时间
+                                        // 1. 回调系统虚拟时间
                                         VirtualTimeManager.rollbackTime(msg.timestamp)
-                                        
-                                        // 2. 清空这条消息后面的消息
-                                        chatRepo.deleteMessagesAfter(contactId, msg.id)
-                                        messages = chatRepo.getMessages(contactId)
-                                        
-                                        // 3. 重新发送ai请求
+
+                                        // 2. 清空本消息之后的记录
+                                        interactionRepo.deleteMessagesAfter(characterId, msg.id)
+                                        messages = interactionRepo.getMessages(characterId)
+
+                                        // 3. 触发重发
                                         isAiGenerating = true
                                         coroutineScope.launch {
                                             try {
-                                                delay(800)
-                                                ChatEngine.getAiResponse(context, contact)
-                                                messages = chatRepo.getMessages(contactId)
+                                                delay(1000)
+                                                InteractionEngine.getAiResponse(context, characterId)
+                                                messages = interactionRepo.getMessages(characterId)
                                                 scrollToBottom(true)
                                             } catch (e: Exception) {
                                                 e.printStackTrace()
-                                                val errorMsg = ChatMessage(
+                                                val errorMsg = InteractionMessage(
                                                     id = UUID.randomUUID().toString(),
                                                     senderId = "system",
                                                     content = "【系统提示】: ${e.localizedMessage ?: "AI 服务暂时开小差啦，请在系统设置中确认 AI 密钥。"}",
                                                     timestamp = VirtualTimeManager.getCurrentTimeMillis()
                                                 )
-                                                chatRepo.saveMessage(contactId, errorMsg)
-                                                messages = chatRepo.getMessages(contactId)
+                                                interactionRepo.saveMessage(characterId, errorMsg)
+                                                messages = interactionRepo.getMessages(characterId)
                                                 scrollToBottom(true)
                                             } finally {
                                                 isAiGenerating = false
@@ -278,20 +287,20 @@ fun ChatConversationScreen(
                                 SystemMessageRow(
                                     content = msg.content,
                                     onDelete = {
-                                        chatRepo.deleteMessage(contactId, msg.id)
-                                        messages = chatRepo.getMessages(contactId)
+                                        interactionRepo.deleteMessage(characterId, msg.id)
+                                        messages = interactionRepo.getMessages(characterId)
                                         Toast.makeText(context, "消息已删除", Toast.LENGTH_SHORT).show()
                                     }
                                 )
                             }
                             else -> {
-                                ContactMessageRow(
+                                CharacterInteractionRow(
                                     content = msg.content,
-                                    contact = contact,
+                                    characterName = character.name,
                                     onDelete = {
-                                        chatRepo.deleteMessage(contactId, msg.id)
-                                        messages = chatRepo.getMessages(contactId)
-                                        Toast.makeText(context, "消息已删除", Toast.LENGTH_SHORT).show()
+                                        interactionRepo.deleteMessage(characterId, msg.id)
+                                        messages = interactionRepo.getMessages(characterId)
+                                        Toast.makeText(context, "互动已删除", Toast.LENGTH_SHORT).show()
                                     }
                                 )
                             }
@@ -300,7 +309,7 @@ fun ChatConversationScreen(
                 }
             }
 
-            // ─── 4. 底部输入区 ────────────────────────────────────────
+            // ─── 2. 底部实体动作输入区 ─────────────────────────────────
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.surface,
@@ -316,7 +325,7 @@ fun ChatConversationScreen(
                     OutlinedTextField(
                         value = inputText,
                         onValueChange = { inputText = it },
-                        placeholder = { Text("聊点什么吧...") },
+                        placeholder = { Text("输入动作和对白，例如：（摸摸头）好久不见...") },
                         maxLines = 4,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                         keyboardActions = KeyboardActions(onSend = { handleSend() }),
@@ -344,7 +353,7 @@ fun ChatConversationScreen(
                             )
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Send,
+                            imageVector = Icons.AutoMirrored.Filled.Send,
                             contentDescription = "发送",
                             tint = if (inputText.isNotBlank() && !isAiGenerating)
                                 Color.White
@@ -360,7 +369,70 @@ fun ChatConversationScreen(
 }
 
 /**
- * 时间戳标签
+ * 实体动作括号匹配高对比度富文本着色解析器 (核心亮点)
+ */
+@Composable
+private fun formatInteractionContent(text: String, isUser: Boolean): androidx.compose.ui.text.AnnotatedString {
+    val themeConfig = LocalThemeConfig.current
+    val isDark = themeConfig.isDark
+
+    // 对括弧内的动作文字进行特殊样式强调
+    // 用户气泡本身为 Primary 主体色，所以动作文本采用 75% 的半透明白，拉开层次
+    // 角色气泡为普通灰黑背景，所以动作文本直接采用系统 primary 强调色渲染
+    val actionColor = if (isUser) {
+        Color.White.copy(alpha = 0.72f)
+    } else {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+    }
+
+    val speechColor = if (isUser) {
+        Color.White
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+
+    return buildAnnotatedString {
+        var cursor = 0
+        // 正则表达式高度兼容中文小括号（）与英文小括号 ()
+        val regex = """[（(][^）)]*[）)]""".toRegex()
+        val matches = regex.findAll(text)
+
+        for (match in matches) {
+            val start = match.range.first
+            val end = match.range.last + 1
+
+            // 1. 渲染普通语言对白
+            if (start > cursor) {
+                withStyle(SpanStyle(color = speechColor, fontWeight = FontWeight.Normal)) {
+                    append(text.substring(cursor, start))
+                }
+            }
+
+            // 2. 渲染带括弧的动作描述（使用斜体加独立对比色展现）
+            withStyle(
+                SpanStyle(
+                    color = actionColor,
+                    fontStyle = FontStyle.Italic,
+                    fontWeight = FontWeight.Medium
+                )
+            ) {
+                append(text.substring(start, end))
+            }
+
+            cursor = end
+        }
+
+        // 3. 渲染末尾剩余的普通语言对白
+        if (cursor < text.length) {
+            withStyle(SpanStyle(color = speechColor, fontWeight = FontWeight.Normal)) {
+                append(text.substring(cursor))
+            }
+        }
+    }
+}
+
+/**
+ * 虚拟世界时间标签
  */
 @Composable
 private fun TimeLabel(
@@ -381,10 +453,10 @@ private fun TimeLabel(
 }
 
 /**
- * 用户消息气泡 Row (右侧排列)
+ * 用户的实体动作气泡行 (右侧排列)
  */
 @Composable
-private fun UserMessageRow(
+private fun UserInteractionRow(
     content: String,
     userNickname: String,
     userAvatar: String,
@@ -401,7 +473,6 @@ private fun UserMessageRow(
         horizontalArrangement = Arrangement.End,
         verticalAlignment = Alignment.Top
     ) {
-        // 气泡卡片用 Box 包裹以承载 DropdownMenu
         Box(
             modifier = Modifier
                 .weight(1f, fill = false)
@@ -421,8 +492,7 @@ private fun UserMessageRow(
                 }
             ) {
                 Text(
-                    text = content,
-                    color = Color.White,
+                    text = formatInteractionContent(content, isUser = true),
                     fontSize = 15.sp,
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                     lineHeight = 22.sp
@@ -435,7 +505,7 @@ private fun UserMessageRow(
                 modifier = Modifier.background(MaterialTheme.colorScheme.surface)
             ) {
                 DropdownMenuItem(
-                    text = { Text("重新发送", color = MaterialTheme.colorScheme.primary) },
+                    text = { Text("重新互动 (回滚系统虚拟时间)", color = MaterialTheme.colorScheme.primary) },
                     onClick = {
                         showMenu = false
                         onResend()
@@ -461,16 +531,29 @@ private fun UserMessageRow(
 }
 
 /**
- * 联系人消息气泡 Row (左侧排列)
+ * 角色实体的动作气泡行 (左侧排列)
  */
 @Composable
-private fun ContactMessageRow(
+private fun CharacterInteractionRow(
     content: String,
-    contact: com.moonlib.cosmos.data.chat.ChatContact,
+    characterName: String,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    val themeConfig = LocalThemeConfig.current
+    val isDark = themeConfig.isDark
+
+    // 圆形首字头像
+    val firstChar = remember(characterName) {
+        if (characterName.isNotBlank()) characterName.take(1) else "?"
+    }
+    val avatarBgColor = remember(characterName, isDark) {
+        getMorandiColor(characterName, isDark)
+    }
+    val avatarTextColor = remember(isDark) {
+        if (isDark) Color(0xFFECEFF4) else Color(0xFF2E3440)
+    }
 
     Row(
         modifier = modifier
@@ -479,14 +562,22 @@ private fun ContactMessageRow(
         horizontalArrangement = Arrangement.Start,
         verticalAlignment = Alignment.Top
     ) {
-        // 联系人头像
-        AvatarView(
-            avatarPath = contact.avatar,
-            name = contact.nickname,
-            size = 40.dp
-        )
+        // 圆形首字头像
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(avatarBgColor),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = firstChar,
+                color = avatarTextColor,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
 
-        // 气泡卡片用 Box 包裹以承载 DropdownMenu
         Box(
             modifier = Modifier
                 .weight(1f, fill = false)
@@ -506,8 +597,7 @@ private fun ContactMessageRow(
                 }
             ) {
                 Text(
-                    text = content,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    text = formatInteractionContent(content, isUser = false),
                     fontSize = 15.sp,
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                     lineHeight = 22.sp
@@ -532,7 +622,7 @@ private fun ContactMessageRow(
 }
 
 /**
- * 系统级报错提示消息 Row (居中灰框)
+ * 实体交互报错气泡提示 Row
  */
 @Composable
 private fun SystemMessageRow(
@@ -586,4 +676,23 @@ private fun SystemMessageRow(
             }
         }
     }
+}
+
+/**
+ * 莫兰迪色系的自适应背景生成函数
+ */
+private fun getMorandiColor(name: String, isDark: Boolean): Color {
+    val colors = if (isDark) {
+        listOf(
+            Color(0xFF2E3846), Color(0xFF233B32), Color(0xFF382B3E),
+            Color(0xFF3C2F2F), Color(0xFF1E3A47), Color(0xFF2C3E50)
+        )
+    } else {
+        listOf(
+            Color(0xFFE8ECEF), Color(0xFFE2F0D9), Color(0xFFFBE4D8),
+            Color(0xFFF2E5F9), Color(0xFFE6F4F8), Color(0xFFFBF4D7)
+        )
+    }
+    val hash = name.hashCode()
+    return colors[Math.abs(hash) % colors.size]
 }

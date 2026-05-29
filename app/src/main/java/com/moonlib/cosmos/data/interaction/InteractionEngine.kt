@@ -1,13 +1,12 @@
-package com.moonlib.cosmos.data.chat
+package com.moonlib.cosmos.data.interaction
 
 import android.content.Context
+import com.moonlib.cosmos.data.profile.CharacterProfile
 import com.moonlib.cosmos.data.profile.CharacterProfileRepository
 import com.moonlib.cosmos.data.settings.AiConfigRepository
 import com.moonlib.cosmos.data.settings.AiServiceType
 import com.moonlib.cosmos.data.settings.SystemPromptRepository
 import com.moonlib.cosmos.data.time.VirtualTimeManager
-import com.moonlib.cosmos.data.interaction.InteractionRepository
-import com.moonlib.cosmos.data.interaction.MergedMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -17,29 +16,30 @@ import java.net.URL
 import java.util.UUID
 
 /**
- * 聊天 AI 回复响应引擎
+ * 线下实体互动 AI 回应引擎
  *
- * 职责单一：负责组织包含线上聊天与线下互动的融合对话历史上下文，调用当前激活的 AI 模型并启用底层 JSON 通讯协议，
- * 获取、解析并保存拟真的角色多重回复消息，并同步推进虚拟世界时间。
+ * 职责单一：负责组织包含线上与线下混合的对话上下文，特化线下面对面实体互动 System Prompt，
+ * 调用激活的 AI 模型，解析并保存带有括弧动作的拟真回应，并同步推进世界虚拟时间。
  */
-object ChatEngine {
+object InteractionEngine {
 
     /**
-     * 用户发送消息并异步获取 AI 的回复消息列表。
+     * 与角色进行实体互动并异步获取 AI 的肢体/言语回复列表。
      * @param context Android 上下文
-     * @param contact 当前聊天的联系人
-     * @return AI 回复的 ChatMessage 对象列表
+     * @param characterId 当前互动的档案角色 ID
+     * @return AI 回复的 InteractionMessage 对象列表
      */
     suspend fun getAiResponse(
         context: Context,
-        contact: ChatContact
-    ): List<ChatMessage> = withContext(Dispatchers.IO) {
-        val chatRepo = ChatRepository(context)
+        characterId: String
+    ): List<InteractionMessage> = withContext(Dispatchers.IO) {
+        val interactionRepo = InteractionRepository(context)
+        val chatRepo = com.moonlib.cosmos.data.chat.ChatRepository(context)
         val profileRepo = CharacterProfileRepository(context)
 
         // 1. 获取对应角色人设
-        val charProfile = profileRepo.getProfiles().firstOrNull { it.id == contact.characterId }
-            ?: throw Exception("关联的角色档案不存在，请检查或重新编辑该联系人资料。")
+        val charProfile = profileRepo.getProfiles().firstOrNull { it.id == characterId }
+            ?: throw Exception("关联的角色档案不存在，请检查该角色人设。")
 
         // 2. 获取当前激活的 AI 服务商配置
         val configRepo = AiConfigRepository(context)
@@ -55,7 +55,7 @@ object ChatEngine {
             throw Exception("激活的 AI 配置文件不完整，请前往【系统设置】检查。")
         }
 
-        // 3. 构建深度结合聊天的 System Prompt
+        // 3. 构建深度结合实体动作互动的 System Prompt
         val systemPromptRepo = SystemPromptRepository(context)
         val mainPrompt = systemPromptRepo.getMainPromptContent()
 
@@ -89,67 +89,69 @@ object ChatEngine {
             $processedCharPrompt
             ------------------------------------------------
             
-            以下是你的聊天对象用户【$userNickname】（真实姓名：$playerRealName）的详细设定（请利用这些设定来增强对话细节，实现完美互动）：
+            以下是你的互动对象用户【$playerRealName】的详细设定（请利用这些设定来增强对话细节，实现完美互动）：
             ------------------------------------------------
             $processedPlayerPrompt
             ------------------------------------------------
             
-            【手机聊天上下文信息】：
-            1. 你当前正在通过 CosmOS 虚拟手机聊天软件与用户【$userNickname】远程在线聊天。
-            2. 在聊天中，你的昵称是【${contact.nickname}】，你的个性签名是【${contact.signature}】。
-            3. 用户的聊天昵称是【$userNickname】。
-            4. 【当前虚拟世界的时间】是：$currentVirtualTimeStr。
+            【实体互动（线下面对面互动）上下文信息】：
+            1. 你当前正在与用户【$playerRealName】进行【实体线下面对面互动】（而非通过手机聊天软件）。
+            2. 用户的真实姓名是【$playerRealName】。
+            3. 【当前虚拟世界的时间】是：$currentVirtualTimeStr。
             
             【对话上下文（线上线下记忆融合）合并说明】：
-            我们已经将你与用户的【线上聊天】历史和【线下面对应实体互动】历史按时间顺序合并在下方。
-            - 带有 `[线上聊天]` 前缀的消息表示你们在虚拟手机聊天软件上的对话。
-            - 带有 `[线下互动]` 前缀的消息表示你们在线下实体见面的动作对话，其中包含括弧动作描写。
-            - 注意：你当前正在【线上聊天 APP】中回复用户。你的回复必须符合【线上远程手机聊天】的特征：简洁、轻松、口语化、纯对话文本、**严禁夹带任何括弧内的动作描写（如 `（看向对方）` 等）或表情符号**！你不需要在 JSON 的 `content` 字段中添加 `[线上聊天]` 前缀，直接进行回复即可。
+            我们已经将你与用户的【线上聊天】历史和【线下面对面实体互动】历史按时间顺序合并在下方。
+            - 带有 `[线上聊天]` 前缀的消息表示你们先前在手机软件上的远程聊天。
+            - 带有 `[线下互动]` 前缀的消息表示你们在现实线下见面的动作对话，其中包含括弧动作描写。
+            - 注意：你现在正在与用户进行【线下面面对面实体互动】。因此你作为角色的下一组回复中，**除了言语对话，还必须夹带丰富的肢体动作、神态、语气、心理或眼神等描写（写在中文小括号 `（动作描写）` 内，例如：`（看向对方，脸上有些疑惑）带了，怎么啦？`）**。
             
             【核心对话要求】：
             1. 请必须百分之百扮演【${charProfile.name}】。绝对不可脱离角色（OOC）。
-            2. 聊天交流应当符合手机聊天的特征：简洁、轻松、口语化。
-            3. 单次回复可以是一条或多条连续消息（建议1到3条消息），每条消息字数应控制在1到3句话之内（建议单条不超过50字）。
-            4. 绝对不可在回复中出现任何 emoji、颜文字或任何表情符号（如：😊, 😂, (๑•̀ㅂ•́)و✧, O(∩_∩)O 等）。所有消息内容必须完全使用纯文本进行表达和回复。
+            2. 这是一个面对面的场景，你的动作应当是生动、写实、符合人设神态的。
+            3. 你的每一句回复，除纯说话内容外，**必须带有括号动作描写**。例如：
+               - `（摸了摸自己的口袋，神色微微有些慌张）坏了，东西好像丢了。`
+               - `（眼神游离，不好意思地揉了揉头发）那个，我刚才没听清，能再说一遍吗？`
+            4. 单次回复可以是一条或多条连续消息（建议1到3条），每条字数控制在1到3句话（建议单条不超过60字）。
+            5. 绝对不可在回复中出现任何 emoji、颜文字或任何表情符号。所有非动作描写的对话必须是纯文本。
             
             【底层通信输出格式】：
-            为了与其他 system 集成，你必须以 JSON 格式输出，不要包含任何 markdown 块或额外的解释文本。你的输出必须能够被直接解析为以下 JSON 格式：
+            为了与其他系统集成，你必须以 JSON 格式输出，不要包含任何 markdown 块或额外的解释文本。你的输出必须能够被直接解析为以下 JSON 格式：
             {
-              "sender": "${contact.nickname}",
+              "sender": "${charProfile.name}",
               "replies": [
                 {
                   "type": "text",
                   "time": "yyyy-MM-dd HH:mm:ss",
-                  "content": "第一条纯文本消息内容，不能含有任何 emoji 或表情符号"
+                  "content": "（动作描写）第一条动作加对话内容，不能含有任何 emoji"
                 },
                 {
                   "type": "text",
                   "time": "yyyy-MM-dd HH:mm:ss",
-                  "content": "第二条纯文本消息内容，不能含有任何 emoji 或表情符号"
+                  "content": "（动作描写）第二条动作加对话内容，不能含有任何 emoji"
                 }
               ]
             }
             
             特别注意：
             - `replies` 数组内可以包含 1 到 3 条消息。
-            - 每一条回复的 `time` 字段必须是符合 `yyyy-MM-dd HH:mm:ss` 格式的虚拟时间，且必须比上一个时间（以及当前虚拟时间：$currentVirtualTimeStr）更晚（建议每条之间间隔 5 秒到 1 分钟，代表思考和打字发送 of 间隔时间）。
-            - 每一条回复的 `content` 必须是纯文本，严禁夹带任何表情和颜文字。
+            - 每一条回复的 `time` 必须是符合 `yyyy-MM-dd HH:mm:ss` 格式的虚拟时间，且必须比上一个时间（以及当前虚拟时间：$currentVirtualTimeStr）更晚（建议每条之间间隔 5 秒到 1 分钟，代表动作和说话的物理间隔）。
+            - 每一条回复的 `content` 必须带有中文括号 `（动作描写）`，严禁夹带任何表情和颜文字。
             - 你的最后一条回复的 `time` 将被作为新的虚拟世界时间。请据此来推进虚拟世界的时间！
             - 必须只返回纯 JSON，不能包裹在 ```json ... ``` 块中，也不要说任何废话。
         """.trimIndent()
 
-        // 4. 提取最近 15 条合并消息作为上下文（融合线上聊天与线下互动）
-        val interactionRepo = InteractionRepository(context)
-        val onlineMsgs = chatRepo.getMessages(contact.id)
-        val offlineMsgs = interactionRepo.getMessages(contact.characterId)
-
+        // 4. 获取合并上下文（包含线上聊天与线下互动）
+        val contact = chatRepo.getContacts().firstOrNull { it.characterId == characterId }
+        val onlineMsgs = if (contact != null) chatRepo.getMessages(contact.id) else emptyList()
+        val offlineMsgs = interactionRepo.getMessages(characterId)
+        
         // 合并并以时间戳排序
         val mergedHistory = (
             onlineMsgs.map { MergedMessage(it.senderId, it.content, it.timestamp, isOnline = true) } +
             offlineMsgs.map { MergedMessage(it.senderId, it.content, it.timestamp, isOnline = false) }
         ).sortedBy { it.timestamp }
-
-        // 取最近 15 条
+        
+        // 截取最近 15 条
         val recentMerged = mergedHistory.takeLast(15)
 
         // 识别是否为 Gemini 官方 API
@@ -161,28 +163,16 @@ object ChatEngine {
             executeOpenAI(baseUrl, modelName, apiKey, temperature, systemPrompt, recentMerged)
         }
 
-        // ── 拦截并记录本次 AI 通讯日志 ──────────────────────────
+        // ── 拦截并记录本次 AI 通讯日志（保存到系统设置的日志查看器中） ──────────
         try {
-            val fullSentPrompt = if (isGeminiOfficial) {
-                val fullPromptBuilder = StringBuilder()
-                fullPromptBuilder.append(systemPrompt).append("\n\n=== 融合历史记忆（线上/线下） ===\n")
-                for (msg in recentMerged) {
-                    val roleName = if (msg.senderId == "user") "用户" else "你"
-                    val prefix = if (msg.isOnline) "[线上聊天]" else "[线下互动]"
-                    fullPromptBuilder.append("$roleName: $prefix ${msg.content}\n")
-                }
-                fullPromptBuilder.append("请记住你是谁，直接输出你作为角色的下一组符合 JSON 格式的回复：")
-                fullPromptBuilder.toString()
-            } else {
-                val sb = StringBuilder()
-                sb.append("[System Prompt]\n").append(systemPrompt).append("\n\n[Unified Chat/Interaction History]\n")
-                for (msg in recentMerged) {
-                    val role = if (msg.senderId == "user") "User" else "Assistant"
-                    val prefix = if (msg.isOnline) "[线上聊天]" else "[线下互动]"
-                    sb.append("$role: $prefix ${msg.content}\n")
-                }
-                sb.toString()
+            val sbPrompt = StringBuilder()
+            sbPrompt.append(systemPrompt).append("\n\n=== 混合上下文记忆流（包含线上/线下） ===\n")
+            for (msg in recentMerged) {
+                val roleName = if (msg.senderId == "user") "用户" else "你"
+                val prefix = if (msg.isOnline) "[线上聊天]" else "[线下互动]"
+                sbPrompt.append("$roleName: $prefix ${msg.content}\n")
             }
+            sbPrompt.append("请记住你是谁，直接输出你作为角色的下一组线下实体互动 JSON 回复：")
 
             val userInputText = recentMerged.lastOrNull { it.senderId == "user" }?.content ?: ""
 
@@ -192,7 +182,7 @@ object ChatEngine {
                 modelName = modelName,
                 userInput = userInputText,
                 aiResponse = responseText,
-                prompt = fullSentPrompt
+                prompt = sbPrompt.toString()
             )
         } catch (e: Exception) {
             e.printStackTrace()
@@ -200,10 +190,10 @@ object ChatEngine {
 
         // 5. 组装、解析并保存 AI 的回复消息列表
         val currentVirtualTime = VirtualTimeManager.getCurrentTimeMillis()
-        val aiMessages = parseAiResponseJson(responseText, contact, currentVirtualTime)
+        val aiMessages = parseAiResponseJson(responseText, characterId, currentVirtualTime)
 
         for (msg in aiMessages) {
-            chatRepo.saveMessage(contact.id, msg)
+            interactionRepo.saveMessage(characterId, msg)
         }
 
         // 6. 推进虚拟时间为最后一条回复的时间
@@ -215,9 +205,6 @@ object ChatEngine {
         aiMessages
     }
 
-    /**
-     * 清洗 AI 输出的文本，提取合法的 JSON 字符串
-     */
     private fun cleanJsonResponse(rawResponse: String): String {
         var trimmed = rawResponse.trim()
         if (trimmed.startsWith("```")) {
@@ -230,8 +217,6 @@ object ChatEngine {
             }
         }
         trimmed = trimmed.trim()
-        
-        // 查找第一个 '{' 和最后一个 '}' 之间的内容，确保能够解析包裹的 JSON
         val start = trimmed.indexOf("{")
         val end = trimmed.lastIndexOf("}")
         if (start != -1 && end != -1 && end > start) {
@@ -240,15 +225,12 @@ object ChatEngine {
         return trimmed
     }
 
-    /**
-     * 将 AI 响应解析为 ChatMessage 列表，包含高度健壮的容错机制
-     */
     private fun parseAiResponseJson(
         jsonStr: String,
-        contact: ChatContact,
+        characterId: String,
         defaultTimeMillis: Long
-    ): List<ChatMessage> {
-        val list = mutableListOf<ChatMessage>()
+    ): List<InteractionMessage> {
+        val list = mutableListOf<InteractionMessage>()
         try {
             val cleanJson = cleanJsonResponse(jsonStr)
             val jsonObj = JSONObject(cleanJson)
@@ -259,7 +241,6 @@ object ChatEngine {
             
             for (i in 0 until repliesArray.length()) {
                 val replyObj = repliesArray.getJSONObject(i)
-                val type = replyObj.optString("type", "text")
                 val timeStr = replyObj.optString("time", "")
                 val content = replyObj.optString("content", "")
                 
@@ -275,14 +256,13 @@ object ChatEngine {
                     lastTime + 15000L
                 }
                 
-                // 确保时间始终是严格递增的线性时间
                 val finalTime = if (parsedTime > lastTime) parsedTime else lastTime + 5000L
                 lastTime = finalTime
                 
                 list.add(
-                    ChatMessage(
+                    InteractionMessage(
                         id = UUID.randomUUID().toString(),
-                        senderId = contact.id,
+                        senderId = characterId,
                         content = content,
                         timestamp = finalTime
                     )
@@ -290,36 +270,30 @@ object ChatEngine {
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            // 兜底保障：若 JSON 解析失败，将原回复作为单条普通消息并以默认时间偏置返回
             list.clear()
             list.add(
-                ChatMessage(
+                InteractionMessage(
                     id = UUID.randomUUID().toString(),
-                    senderId = contact.id,
+                    senderId = characterId,
                     content = jsonStr,
                     timestamp = defaultTimeMillis + 15000L
                 )
             )
         }
         
-        // 若数组为空，也提供兜底
         if (list.isEmpty()) {
             list.add(
-                ChatMessage(
+                InteractionMessage(
                     id = UUID.randomUUID().toString(),
-                    senderId = contact.id,
+                    senderId = characterId,
                     content = jsonStr,
                     timestamp = defaultTimeMillis + 15000L
                 )
             )
         }
-        
         return list
     }
 
-    /**
-     * 调用 Gemini 官方 API（带 Structured Output 配置）
-     */
     private fun executeGeminiOfficial(
         baseUrl: String,
         modelName: String,
@@ -339,15 +313,14 @@ object ChatEngine {
         conn.setRequestProperty("Content-Type", "application/json")
         conn.doOutput = true
   
-        // 组装 Gemini 内容结构：将 System Prompt + 历史纪录合为一段提示词发送
         val fullPromptBuilder = StringBuilder()
-        fullPromptBuilder.append(systemPrompt).append("\n\n=== 融合历史记忆（线上/线下） ===\n")
+        fullPromptBuilder.append(systemPrompt).append("\n\n=== 混合上下文记忆流（包含线上/线下） ===\n")
         for (msg in history) {
             val roleName = if (msg.senderId == "user") "用户" else "你"
             val prefix = if (msg.isOnline) "[线上聊天]" else "[线下互动]"
             fullPromptBuilder.append("$roleName: $prefix ${msg.content}\n")
         }
-        fullPromptBuilder.append("请记住你是谁，直接输出你作为角色的下一组符合 JSON 格式的回复：")
+        fullPromptBuilder.append("请记住你是谁，直接输出你作为角色的下一组线下实体互动 JSON 回复：")
 
         val requestJson = JSONObject().apply {
             put("contents", JSONArray().put(
@@ -361,7 +334,6 @@ object ChatEngine {
             ))
             put("generationConfig", JSONObject().apply {
                 put("temperature", temperature.toDouble())
-                // 开启 Gemini 官方 Structured Output (JSON Mode)
                 put("responseMimeType", "application/json")
             })
         }
@@ -389,9 +361,6 @@ object ChatEngine {
         }
     }
 
-    /**
-     * 调用 OpenAI/DeepSeek 标准接口（带 JSON Mode 配置）
-     */
     private fun executeOpenAI(
         baseUrl: String,
         modelName: String,
@@ -412,16 +381,13 @@ object ChatEngine {
         conn.setRequestProperty("Content-Type", "application/json")
         conn.doOutput = true
 
-        // 构造 messages 数组
         val messagesArray = JSONArray()
         
-        // 1. 系统角色设定
         messagesArray.put(JSONObject().apply {
             put("role", "system")
             put("content", systemPrompt)
         })
 
-        // 2. 对话历史
         for (msg in history) {
             val role = if (msg.senderId == "user") "user" else "assistant"
             val prefix = if (msg.isOnline) "[线上聊天]" else "[线下互动]"
@@ -435,7 +401,6 @@ object ChatEngine {
             put("model", modelName)
             put("messages", messagesArray)
             put("temperature", temperature.toDouble())
-            // 开启 OpenAI/DeepSeek 官方 JSON Mode
             put("response_format", JSONObject().apply {
                 put("type", "json_object")
             })

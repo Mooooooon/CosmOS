@@ -7,7 +7,7 @@ package com.moonlib.cosmos.data.chat
  */
 data class ChatMessage(
     val id: String,
-    val senderId: String,     // 发送方 ID ("user" 表示玩家，或者 contactId/characterId 表示联系人)
+    val senderId: String,     // 发送方 ID ("user" 表示用户，或者 contactId/characterId 表示联系人)
     val content: String,      // 消息内容
     val timestamp: Long,      // 发送时间戳
     val isPending: Boolean = false // 是否正在发送中

@@ -84,6 +84,8 @@ fun DesktopScreen() {
                                     activeAppId = "profile"
                                 } else if (app.id == "chat") {
                                     activeAppId = "chat"
+                                } else if (app.id == "interaction") {
+                                    activeAppId = "interaction"
                                 } else if (app.id == "time") {
                                     activeAppId = "time"
                                 }
@@ -105,6 +107,11 @@ fun DesktopScreen() {
                     )
                 } else if (appId == "chat") {
                     ChatAppScreen(
+                        onGoBack = { activeAppId = null },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else if (appId == "interaction") {
+                    com.moonlib.cosmos.ui.interaction.InteractionAppScreen(
                         onGoBack = { activeAppId = null },
                         modifier = Modifier.fillMaxSize()
                     )
