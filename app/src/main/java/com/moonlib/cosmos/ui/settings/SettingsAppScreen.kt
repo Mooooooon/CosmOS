@@ -13,6 +13,8 @@ import com.moonlib.cosmos.data.settings.AiConfigRepository
 import com.moonlib.cosmos.data.settings.AiProfile
 import com.moonlib.cosmos.data.settings.AiLog
 import com.moonlib.cosmos.data.settings.AiLogRepository
+import com.moonlib.cosmos.data.settings.SystemPromptRepository
+import com.moonlib.cosmos.data.settings.SystemPromptItem
 
 /**
  * 设置内部的子页面路由状态
@@ -24,6 +26,8 @@ sealed interface SettingsScreenState {
     object ThemeSettings : SettingsScreenState
     object AiLogsList : SettingsScreenState
     data class AiLogDetail(val logId: String) : SettingsScreenState
+    object SystemPromptList : SettingsScreenState
+    data class EditSystemPrompt(val promptId: String) : SettingsScreenState
 }
 
 /**
@@ -38,11 +42,13 @@ fun SettingsAppScreen(
 ) {
     val context = LocalContext.current
     val repository = remember { AiConfigRepository(context) }
+    val promptRepository = remember { SystemPromptRepository(context) }
 
     // ── 核心状态管理 ──────────────────────────────────────────
     var currentScreen by remember { mutableStateOf<SettingsScreenState>(SettingsScreenState.Main) }
     var profiles by remember { mutableStateOf(emptyList<AiProfile>()) }
     var activeProfileName by remember { mutableStateOf("未配置") }
+    var promptItems by remember { mutableStateOf(emptyList<SystemPromptItem>()) }
 
     // ── 核心数据刷新逻辑 ──────────────────────────────────────
     val refreshData = {
@@ -56,9 +62,14 @@ fun SettingsAppScreen(
         }
     }
 
+    val refreshPrompts = {
+        promptItems = promptRepository.getPromptItems()
+    }
+
     // 首次启动及组件进入时刷新
     LaunchedEffect(Unit) {
         refreshData()
+        refreshPrompts()
     }
 
     // ── 系统物理/手势返回键适配 ────────────────────────────────
@@ -70,6 +81,8 @@ fun SettingsAppScreen(
             is SettingsScreenState.ThemeSettings -> currentScreen = SettingsScreenState.Main
             is SettingsScreenState.AiLogsList -> currentScreen = SettingsScreenState.Main
             is SettingsScreenState.AiLogDetail -> currentScreen = SettingsScreenState.AiLogsList
+            is SettingsScreenState.SystemPromptList -> currentScreen = SettingsScreenState.Main
+            is SettingsScreenState.EditSystemPrompt -> currentScreen = SettingsScreenState.SystemPromptList
         }
     }
 
@@ -90,6 +103,10 @@ fun SettingsAppScreen(
                     onModelServiceClick = {
                         refreshData()
                         currentScreen = SettingsScreenState.ProfileList
+                    },
+                    onPromptClick = {
+                        refreshPrompts()
+                        currentScreen = SettingsScreenState.SystemPromptList
                     },
                     onThemeClick = {
                         currentScreen = SettingsScreenState.ThemeSettings
@@ -193,6 +210,41 @@ fun SettingsAppScreen(
                         currentScreen = SettingsScreenState.AiLogsList
                     }
                 )
+            }
+
+            // ── 7. 系统提示词列表页面 ────────────────────────────────────
+            is SettingsScreenState.SystemPromptList -> {
+                SystemPromptListScreen(
+                    prompts = promptItems,
+                    onBackClick = {
+                        currentScreen = SettingsScreenState.Main
+                    },
+                    onPromptClick = { id ->
+                        currentScreen = SettingsScreenState.EditSystemPrompt(id)
+                    }
+                )
+            }
+
+            // ── 8. 系统提示词编辑页面 ────────────────────────────────────
+            is SettingsScreenState.EditSystemPrompt -> {
+                val currentPrompt = remember(screen.promptId) {
+                    promptItems.firstOrNull { it.id == screen.promptId }
+                }
+                if (currentPrompt != null) {
+                    SystemPromptEditScreen(
+                        prompt = currentPrompt,
+                        onBackClick = {
+                            currentScreen = SettingsScreenState.SystemPromptList
+                        },
+                        onSaveClick = { updatedItem ->
+                            promptRepository.savePromptItem(updatedItem)
+                            refreshPrompts()
+                            currentScreen = SettingsScreenState.SystemPromptList
+                        }
+                    )
+                } else {
+                    currentScreen = SettingsScreenState.SystemPromptList
+                }
             }
         }
     }

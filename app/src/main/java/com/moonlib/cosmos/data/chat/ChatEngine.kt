@@ -4,6 +4,7 @@ import android.content.Context
 import com.moonlib.cosmos.data.profile.CharacterProfileRepository
 import com.moonlib.cosmos.data.settings.AiConfigRepository
 import com.moonlib.cosmos.data.settings.AiServiceType
+import com.moonlib.cosmos.data.settings.SystemPromptRepository
 import com.moonlib.cosmos.data.time.VirtualTimeManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -53,6 +54,9 @@ object ChatEngine {
         }
 
         // 3. 构建深度结合聊天的 System Prompt
+        val systemPromptRepo = SystemPromptRepository(context)
+        val mainPrompt = systemPromptRepo.getMainPromptContent()
+
         val userNickname = chatRepo.getUserNickname()
         
         // 获取玩家档案，提取玩家真实姓名
@@ -75,6 +79,8 @@ object ChatEngine {
         val currentVirtualTimeStr = VirtualTimeManager.formatTime("yyyy-MM-dd HH:mm:ss")
 
         val systemPrompt = """
+            $mainPrompt
+            
             你现在正在扮演角色【${charProfile.name}】。
             以下是你的详细背景、性格以及外貌设定：
             ------------------------------------------------

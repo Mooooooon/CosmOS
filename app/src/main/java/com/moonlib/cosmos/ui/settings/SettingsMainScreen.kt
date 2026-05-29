@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.NetworkCell
 import androidx.compose.material.icons.filled.Palette
@@ -39,6 +40,7 @@ import com.moonlib.cosmos.ui.theme.StarWhite
 fun SettingsMainScreen(
     activeProfileName: String,
     onModelServiceClick: () -> Unit,
+    onPromptClick: () -> Unit,
     onThemeClick: () -> Unit,
     onLogsClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -81,7 +83,7 @@ fun SettingsMainScreen(
                     icon = Icons.Default.Wifi,
                     iconBgColor = Color(0xFF3B82F6),
                     title = "无线网络 (Wi-Fi)",
-                    subtitle = "已连接到 CosmOS_SpaceNet"
+                    subtitle = "已连接 to CosmOS_SpaceNet"
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), thickness = 0.5.dp)
                 SimulatedSettingItem(
@@ -100,6 +102,14 @@ fun SettingsMainScreen(
                     title = "模型服务",
                     subtitle = activeProfileName,
                     onClick = onModelServiceClick
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), thickness = 0.5.dp)
+                SettingItem(
+                    icon = Icons.Default.Description,
+                    iconBgColor = Color(0xFF3B82F6),
+                    title = "提示词设置",
+                    subtitle = "配置全局主提示词与指令要求",
+                    onClick = onPromptClick
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), thickness = 0.5.dp)
                 SettingItem(
