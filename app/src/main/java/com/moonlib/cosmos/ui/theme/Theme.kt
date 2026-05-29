@@ -39,7 +39,7 @@ private val CosmOSColorScheme = darkColorScheme(
 
 // CosmOS 优雅浅色主题色板
 private val CosmOSLightColorScheme = lightColorScheme(
-    primary        = NebulaPurple,
+    primary        = NebulaBlue,
     onPrimary      = Color.White,
     secondary      = NebulaCyan,
     onSecondary    = SpaceDeepBlack,

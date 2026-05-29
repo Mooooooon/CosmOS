@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.moonlib.cosmos.ui.profile.ProfileAppScreen
 import com.moonlib.cosmos.ui.settings.SettingsAppScreen
+import com.moonlib.cosmos.ui.chat.ChatAppScreen
 import com.moonlib.cosmos.ui.theme.*
 import kotlin.random.Random
 
@@ -80,6 +81,8 @@ fun DesktopScreen() {
                                     activeAppId = "settings"
                                 } else if (app.id == "profile") {
                                     activeAppId = "profile"
+                                } else if (app.id == "chat") {
+                                    activeAppId = "chat"
                                 }
                             },
                             modifier = Modifier
@@ -94,6 +97,11 @@ fun DesktopScreen() {
                     )
                 } else if (appId == "profile") {
                     ProfileAppScreen(
+                        onGoBack = { activeAppId = null },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else if (appId == "chat") {
+                    ChatAppScreen(
                         onGoBack = { activeAppId = null },
                         modifier = Modifier.fillMaxSize()
                     )
