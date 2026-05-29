@@ -68,6 +68,9 @@ fun ModelServiceConfigScreen(
     // 状态控制：API Key 是否可见
     var isApiKeyVisible by remember { mutableStateOf(false) }
 
+    // 状态控制：模型选择对话框是否可见
+    var showModelSelectDialog by remember { mutableStateOf(false) }
+
     // ── 自动填充智能逻辑 ──────────────────────────────────────
     val updateServiceType = { type: AiServiceType ->
         serviceType = type
@@ -173,25 +176,25 @@ fun ModelServiceConfigScreen(
                                 .clip(RoundedCornerShape(12.dp))
                                 .clickable { updateServiceType(type) },
                             border = if (isSelected) {
-                                BorderStroke(2.dp, MaterialTheme.colorScheme.onBackground)
+                                BorderStroke(1.5.dp, brandColor)
                             } else {
                                 BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
                             },
                             colors = CardDefaults.cardColors(
-                                containerColor = if (isSelected) Color.Transparent else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                containerColor = if (isSelected) {
+                                    brandColor.copy(alpha = 0.15f)
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                }
                             )
                         ) {
                             Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .then(
-                                        if (isSelected) Modifier.background(brandColor) else Modifier
-                                    ),
+                                modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = type.displayName,
-                                    color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
+                                    color = if (isSelected) brandColor else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -283,25 +286,52 @@ fun ModelServiceConfigScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    // Model Name
-                    OutlinedTextField(
-                        value = modelName,
-                        onValueChange = { modelName = it },
-                        label = { Text("模型名称 (Model Name)") },
-                        placeholder = { Text("例如：gpt-4o 或 deepseek-chat") },
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
-                            focusedLabelColor = MaterialTheme.colorScheme.primary,
-                            unfocusedLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                            focusedPlaceholderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                            unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    // Model Name + 获取按钮
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = modelName,
+                            onValueChange = { modelName = it },
+                            label = { Text("模型名称 (Model Name)") },
+                            placeholder = { Text("例如：gpt-4o 或 deepseek-chat") },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
+                                focusedLabelColor = MaterialTheme.colorScheme.primary,
+                                unfocusedLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                focusedPlaceholderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                                unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        Button(
+                            onClick = { showModelSelectDialog = true },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                contentColor = MaterialTheme.colorScheme.primary
+                            ),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            modifier = Modifier
+                                .padding(top = 8.dp)
+                                .height(56.dp)
+                                .align(Alignment.Bottom)
+                        ) {
+                            Text(
+                                text = "获取",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
 
                     // 温度 (Temperature) 滑动条
                     Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
@@ -379,5 +409,19 @@ fun ModelServiceConfigScreen(
                 )
             }
         }
+    }
+
+    // ── 4. 智能模型选择弹窗 ─────────────────────────────────────
+    if (showModelSelectDialog) {
+        ModelSelectDialog(
+            serviceType = serviceType,
+            apiKey = apiKey,
+            baseUrl = baseUrl,
+            onDismiss = { showModelSelectDialog = false },
+            onModelSelected = { selectedModel ->
+                modelName = selectedModel
+                showModelSelectDialog = false
+            }
+        )
     }
 }
