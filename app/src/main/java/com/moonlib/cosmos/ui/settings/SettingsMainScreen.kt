@@ -52,6 +52,7 @@ fun SettingsMainScreen(
                         color = StarWhite
                     )
                 },
+                windowInsets = WindowInsets(0.dp),
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                     titleContentColor = StarWhite
