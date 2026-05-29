@@ -134,6 +134,15 @@ class ChatRepository(private val context: Context) {
         prefs.edit().remove(PREFIX_MESSAGES + contactId).apply()
     }
 
+    fun deleteMessage(contactId: String, messageId: String) {
+        val current = getMessages(contactId).toMutableList()
+        val index = current.indexOfFirst { it.id == messageId }
+        if (index != -1) {
+            current.removeAt(index)
+            saveMessagesList(contactId, current)
+        }
+    }
+
     // ─── 4. 本地图片安全拷贝逻辑 ─────────────────────────────────────
 
     /**

@@ -2,6 +2,7 @@ package com.moonlib.cosmos.ui.chat
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -10,6 +11,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Send
@@ -232,16 +234,33 @@ fun ChatConversationScreen(
                                 UserMessageRow(
                                     content = msg.content,
                                     userNickname = userNickname,
-                                    userAvatar = userAvatar
+                                    userAvatar = userAvatar,
+                                    onDelete = {
+                                        chatRepo.deleteMessage(contactId, msg.id)
+                                        messages = chatRepo.getMessages(contactId)
+                                        Toast.makeText(context, "消息已删除", Toast.LENGTH_SHORT).show()
+                                    }
                                 )
                             }
                             "system" -> {
-                                SystemMessageRow(content = msg.content)
+                                SystemMessageRow(
+                                    content = msg.content,
+                                    onDelete = {
+                                        chatRepo.deleteMessage(contactId, msg.id)
+                                        messages = chatRepo.getMessages(contactId)
+                                        Toast.makeText(context, "消息已删除", Toast.LENGTH_SHORT).show()
+                                    }
+                                )
                             }
                             else -> {
                                 ContactMessageRow(
                                     content = msg.content,
-                                    contact = contact
+                                    contact = contact,
+                                    onDelete = {
+                                        chatRepo.deleteMessage(contactId, msg.id)
+                                        messages = chatRepo.getMessages(contactId)
+                                        Toast.makeText(context, "消息已删除", Toast.LENGTH_SHORT).show()
+                                    }
                                 )
                             }
                         }
@@ -337,8 +356,11 @@ private fun UserMessageRow(
     content: String,
     userNickname: String,
     userAvatar: String,
+    onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showMenu by remember { mutableStateOf(false) }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -346,23 +368,47 @@ private fun UserMessageRow(
         horizontalArrangement = Arrangement.End,
         verticalAlignment = Alignment.Top
     ) {
-        // 气泡卡片
-        Card(
-            shape = RoundedCornerShape(16.dp, 4.dp, 16.dp, 16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primary
-            ),
+        // 气泡卡片用 Box 包裹以承载 DropdownMenu
+        Box(
             modifier = Modifier
                 .weight(1f, fill = false)
                 .padding(end = 10.dp)
         ) {
-            Text(
-                text = content,
-                color = Color.White,
-                fontSize = 15.sp,
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                lineHeight = 22.sp
-            )
+            Card(
+                shape = RoundedCornerShape(16.dp, 4.dp, 16.dp, 16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                ),
+                modifier = Modifier.pointerInput(Unit) {
+                    detectTapGestures(
+                        onLongPress = {
+                            showMenu = true
+                        }
+                    )
+                }
+            ) {
+                Text(
+                    text = content,
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    lineHeight = 22.sp
+                )
+            }
+
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false },
+                modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+            ) {
+                DropdownMenuItem(
+                    text = { Text("删除", color = MaterialTheme.colorScheme.error) },
+                    onClick = {
+                        showMenu = false
+                        onDelete()
+                    }
+                )
+            }
         }
 
         // 玩家头像
@@ -381,8 +427,11 @@ private fun UserMessageRow(
 private fun ContactMessageRow(
     content: String,
     contact: com.moonlib.cosmos.data.chat.ChatContact,
+    onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showMenu by remember { mutableStateOf(false) }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -397,23 +446,47 @@ private fun ContactMessageRow(
             size = 40.dp
         )
 
-        // 气泡卡片
-        Card(
-            shape = RoundedCornerShape(4.dp, 16.dp, 16.dp, 16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            ),
+        // 气泡卡片用 Box 包裹以承载 DropdownMenu
+        Box(
             modifier = Modifier
                 .weight(1f, fill = false)
                 .padding(start = 10.dp)
         ) {
-            Text(
-                text = content,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 15.sp,
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                lineHeight = 22.sp
-            )
+            Card(
+                shape = RoundedCornerShape(4.dp, 16.dp, 16.dp, 16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                ),
+                modifier = Modifier.pointerInput(Unit) {
+                    detectTapGestures(
+                        onLongPress = {
+                            showMenu = true
+                        }
+                    )
+                }
+            ) {
+                Text(
+                    text = content,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 15.sp,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    lineHeight = 22.sp
+                )
+            }
+
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false },
+                modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+            ) {
+                DropdownMenuItem(
+                    text = { Text("删除", color = MaterialTheme.colorScheme.error) },
+                    onClick = {
+                        showMenu = false
+                        onDelete()
+                    }
+                )
+            }
         }
     }
 }
@@ -424,27 +497,53 @@ private fun ContactMessageRow(
 @Composable
 private fun SystemMessageRow(
     content: String,
+    onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showMenu by remember { mutableStateOf(false) }
+
     Box(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp),
         contentAlignment = Alignment.Center
     ) {
-        Card(
-            shape = RoundedCornerShape(8.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f)
-            )
-        ) {
-            Text(
-                text = content,
-                color = MaterialTheme.colorScheme.error.copy(alpha = 0.85f),
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                textAlign = TextAlign.Center
-            )
+        Box {
+            Card(
+                shape = RoundedCornerShape(8.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f)
+                ),
+                modifier = Modifier.pointerInput(Unit) {
+                    detectTapGestures(
+                        onLongPress = {
+                            showMenu = true
+                        }
+                    )
+                }
+            ) {
+                Text(
+                    text = content,
+                    color = MaterialTheme.colorScheme.error.copy(alpha = 0.85f),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false },
+                modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+            ) {
+                DropdownMenuItem(
+                    text = { Text("删除", color = MaterialTheme.colorScheme.error) },
+                    onClick = {
+                        showMenu = false
+                        onDelete()
+                    }
+                )
+            }
         }
     }
 }
