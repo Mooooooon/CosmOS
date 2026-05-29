@@ -136,13 +136,9 @@ fun ProfileListScreen(
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .shadow(
-                                elevation = 4.dp,
-                                shape = RoundedCornerShape(20.dp)
-                            )
-                            .clip(RoundedCornerShape(20.dp))
                             .clickable { onEditClick(playerProfile.id, true) },
                         shape = RoundedCornerShape(20.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                         border = BorderStroke(
                             1.5.dp,
                             Brush.linearGradient(
@@ -154,7 +150,7 @@ fun ProfileListScreen(
                             )
                         ),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            containerColor = Color.Transparent
                         )
                     ) {
                         Column(
@@ -244,9 +240,8 @@ fun ProfileListScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(110.dp)
-                            .shadow(1.dp, shape = RoundedCornerShape(20.dp))
                             .clip(RoundedCornerShape(20.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
                             .clickable { onAddClick(true) }
                             .padding(1.dp)
                     ) {
@@ -341,31 +336,34 @@ fun ProfileListScreen(
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .shadow(1.dp, shape = RoundedCornerShape(16.dp))
-                            .clip(RoundedCornerShape(16.dp))
                             .clickable { onEditClick(character.id, false) },
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        border = BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)
+                        ),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                            containerColor = Color.Transparent
                         )
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(
                                 modifier = Modifier
                                     .size(40.dp)
                                     .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)),
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.SupportAgent,
                                     contentDescription = "角色",
-                                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -375,8 +373,8 @@ fun ProfileListScreen(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = character.name,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
@@ -384,8 +382,9 @@ fun ProfileListScreen(
                                     text = character.prompt,
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                    lineHeight = 17.sp
                                 )
                             }
 
