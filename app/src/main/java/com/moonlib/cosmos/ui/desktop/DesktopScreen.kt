@@ -1,6 +1,7 @@
 package com.moonlib.cosmos.ui.desktop
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
@@ -45,12 +46,17 @@ fun DesktopScreen() {
             // 作为 Column 第一个子项，天然贴屏幕顶部 y=0，内置精致高度
             VirtualStatusBar()
 
-            // ── 3. 主显示区域切换（含滑入滑出过渡动效） ──────────────
+            // ── 3. 主显示区域切换（从上下滚动优化为高雅的放大缩小与淡入淡出过渡） ──────────────
             AnimatedContent(
                 targetState = activeAppId,
                 transitionSpec = {
-                    (slideInVertically(initialOffsetY = { it }) + fadeIn())
-                        .togetherWith(slideOutVertically(targetOffsetY = { it }) + fadeOut())
+                    val duration = 240
+                    (fadeIn(animationSpec = tween(durationMillis = duration, easing = FastOutSlowInEasing)) +
+                            scaleIn(initialScale = 0.93f, animationSpec = tween(durationMillis = duration, easing = FastOutSlowInEasing)))
+                        .togetherWith(
+                            fadeOut(animationSpec = tween(durationMillis = duration, easing = FastOutSlowInEasing)) +
+                                    scaleOut(targetScale = 0.93f, animationSpec = tween(durationMillis = duration, easing = FastOutSlowInEasing))
+                        )
                 },
                 label = "AppSwitchTransition",
                 modifier = Modifier.fillMaxSize().weight(1f)
