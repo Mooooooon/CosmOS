@@ -54,7 +54,7 @@ fun ModelServicesListScreen(
                         text = "模型服务",
                         fontSize = 19.sp,
                         fontWeight = FontWeight.Bold,
-                        color = StarWhite
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 },
                 navigationIcon = {
@@ -62,14 +62,14 @@ fun ModelServicesListScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "返回",
-                            tint = StarWhite
+                            tint = MaterialTheme.colorScheme.onBackground
                         )
                     }
                 },
                 windowInsets = WindowInsets(0.dp),
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
-                    titleContentColor = StarWhite
+                    titleContentColor = MaterialTheme.colorScheme.onBackground
                 )
             )
         },
@@ -77,7 +77,7 @@ fun ModelServicesListScreen(
             FloatingActionButton(
                 onClick = onAddClick,
                 containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = StarWhite,
+                contentColor = Color.White,
                 shape = CircleShape,
                 modifier = Modifier.padding(bottom = 16.dp, end = 8.dp)
             ) {
@@ -112,14 +112,14 @@ fun ModelServicesListScreen(
                     )
                     Text(
                         text = "暂无配置文件",
-                        color = StarWhite,
+                        color = MaterialTheme.colorScheme.onBackground,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "点击右下角的“+”按钮，添加你的第一个 AI 服务配置（如 OpenAI、DeepSeek、Gemini）",
-                        color = StarWhite.copy(alpha = 0.5f),
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                         fontSize = 13.sp,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                         lineHeight = 18.sp
@@ -200,7 +200,7 @@ private fun ProfileCard(
                 tint = if (profile.isActive) {
                     MaterialTheme.colorScheme.primary
                 } else {
-                    StarWhite.copy(alpha = 0.3f)
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
                 },
                 modifier = Modifier.size(22.dp)
             )
@@ -215,7 +215,7 @@ private fun ProfileCard(
                 ) {
                     Text(
                         text = profile.name,
-                        color = StarWhite,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -230,7 +230,7 @@ private fun ProfileCard(
                     ) {
                         Text(
                             text = profile.serviceType.displayName,
-                            color = StarWhite,
+                            color = Color.White,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -241,14 +241,14 @@ private fun ProfileCard(
 
                 Text(
                     text = "模型: ${profile.modelName}",
-                    color = StarWhite.copy(alpha = 0.7f),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                     fontSize = 12.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = "接口: ${profile.baseUrl}",
-                    color = StarWhite.copy(alpha = 0.4f),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
                     fontSize = 11.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -269,7 +269,7 @@ private fun ProfileCard(
                     Icon(
                         imageVector = Icons.Default.Edit,
                         contentDescription = "编辑",
-                        tint = StarWhite.copy(alpha = 0.6f),
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         modifier = Modifier.size(18.dp)
                     )
                 }

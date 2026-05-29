@@ -9,9 +9,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.moonlib.cosmos.ui.theme.GlowCyan
-import com.moonlib.cosmos.ui.theme.NebulaPurple
-import com.moonlib.cosmos.ui.theme.StarWhite
+import com.moonlib.cosmos.ui.theme.*
 import kotlinx.coroutines.delay
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -24,6 +22,13 @@ import java.time.format.DateTimeFormatter
  */
 @Composable
 fun DesktopClock(modifier: Modifier = Modifier) {
+    val themeConfig = LocalThemeConfig.current
+    val isDark = themeConfig.isDark
+
+    val currentTextColor = if (isDark) StarWhite else LightTextPrimary
+    val currentSecColor = if (isDark) GlowCyan.copy(alpha = 0.7f) else NebulaPurple.copy(alpha = 0.8f)
+    val currentSubColor = if (isDark) StarWhite.copy(alpha = 0.6f) else LightTextSecondary
+
     var now by remember { mutableStateOf(LocalDateTime.now()) }
 
     LaunchedEffect(Unit) {
@@ -45,7 +50,7 @@ fun DesktopClock(modifier: Modifier = Modifier) {
         Row(verticalAlignment = Alignment.Bottom) {
             Text(
                 text = timeStr,
-                color = StarWhite,
+                color = currentTextColor,
                 fontSize = 72.sp,
                 fontWeight = FontWeight.Thin,
                 letterSpacing = (-2).sp,
@@ -53,7 +58,7 @@ fun DesktopClock(modifier: Modifier = Modifier) {
             )
             Text(
                 text = ":$secondStr",
-                color = GlowCyan.copy(alpha = 0.7f),
+                color = currentSecColor,
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Light,
                 modifier = Modifier.padding(bottom = 10.dp, start = 4.dp),
@@ -65,7 +70,7 @@ fun DesktopClock(modifier: Modifier = Modifier) {
         // 日期
         Text(
             text = dateStr,
-            color = StarWhite.copy(alpha = 0.6f),
+            color = currentSubColor,
             fontSize = 14.sp,
             fontWeight = FontWeight.Light,
             letterSpacing = 1.sp,
@@ -76,7 +81,7 @@ fun DesktopClock(modifier: Modifier = Modifier) {
         // 系统标识
         Text(
             text = "C O S M O S",
-            color = NebulaPurple.copy(alpha = 0.8f),
+            color = if (isDark) NebulaPurple.copy(alpha = 0.8f) else NebulaPurple,
             fontSize = 11.sp,
             fontWeight = FontWeight.Medium,
             letterSpacing = 4.sp,

@@ -19,6 +19,7 @@ sealed interface SettingsScreenState {
     object Main : SettingsScreenState
     object ProfileList : SettingsScreenState
     data class AddEditProfile(val profileId: String?) : SettingsScreenState
+    object ThemeSettings : SettingsScreenState
 }
 
 /**
@@ -62,6 +63,7 @@ fun SettingsAppScreen(
             is SettingsScreenState.Main -> onGoBack()
             is SettingsScreenState.ProfileList -> currentScreen = SettingsScreenState.Main
             is SettingsScreenState.AddEditProfile -> currentScreen = SettingsScreenState.ProfileList
+            is SettingsScreenState.ThemeSettings -> currentScreen = SettingsScreenState.Main
         }
     }
 
@@ -82,6 +84,9 @@ fun SettingsAppScreen(
                     onModelServiceClick = {
                         refreshData()
                         currentScreen = SettingsScreenState.ProfileList
+                    },
+                    onThemeClick = {
+                        currentScreen = SettingsScreenState.ThemeSettings
                     }
                 )
             }
@@ -129,6 +134,15 @@ fun SettingsAppScreen(
                         repository.saveProfile(profile)
                         refreshData()
                         currentScreen = SettingsScreenState.ProfileList
+                    }
+                )
+            }
+
+            // ── 4. 个性化主题设置页面 ──────────────────────────────────
+            is SettingsScreenState.ThemeSettings -> {
+                ThemeSettingsScreen(
+                    onBackClick = {
+                        currentScreen = SettingsScreenState.Main
                     }
                 )
             }

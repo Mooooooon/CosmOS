@@ -18,6 +18,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.moonlib.cosmos.ui.theme.LightTextPrimary
+import com.moonlib.cosmos.ui.theme.LocalThemeConfig
 import com.moonlib.cosmos.ui.theme.StarWhite
 
 /**
@@ -32,6 +34,9 @@ fun AppIconItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val themeConfig = LocalThemeConfig.current
+    val isDark = themeConfig.isDark
+
     // 点击缩放动画
     var pressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
@@ -76,7 +81,7 @@ fun AppIconItem(
         // App 标签
         Text(
             text      = app.label,
-            color     = StarWhite,
+            color     = if (isDark) StarWhite else LightTextPrimary,
             fontSize  = 11.sp,
             fontWeight = FontWeight.Normal,
             textAlign = TextAlign.Center,

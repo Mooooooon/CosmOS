@@ -14,19 +14,18 @@ import androidx.compose.material.icons.filled.NetworkCell
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Psychology
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.moonlib.cosmos.ui.theme.LocalThemeConfig
 import com.moonlib.cosmos.ui.theme.StarWhite
 
 /**
@@ -39,6 +38,7 @@ import com.moonlib.cosmos.ui.theme.StarWhite
 fun SettingsMainScreen(
     activeProfileName: String,
     onModelServiceClick: () -> Unit,
+    onThemeClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -49,13 +49,13 @@ fun SettingsMainScreen(
                         text = "设置",
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
-                        color = StarWhite
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 },
                 windowInsets = WindowInsets(0.dp),
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
-                    titleContentColor = StarWhite
+                    titleContentColor = MaterialTheme.colorScheme.onBackground
                 )
             )
         },
@@ -102,12 +102,16 @@ fun SettingsMainScreen(
             }
 
             // ── 4. 模拟系统设置项 ──────────────────────────────────────
+            val isDark = LocalThemeConfig.current.isDark
+            val themeSubtitle = if (isDark) "当前主题：深空星云 (深色)" else "当前主题：晨曦极光 (浅色)"
+
             SettingGroup(title = "系统与维护") {
-                SimulatedSettingItem(
+                SettingItem(
                     icon = Icons.Default.Palette,
                     iconBgColor = Color(0xFFEC4899),
                     title = "个性化",
-                    subtitle = "当前主题：深空星云"
+                    subtitle = themeSubtitle,
+                    onClick = onThemeClick
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), thickness = 0.5.dp)
                 SimulatedSettingItem(
@@ -159,13 +163,13 @@ private fun UserAccountCard() {
             Column {
                 Text(
                     text = "CosmOS 联络员",
-                    color = StarWhite,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = "系统已连接到星际神经网络",
-                    color = StarWhite.copy(alpha = 0.6f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                     fontSize = 13.sp
                 )
             }
@@ -238,20 +242,20 @@ private fun SettingItem(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                color = StarWhite,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium
             )
             Text(
                 text = subtitle,
-                color = StarWhite.copy(alpha = 0.5f),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 fontSize = 12.sp
             )
         }
         Icon(
             imageVector = Icons.Default.ChevronRight,
             contentDescription = "进入",
-            tint = StarWhite.copy(alpha = 0.4f),
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
             modifier = Modifier.size(20.dp)
         )
     }
@@ -291,15 +295,16 @@ private fun SimulatedSettingItem(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                color = StarWhite,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium
             )
             Text(
                 text = subtitle,
-                color = StarWhite.copy(alpha = 0.5f),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 fontSize = 12.sp
             )
         }
     }
 }
+

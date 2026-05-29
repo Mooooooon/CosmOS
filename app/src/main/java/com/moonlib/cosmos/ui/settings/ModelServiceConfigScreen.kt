@@ -115,7 +115,7 @@ fun ModelServiceConfigScreen(
                         text = if (isEditMode) "修改配置文件" else "添加配置文件",
                         fontSize = 19.sp,
                         fontWeight = FontWeight.Bold,
-                        color = StarWhite
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 },
                 navigationIcon = {
@@ -123,14 +123,14 @@ fun ModelServiceConfigScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "返回",
-                            tint = StarWhite
+                            tint = MaterialTheme.colorScheme.onBackground
                         )
                     }
                 },
                 windowInsets = WindowInsets(0.dp),
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
-                    titleContentColor = StarWhite
+                    titleContentColor = MaterialTheme.colorScheme.onBackground
                 )
             )
         },
@@ -173,7 +173,7 @@ fun ModelServiceConfigScreen(
                                 .clip(RoundedCornerShape(12.dp))
                                 .clickable { updateServiceType(type) },
                             border = if (isSelected) {
-                                BorderStroke(2.dp, StarWhite)
+                                BorderStroke(2.dp, MaterialTheme.colorScheme.onBackground)
                             } else {
                                 BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
                             },
@@ -191,7 +191,7 @@ fun ModelServiceConfigScreen(
                             ) {
                                 Text(
                                     text = type.displayName,
-                                    color = StarWhite,
+                                    color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -220,10 +220,14 @@ fun ModelServiceConfigScreen(
                         placeholder = { Text("例如：我的生产模型") },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = StarWhite,
-                            unfocusedTextColor = StarWhite,
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
+                            focusedLabelColor = MaterialTheme.colorScheme.primary,
+                            unfocusedLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                            focusedPlaceholderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                            unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -242,15 +246,19 @@ fun ModelServiceConfigScreen(
                                 Icon(
                                     imageVector = if (isApiKeyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                                     contentDescription = "切换可见性",
-                                    tint = StarWhite.copy(alpha = 0.6f)
+                                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                                 )
                             }
                         },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = StarWhite,
-                            unfocusedTextColor = StarWhite,
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
+                            focusedLabelColor = MaterialTheme.colorScheme.primary,
+                            unfocusedLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                            focusedPlaceholderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                            unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -263,10 +271,14 @@ fun ModelServiceConfigScreen(
                         placeholder = { Text("例如：https://api.openai.com/v1") },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = StarWhite,
-                            unfocusedTextColor = StarWhite,
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
+                            focusedLabelColor = MaterialTheme.colorScheme.primary,
+                            unfocusedLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                            focusedPlaceholderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                            unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -279,10 +291,14 @@ fun ModelServiceConfigScreen(
                         placeholder = { Text("例如：gpt-4o 或 deepseek-chat") },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = StarWhite,
-                            unfocusedTextColor = StarWhite,
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
+                            focusedLabelColor = MaterialTheme.colorScheme.primary,
+                            unfocusedLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                            focusedPlaceholderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                            unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -295,7 +311,7 @@ fun ModelServiceConfigScreen(
                         ) {
                             Text(
                                 text = "创意温度 (Temperature)",
-                                color = StarWhite.copy(alpha = 0.8f),
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                                 fontSize = 13.sp
                             )
                             Text(
@@ -320,9 +336,9 @@ fun ModelServiceConfigScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("精确 (0.0)", color = StarWhite.copy(alpha = 0.4f), fontSize = 10.sp)
-                            Text("默认 (0.7)", color = StarWhite.copy(alpha = 0.4f), fontSize = 10.sp)
-                            Text("极富创意 (1.5)", color = StarWhite.copy(alpha = 0.4f), fontSize = 10.sp)
+                            Text("精确 (0.0)", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f), fontSize = 10.sp)
+                            Text("默认 (0.7)", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f), fontSize = 10.sp)
+                            Text("极富创意 (1.5)", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f), fontSize = 10.sp)
                         }
                     }
                 }
@@ -359,7 +375,7 @@ fun ModelServiceConfigScreen(
                     text = "保存配置",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (isFormValid) StarWhite else StarWhite.copy(alpha = 0.3f)
+                    color = if (isFormValid) Color.White else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
                 )
             }
         }

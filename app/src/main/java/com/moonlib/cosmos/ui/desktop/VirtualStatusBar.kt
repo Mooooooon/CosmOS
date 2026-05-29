@@ -10,18 +10,24 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.moonlib.cosmos.ui.theme.StarWhite
-import com.moonlib.cosmos.ui.theme.StatusBarBg
-import com.moonlib.cosmos.ui.theme.StatusIconColor
+import com.moonlib.cosmos.ui.theme.*
 import kotlinx.coroutines.delay
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
 @Composable
 fun VirtualStatusBar(modifier: Modifier = Modifier) {
+    val themeConfig = LocalThemeConfig.current
+    val isDark = themeConfig.isDark
+
+    val currentBg = if (isDark) StatusBarBg else LightStatusBarBg
+    val currentIconColor = if (isDark) StatusIconColor else LightStatusIconColor
+    val currentTextColor = if (isDark) StarWhite else LightTextPrimary
+
     // 每分钟刷新一次虚拟时间（初期直接使用系统时间，后续接 TimeManager）
     var timeText by remember {
         mutableStateOf(LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")))
@@ -39,7 +45,7 @@ fun VirtualStatusBar(modifier: Modifier = Modifier) {
         modifier = modifier
             .fillMaxWidth()
             .height(38.dp)                 // 调高为更舒展、大气的 38dp 高度
-            .background(StatusBarBg),
+            .background(currentBg),
         contentAlignment = Alignment.Center,
     ) {
         Row(
@@ -52,7 +58,7 @@ fun VirtualStatusBar(modifier: Modifier = Modifier) {
             // ── 左侧：虚拟时间 ──────────────────────────────
             Text(
                 text          = timeText,
-                color         = StarWhite,
+                color         = currentTextColor,
                 fontSize      = 14.sp,         // 时间字体放大至 14sp
                 fontWeight    = FontWeight.SemiBold,
                 letterSpacing = 0.5.sp,
@@ -66,16 +72,16 @@ fun VirtualStatusBar(modifier: Modifier = Modifier) {
                 Icon(
                     imageVector        = Icons.Default.NetworkCell,
                     contentDescription = "信号",
-                    tint               = StatusIconColor,
+                    tint               = currentIconColor,
                     modifier           = Modifier.size(15.dp), // 图标放大至 15dp
                 )
                 Icon(
                     imageVector        = Icons.Default.Wifi,
                     contentDescription = "WiFi",
-                    tint               = StatusIconColor,
+                    tint               = currentIconColor,
                     modifier           = Modifier.size(15.dp), // 图标放大至 15dp
                 )
-                BatteryIndicator()
+                BatteryIndicator(tint = currentIconColor)
             }
         }
     }
@@ -83,10 +89,10 @@ fun VirtualStatusBar(modifier: Modifier = Modifier) {
 
 /** 简易电量数字（纯文字，避免依赖外部图标资源） */
 @Composable
-private fun BatteryIndicator() {
+private fun BatteryIndicator(tint: Color) {
     Text(
         text          = "100",
-        color         = StatusIconColor,
+        color         = tint,
         fontSize      = 13.sp,                 // 电量字体放大至 13sp
         fontWeight    = FontWeight.Medium,
         letterSpacing = 0.sp,

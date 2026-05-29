@@ -7,20 +7,38 @@ import androidx.activity.enableEdgeToEdge
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.compose.runtime.*
+import com.moonlib.cosmos.data.settings.ThemeSettingsRepository
 import com.moonlib.cosmos.ui.desktop.DesktopScreen
 import com.moonlib.cosmos.ui.theme.CosmOSTheme
+import com.moonlib.cosmos.ui.theme.LocalThemeConfig
+import com.moonlib.cosmos.ui.theme.ThemeConfig
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val themeRepository = ThemeSettingsRepository(this)
 
         // 内容延伸到全屏（EdgeToEdge）
         enableEdgeToEdge()
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         setContent {
-            CosmOSTheme {
-                DesktopScreen()
+            var isDark by remember { mutableStateOf(themeRepository.isDarkTheme()) }
+
+            CompositionLocalProvider(
+                LocalThemeConfig provides ThemeConfig(
+                    isDark = isDark,
+                    setDarkTheme = { dark ->
+                        themeRepository.setDarkTheme(dark)
+                        isDark = dark
+                    }
+                )
+            ) {
+                CosmOSTheme(isDarkTheme = isDark) {
+                    DesktopScreen()
+                }
             }
         }
 

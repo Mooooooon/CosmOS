@@ -9,6 +9,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.moonlib.cosmos.ui.settings.SettingsAppScreen
 import com.moonlib.cosmos.ui.theme.*
@@ -102,6 +103,7 @@ fun DesktopScreen() {
  */
 @Composable
 private fun SpaceWallpaper(modifier: Modifier = Modifier) {
+    val isDark = LocalThemeConfig.current.isDark
     val stars = remember {
         val rng = Random(seed = 42)
         List(180) {
@@ -114,21 +116,40 @@ private fun SpaceWallpaper(modifier: Modifier = Modifier) {
     }
 
     Canvas(modifier = modifier) {
-        drawRect(
-            brush = Brush.verticalGradient(
-                0f   to SpaceDeepBlack,
-                0.4f to SpaceNavy,
-                0.7f to SpaceIndigo,
-                1f   to SpaceDeepBlack,
-            ),
-            size = size,
-        )
-        for ((xRatio, yRatio, radius) in stars) {
-            drawCircle(
-                color  = StarWhite.copy(alpha = 0.4f + xRatio * 0.4f),
-                radius = radius,
-                center = Offset(xRatio * size.width, yRatio * size.height),
+        if (isDark) {
+            drawRect(
+                brush = Brush.verticalGradient(
+                    0f   to SpaceDeepBlack,
+                    0.4f to SpaceNavy,
+                    0.7f to SpaceIndigo,
+                    1f   to SpaceDeepBlack,
+                ),
+                size = size,
             )
+            for ((xRatio, yRatio, radius) in stars) {
+                drawCircle(
+                    color  = StarWhite.copy(alpha = 0.4f + xRatio * 0.4f),
+                    radius = radius,
+                    center = Offset(xRatio * size.width, yRatio * size.height),
+                )
+            }
+        } else {
+            // 晨曦极光浅色渐变
+            drawRect(
+                brush = Brush.verticalGradient(
+                    0f   to Color(0xFFEBEFFE),
+                    0.5f to Color(0xFFE0E7FF),
+                    1f   to Color(0xFFF3F4F6),
+                ),
+                size = size,
+            )
+            for ((xRatio, yRatio, radius) in stars) {
+                drawCircle(
+                    color  = NebulaPurple.copy(alpha = 0.06f + xRatio * 0.1f),
+                    radius = radius * 1.5f,
+                    center = Offset(xRatio * size.width, yRatio * size.height),
+                )
+            }
         }
     }
 }
