@@ -239,6 +239,38 @@ fun ChatConversationScreen(
                                         chatRepo.deleteMessage(contactId, msg.id)
                                         messages = chatRepo.getMessages(contactId)
                                         Toast.makeText(context, "消息已删除", Toast.LENGTH_SHORT).show()
+                                    },
+                                    onResend = {
+                                        // 1. 回调系统时间到这条消息发送的时间
+                                        VirtualTimeManager.rollbackTime(msg.timestamp)
+                                        
+                                        // 2. 清空这条消息后面的消息
+                                        chatRepo.deleteMessagesAfter(contactId, msg.id)
+                                        messages = chatRepo.getMessages(contactId)
+                                        
+                                        // 3. 重新发送ai请求
+                                        isAiGenerating = true
+                                        coroutineScope.launch {
+                                            try {
+                                                delay(800)
+                                                ChatEngine.getAiResponse(context, contact)
+                                                messages = chatRepo.getMessages(contactId)
+                                                scrollToBottom(true)
+                                            } catch (e: Exception) {
+                                                e.printStackTrace()
+                                                val errorMsg = ChatMessage(
+                                                    id = UUID.randomUUID().toString(),
+                                                    senderId = "system",
+                                                    content = "【系统提示】: ${e.localizedMessage ?: "AI 服务暂时开小差啦，请在系统设置中确认 AI 密钥。"}",
+                                                    timestamp = VirtualTimeManager.getCurrentTimeMillis()
+                                                )
+                                                chatRepo.saveMessage(contactId, errorMsg)
+                                                messages = chatRepo.getMessages(contactId)
+                                                scrollToBottom(true)
+                                            } finally {
+                                                isAiGenerating = false
+                                            }
+                                        }
                                     }
                                 )
                             }
@@ -357,6 +389,7 @@ private fun UserMessageRow(
     userNickname: String,
     userAvatar: String,
     onDelete: () -> Unit,
+    onResend: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -401,6 +434,13 @@ private fun UserMessageRow(
                 onDismissRequest = { showMenu = false },
                 modifier = Modifier.background(MaterialTheme.colorScheme.surface)
             ) {
+                DropdownMenuItem(
+                    text = { Text("重新发送", color = MaterialTheme.colorScheme.primary) },
+                    onClick = {
+                        showMenu = false
+                        onResend()
+                    }
+                )
                 DropdownMenuItem(
                     text = { Text("删除", color = MaterialTheme.colorScheme.error) },
                     onClick = {

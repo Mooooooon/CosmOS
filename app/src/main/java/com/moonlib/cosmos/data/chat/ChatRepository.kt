@@ -143,6 +143,16 @@ class ChatRepository(private val context: Context) {
         }
     }
 
+    fun deleteMessagesAfter(contactId: String, messageId: String) {
+        val current = getMessages(contactId)
+        val index = current.indexOfFirst { it.id == messageId }
+        if (index != -1) {
+            // 只保留索引 0 到 index 范围内的消息（包含 target 消息，抛弃其后面的消息）
+            val kept = current.subList(0, index + 1)
+            saveMessagesList(contactId, kept)
+        }
+    }
+
     // ─── 4. 本地图片安全拷贝逻辑 ─────────────────────────────────────
 
     /**

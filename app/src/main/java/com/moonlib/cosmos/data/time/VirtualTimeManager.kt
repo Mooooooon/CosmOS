@@ -55,6 +55,17 @@ object VirtualTimeManager {
     }
 
     /**
+     * 回调/重置虚拟时间（允许任意设置，包括向后倒退）
+     * @param newTimeMillis 重置到的目标时间戳
+     */
+    fun rollbackTime(newTimeMillis: Long) {
+        _currentTimeFlow.value = newTimeMillis
+        if (::prefs.isInitialized) {
+            prefs.edit().putLong(KEY_VIRTUAL_TIME, newTimeMillis).apply()
+        }
+    }
+
+    /**
      * 格式化当前的虚拟时间
      */
     fun formatTime(pattern: String): String {
