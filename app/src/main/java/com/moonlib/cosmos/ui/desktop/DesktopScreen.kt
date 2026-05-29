@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import com.moonlib.cosmos.ui.profile.ProfileAppScreen
 import com.moonlib.cosmos.ui.settings.SettingsAppScreen
 import com.moonlib.cosmos.ui.chat.ChatAppScreen
+import com.moonlib.cosmos.ui.time.TimeAppScreen
 import com.moonlib.cosmos.ui.theme.*
 import kotlin.random.Random
 
@@ -83,6 +84,8 @@ fun DesktopScreen() {
                                     activeAppId = "profile"
                                 } else if (app.id == "chat") {
                                     activeAppId = "chat"
+                                } else if (app.id == "time") {
+                                    activeAppId = "time"
                                 }
                             },
                             modifier = Modifier
@@ -102,6 +105,11 @@ fun DesktopScreen() {
                     )
                 } else if (appId == "chat") {
                     ChatAppScreen(
+                        onGoBack = { activeAppId = null },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else if (appId == "time") {
+                    TimeAppScreen(
                         onGoBack = { activeAppId = null },
                         modifier = Modifier.fillMaxSize()
                     )
