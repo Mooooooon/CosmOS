@@ -54,19 +54,22 @@ object ChatEngine {
 
         // 3. 构建深度结合聊天的 System Prompt
         val userNickname = chatRepo.getUserNickname()
+        
+        // 获取玩家档案，提取玩家真实姓名
+        val playerProfile = profileRepo.getProfiles().firstOrNull { it.isPlayer }
+        val playerRealName = playerProfile?.name ?: userNickname // 兜底使用网名
+        
         val rawPrompt = charProfile.prompt
         
-        // 动态替换人设提示词里的变量
+        // 动态替换人设提示词里的变量（使用真名替换 {{user}}）
         val processedCharPrompt = rawPrompt
             .replace("{{char}}", charProfile.name)
-            .replace("{{user}}", userNickname)
+            .replace("{{user}}", playerRealName)
 
-        // 获取并处理玩家本人的详细背景设定
-        val playerProfile = profileRepo.getProfiles().firstOrNull { it.isPlayer }
         val playerPrompt = playerProfile?.prompt ?: "普通玩家，无更多公开身份设定。"
         val processedPlayerPrompt = playerPrompt
             .replace("{{char}}", charProfile.name)
-            .replace("{{user}}", userNickname)
+            .replace("{{user}}", playerRealName)
 
         // 获取当前格式化的虚拟时间
         val currentVirtualTimeStr = VirtualTimeManager.formatTime("yyyy-MM-dd HH:mm:ss")
