@@ -9,6 +9,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.runtime.*
 import com.moonlib.cosmos.data.settings.ThemeSettingsRepository
+import com.moonlib.cosmos.data.time.VirtualTimeManager
 import com.moonlib.cosmos.ui.desktop.DesktopScreen
 import com.moonlib.cosmos.ui.theme.CosmOSTheme
 import com.moonlib.cosmos.ui.theme.LocalThemeConfig
@@ -17,6 +18,9 @@ import com.moonlib.cosmos.ui.theme.ThemeConfig
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // 初始化虚拟时间系统
+        VirtualTimeManager.init(this)
 
         val themeRepository = ThemeSettingsRepository(this)
 

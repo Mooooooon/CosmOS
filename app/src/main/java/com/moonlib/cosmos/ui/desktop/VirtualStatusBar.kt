@@ -14,9 +14,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.moonlib.cosmos.data.time.VirtualTimeManager
 import com.moonlib.cosmos.ui.theme.*
 import kotlinx.coroutines.delay
-import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
 @Composable
@@ -28,17 +28,13 @@ fun VirtualStatusBar(modifier: Modifier = Modifier) {
     val currentIconColor = if (isDark) StatusIconColor else LightStatusIconColor
     val currentTextColor = if (isDark) StarWhite else LightTextPrimary
 
-    // 每分钟刷新一次虚拟时间（初期直接使用系统时间，后续接 TimeManager）
-    var timeText by remember {
-        mutableStateOf(LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")))
-    }
-    LaunchedEffect(Unit) {
-        while (true) {
-            val now = LocalTime.now()
-            timeText = now.format(DateTimeFormatter.ofPattern("HH:mm"))
-            val secondsUntilNextMinute = 60 - now.second
-            delay(secondsUntilNextMinute * 1000L)
-        }
+    // 订阅全局虚拟时间
+    val currentVirtualTime by VirtualTimeManager.currentTimeFlow.collectAsState()
+
+    val timeText = remember(currentVirtualTime) {
+        val instant = java.time.Instant.ofEpochMilli(currentVirtualTime)
+        val ldt = java.time.LocalDateTime.ofInstant(instant, java.time.ZoneId.systemDefault())
+        ldt.format(DateTimeFormatter.ofPattern("HH:mm"))
     }
 
     Box(

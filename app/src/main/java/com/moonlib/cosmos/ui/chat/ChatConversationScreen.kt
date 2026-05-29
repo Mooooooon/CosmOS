@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import com.moonlib.cosmos.data.chat.ChatEngine
 import com.moonlib.cosmos.data.chat.ChatMessage
 import com.moonlib.cosmos.data.chat.ChatRepository
+import com.moonlib.cosmos.data.time.VirtualTimeManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -95,14 +96,20 @@ fun ChatConversationScreen(
         if (text.isNotBlank() && !isAiGenerating) {
             inputText = ""
             
-            // 2.1 创建并保存用户消息
+            // 2.1 获取当前的虚拟时间，作为用户消息的时间戳
+            val currentVirtualTime = VirtualTimeManager.getCurrentTimeMillis()
+            
             val userMsg = ChatMessage(
                 id = UUID.randomUUID().toString(),
                 senderId = "user",
                 content = text,
-                timestamp = System.currentTimeMillis()
+                timestamp = currentVirtualTime
             )
             chatRepo.saveMessage(contactId, userMsg)
+            
+            // 发送消息后，我们人为向前微调虚拟时间 15 秒（代表打字与发送的动作耗时）
+            VirtualTimeManager.updateTime(currentVirtualTime + 15000L)
+            
             messages = chatRepo.getMessages(contactId) // 实时刷新 UI
             
             // 2.2 自动置底
@@ -115,7 +122,7 @@ fun ChatConversationScreen(
                     // 模拟网络延迟输入，使“对方正在输入”动画状态更真实
                     delay(800)
                     
-                    // 调用 AI 聊天引擎
+                    // 调用 AI 聊天引擎（引擎在内部分析、保存并推进时间）
                     ChatEngine.getAiResponse(context, contact)
                     
                     // 刷新消息列表
@@ -129,7 +136,7 @@ fun ChatConversationScreen(
                         id = UUID.randomUUID().toString(),
                         senderId = "system",
                         content = "【系统提示】: ${e.localizedMessage ?: "AI 服务暂时开小差啦，请在系统设置中确认 AI 密钥。"}",
-                        timestamp = System.currentTimeMillis()
+                        timestamp = VirtualTimeManager.getCurrentTimeMillis()
                     )
                     chatRepo.saveMessage(contactId, errorMsg)
                     messages = chatRepo.getMessages(contactId)

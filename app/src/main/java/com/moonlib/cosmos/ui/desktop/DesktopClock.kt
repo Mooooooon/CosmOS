@@ -9,6 +9,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.moonlib.cosmos.data.time.VirtualTimeManager
 import com.moonlib.cosmos.ui.theme.*
 import kotlinx.coroutines.delay
 import java.time.LocalDateTime
@@ -29,13 +30,12 @@ fun DesktopClock(modifier: Modifier = Modifier) {
     val currentSecColor = if (isDark) GlowCyan.copy(alpha = 0.7f) else NebulaPurple.copy(alpha = 0.8f)
     val currentSubColor = if (isDark) StarWhite.copy(alpha = 0.6f) else LightTextSecondary
 
-    var now by remember { mutableStateOf(LocalDateTime.now()) }
+    // 订阅全局虚拟时间
+    val currentVirtualTime by VirtualTimeManager.currentTimeFlow.collectAsState()
 
-    LaunchedEffect(Unit) {
-        while (true) {
-            now = LocalDateTime.now()
-            delay(1000L)
-        }
+    val now = remember(currentVirtualTime) {
+        val instant = java.time.Instant.ofEpochMilli(currentVirtualTime)
+        LocalDateTime.ofInstant(instant, java.time.ZoneId.systemDefault())
     }
 
     val timeStr = now.format(DateTimeFormatter.ofPattern("HH:mm"))
