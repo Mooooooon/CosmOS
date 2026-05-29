@@ -61,6 +61,13 @@ object ChatEngine {
             .replace("{{char}}", charProfile.name)
             .replace("{{user}}", userNickname)
 
+        // 获取并处理玩家本人的详细背景设定
+        val playerProfile = profileRepo.getProfiles().firstOrNull { it.isPlayer }
+        val playerPrompt = playerProfile?.prompt ?: "普通玩家，无更多公开身份设定。"
+        val processedPlayerPrompt = playerPrompt
+            .replace("{{char}}", charProfile.name)
+            .replace("{{user}}", userNickname)
+
         // 获取当前格式化的虚拟时间
         val currentVirtualTimeStr = VirtualTimeManager.formatTime("yyyy-MM-dd HH:mm:ss")
 
@@ -69,6 +76,11 @@ object ChatEngine {
             以下是你的详细背景、性格以及外貌设定：
             ------------------------------------------------
             $processedCharPrompt
+            ------------------------------------------------
+            
+            以下是你的聊天对象玩家【$userNickname】的详细设定（请利用这些设定来增强对话细节，实现完美互动）：
+            ------------------------------------------------
+            $processedPlayerPrompt
             ------------------------------------------------
             
             【聊天上下文信息】：
@@ -81,6 +93,7 @@ object ChatEngine {
             1. 请必须百分之百扮演【${charProfile.name}】。绝对不可脱离角色（OOC）。
             2. 聊天交流应当符合手机聊天的特征：简洁、轻松、口语化。
             3. 单次回复可以是一条或多条连续消息（建议1到3条消息），每条消息字数应控制在1到3句话之内（建议单条不超过50字）。
+            4. 绝对不可在回复中出现任何 emoji、颜文字或任何表情符号（如：😊, 😂, (๑•̀ㅂ•́)و✧, O(∩_∩)O 等）。所有消息内容必须完全使用纯文本进行表达和回复。
             
             【底层通信输出格式】：
             为了与其他系统集成，你必须以 JSON 格式输出，不要包含任何 markdown 块或额外的解释文本。你的输出必须能够被直接解析为以下 JSON 格式：
@@ -90,12 +103,12 @@ object ChatEngine {
                 {
                   "type": "text",
                   "time": "yyyy-MM-dd HH:mm:ss",
-                  "content": "第一条消息内容"
+                  "content": "第一条纯文本消息内容，不能含有任何 emoji 或表情符号"
                 },
                 {
                   "type": "text",
                   "time": "yyyy-MM-dd HH:mm:ss",
-                  "content": "第二条消息内容"
+                  "content": "第二条纯文本消息内容，不能含有任何 emoji 或表情符号"
                 }
               ]
             }
@@ -103,6 +116,7 @@ object ChatEngine {
             特别注意：
             - `replies` 数组内可以包含 1 到 3 条消息。
             - 每一条回复的 `time` 字段必须是符合 `yyyy-MM-dd HH:mm:ss` 格式的虚拟时间，且必须比上一个时间（以及当前虚拟时间：$currentVirtualTimeStr）更晚（建议每条之间间隔 5 秒到 1 分钟，代表思考和打字发送的间隔时间）。
+            - 每一条回复的 `content` 必须是纯文本，严禁夹带任何表情和颜文字。
             - 你的最后一条回复的 `time` 将被作为新的虚拟世界时间。请据此来推进虚拟世界的时间！
             - 必须只返回纯 JSON，不能包裹在 ```json ... ``` 块中，也不要说任何废话。
         """.trimIndent()
