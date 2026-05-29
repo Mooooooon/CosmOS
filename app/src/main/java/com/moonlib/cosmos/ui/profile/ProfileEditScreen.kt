@@ -18,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -53,6 +54,7 @@ fun ProfileEditScreen(
     // ── 对话框显示状态 ────────────────────────────────────────
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showAiDialog by remember { mutableStateOf(false) }
 
     // ── 检查是否有未保存的改动 ────────────────────────────────
     val hasChanges = remember(name, prompt, initialProfile) {
@@ -165,11 +167,42 @@ fun ProfileEditScreen(
 
                     // 人设提示词多行输入
                     Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "人设提示词",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                            )
+                            
+                            // 极简扁平纯色 AI 智绘按钮
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(MaterialTheme.colorScheme.primary)
+                                    .clickable { showAiDialog = true }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "✨ AI 智绘",
+                                    color = Color.White,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
                         OutlinedTextField(
                             value = prompt,
                             onValueChange = { prompt = it },
-                            label = { Text("人设提示词") },
-                            placeholder = { Text("请详细输入该人设的性格特征、身世背景、口吻喜好等核心提示词...") },
+                            placeholder = { Text("请详细输入该人设的性格特征、身世背景、口吻喜好等核心提示词，或点击上方“AI 智绘”一键智能生成。") },
                             minLines = 7,
                             maxLines = 15,
                             colors = OutlinedTextFieldDefaults.colors(
@@ -318,6 +351,14 @@ fun ProfileEditScreen(
             },
             shape = RoundedCornerShape(20.dp),
             containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    }
+
+    // ── 6. AI 想法输入 Dialog ────────────────────────────────
+    if (showAiDialog) {
+        AiIdeaInputDialog(
+            onDismiss = { showAiDialog = false },
+            onGenerateSuccess = { prompt = it }
         )
     }
 }

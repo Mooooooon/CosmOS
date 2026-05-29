@@ -104,7 +104,12 @@ E:\Android\CosmOS
      - `val isDark = LocalThemeConfig.current.isDark`：读取当前是否为深色模式。
      - `LocalThemeConfig.current.setDarkTheme(isDark = false)`：在任何应用内调用该函数即可触发全局瞬间应用浅色 / 深色主题，并由底层持久化存储。
 
+
 3. **桌面组件及对比度自适应：**
    - 凡是直接渲染在桌面壁纸之上的文本或微粒（如时钟、App 标签字、壁纸微粒、状态栏图标）：
      - 需使用 `LocalThemeConfig.current.isDark` 预先判别，进而在深浅不同壁纸底色上动态渲染高可读性颜色（例如浅色模式下应用深色文字 `LightTextPrimary`，深色模式下应用浅色文字 `StarWhite`），从而维护极致的高级视觉体验。
+
+4. **美术与动效风格准则：**
+   - 本项目的美术风格致力于**简洁易用**。一般情况下**使用纯色（Solid Color）而非渐变色（Gradient Color）**。
+   - 除特定系统级核心交互反馈外，避免添加繁冗、晃眼的多余呼吸或循环缩放动画，保持极致的极简扁平化现代感。
 

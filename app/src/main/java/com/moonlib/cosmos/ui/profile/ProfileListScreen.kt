@@ -53,18 +53,6 @@ fun ProfileListScreen(
     val playerProfile = profiles.firstOrNull { it.isPlayer }
     val characterProfiles = profiles.filter { !it.isPlayer }
 
-    // ── FAB 呼吸动效 ──────────────────────────────────────
-    val infiniteTransition = rememberInfiniteTransition(label = "FABPulse")
-    val fabScale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.05f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1500, easing = EaseInOutSine),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "FABPulseScale"
-    )
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -94,21 +82,12 @@ fun ProfileListScreen(
         },
         containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
-            // 新建角色按钮，带有柔和渐变与呼吸微动效
+            // 新建角色按钮，使用极致扁平纯色，无晃眼的多余动效
             Box(
                 modifier = Modifier
-                    .scale(fabScale)
-                    .shadow(8.dp, shape = CircleShape)
+                    .shadow(4.dp, shape = CircleShape)
                     .clip(CircleShape)
-                    .background(
-                        Brush.horizontalGradient(
-                            if (isDark) {
-                                listOf(Color(0xFF3B82F6), Color(0xFF8B5CF6))
-                            } else {
-                                listOf(Color(0xFF2563EB), Color(0xFF7C3AED))
-                            }
-                        )
-                    )
+                    .background(MaterialTheme.colorScheme.primary)
                     .clickable { onAddClick(false) }
                     .padding(horizontal = 20.dp, vertical = 14.dp),
                 contentAlignment = Alignment.Center
