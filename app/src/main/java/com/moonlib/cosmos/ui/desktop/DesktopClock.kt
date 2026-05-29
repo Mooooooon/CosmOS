@@ -1,0 +1,85 @@
+package com.moonlib.cosmos.ui.desktop
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.moonlib.cosmos.ui.theme.GlowCyan
+import com.moonlib.cosmos.ui.theme.NebulaPurple
+import com.moonlib.cosmos.ui.theme.StarWhite
+import kotlinx.coroutines.delay
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+
+/**
+ * 桌面时钟 Widget
+ *
+ * 展示虚拟世界的当前日期与时间。
+ * 初期直接使用系统时间，后续替换为 VirtualTimeManager 提供的时间流。
+ */
+@Composable
+fun DesktopClock(modifier: Modifier = Modifier) {
+    var now by remember { mutableStateOf(LocalDateTime.now()) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            now = LocalDateTime.now()
+            delay(1000L)
+        }
+    }
+
+    val timeStr = now.format(DateTimeFormatter.ofPattern("HH:mm"))
+    val secondStr = now.format(DateTimeFormatter.ofPattern("ss"))
+    val dateStr = now.format(DateTimeFormatter.ofPattern("yyyy年MM月dd日 EEEE"))
+
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        // 大时间数字
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(
+                text = timeStr,
+                color = StarWhite,
+                fontSize = 72.sp,
+                fontWeight = FontWeight.Thin,
+                letterSpacing = (-2).sp,
+                lineHeight = 72.sp,
+            )
+            Text(
+                text = ":$secondStr",
+                color = GlowCyan.copy(alpha = 0.7f),
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Light,
+                modifier = Modifier.padding(bottom = 10.dp, start = 4.dp),
+            )
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // 日期
+        Text(
+            text = dateStr,
+            color = StarWhite.copy(alpha = 0.6f),
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Light,
+            letterSpacing = 1.sp,
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // 系统标识
+        Text(
+            text = "C O S M O S",
+            color = NebulaPurple.copy(alpha = 0.8f),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
+            letterSpacing = 4.sp,
+        )
+    }
+}
