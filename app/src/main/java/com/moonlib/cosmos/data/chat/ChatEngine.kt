@@ -65,7 +65,8 @@ object ChatEngine {
 
         // 获取当前格式化的虚拟时间
         val currentVirtualTimeStr = VirtualTimeManager.formatTime("yyyy-MM-dd HH:mm:ss")
-
+        val currentVirtualTimeWithWeekdayStr = VirtualTimeManager.formatTime("yyyy-MM-dd HH:mm:ss EEEE")
+ 
         val systemPrompt = """
             你现在正在扮演角色【${charProfile.name}】。
             以下是你的详细背景、性格以及外貌设定：
@@ -77,7 +78,7 @@ object ChatEngine {
             1. 你当前正在通过 CosmOS 虚拟手机聊天软件与玩家【$userNickname】聊天。
             2. 在聊天中，你的昵称是【${contact.nickname}】，你的个性签名是【${contact.signature}】。
             3. 玩家的聊天昵称是【$userNickname】。
-            4. 【当前虚拟世界的时间】是：$currentVirtualTimeStr。
+            4. 【当前虚拟世界的时间】是：$currentVirtualTimeWithWeekdayStr。
             
             【核心对话要求】：
             1. 请必须百分之百扮演【${charProfile.name}】。绝对不可脱离角色（OOC）。

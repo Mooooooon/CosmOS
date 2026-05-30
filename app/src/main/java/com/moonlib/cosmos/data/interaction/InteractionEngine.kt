@@ -81,6 +81,7 @@ object InteractionEngine {
 
         // 获取当前格式化的虚拟时间
         val currentVirtualTimeStr = VirtualTimeManager.formatTime("yyyy-MM-dd HH:mm:ss")
+        val currentVirtualTimeWithWeekdayStr = VirtualTimeManager.formatTime("yyyy-MM-dd HH:mm:ss EEEE")
 
         val systemPrompt = """
             $mainPrompt
@@ -99,7 +100,7 @@ object InteractionEngine {
             【实体互动（线下面面对面互动）上下文信息】：
             1. 你当前正在与用户【$playerRealName】进行【实体线下面对面互动】（而非通过手机聊天软件）。
             2. 用户的真实姓名是【$playerRealName】。
-            3. 【当前虚拟世界的时间】是：$currentVirtualTimeStr。
+            3. 【当前虚拟世界的时间】是：$currentVirtualTimeWithWeekdayStr。
             
             【对话上下文（线上线下记忆融合）合并说明】：
             我们已经将你与用户的【线上聊天】历史和【线下面面对面实体互动】历史按时间顺序合并在下方。

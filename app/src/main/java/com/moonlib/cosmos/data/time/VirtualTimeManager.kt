@@ -71,6 +71,6 @@ object VirtualTimeManager {
     fun formatTime(pattern: String): String {
         val instant = java.time.Instant.ofEpochMilli(_currentTimeFlow.value)
         val ldt = LocalDateTime.ofInstant(instant, ZoneId.systemDefault())
-        return ldt.format(DateTimeFormatter.ofPattern(pattern))
+        return ldt.format(DateTimeFormatter.ofPattern(pattern, java.util.Locale.CHINESE))
     }
 }
