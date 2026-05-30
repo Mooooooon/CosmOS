@@ -280,7 +280,14 @@ fun InteractionConversationScreen(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             for (key in statusKeys) {
-                                val value = charStatus[key.name] ?: "-"
+                                val rawValue = charStatus[key.name] ?: "-"
+                                val value = remember(rawValue) {
+                                    if (rawValue == "-") {
+                                        "-"
+                                    } else {
+                                        rawValue.replace(Regex("[()（）]"), "").trim()
+                                    }
+                                }
                                 Surface(
                                     shape = RoundedCornerShape(8.dp),
                                     color = MaterialTheme.colorScheme.surface.copy(alpha = 0.45f),

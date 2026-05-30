@@ -119,9 +119,9 @@ object InteractionEngine {
                         val key = keys.next()
                         if (!statusObj.isNull(key)) {
                             val value = statusObj.getString(key)
-                            // 过滤无效或未变更的值
+                            // 过滤无效或未变更的值并清洗格式
                             if (value.isNotBlank() && value != "null") {
-                                statusMap[key] = value
+                                statusMap[key] = cleanStatusValue(value)
                             }
                         }
                     }
@@ -579,5 +579,12 @@ object InteractionEngine {
             }
             throw Exception("AI接口报错 HTTP $responseCode: ${errorText.take(120)}")
         }
+    }
+
+    /**
+     * 过滤状态部分的值，彻底去除中英文括号。
+     */
+    private fun cleanStatusValue(value: String): String {
+        return value.replace(Regex("[()（）]"), "").trim()
     }
 }
