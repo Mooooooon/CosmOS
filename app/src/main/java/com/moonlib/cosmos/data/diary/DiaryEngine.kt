@@ -242,7 +242,7 @@ object DiaryEngine {
         val responseText = if (isGeminiOfficial) {
             executeGeminiOfficial(baseUrl, modelName, apiKey, temperature, systemPrompt, userPrompt)
         } else {
-            executeOpenAI(baseUrl, modelName, apiKey, temperature, systemPrompt, userPrompt, activeProfile.serviceType, characterProfiles, statusKeys, diaryStatusCardEnabled)
+            executeOpenAI(baseUrl, modelName, apiKey, temperature, systemPrompt, userPrompt, activeProfile.serviceType, characterProfiles, statusKeys, diaryStatusCardEnabled, activeProfile.thinkingLevel)
         }
 
         // 5. 保存 AI 日志，便于在设置应用中查看
@@ -325,7 +325,8 @@ object DiaryEngine {
         serviceType: AiServiceType,
         characterProfiles: List<com.moonlib.cosmos.data.profile.CharacterProfile>,
         statusKeys: List<com.moonlib.cosmos.data.interaction.StatusKey>,
-        statusCardEnabled: Boolean
+        statusCardEnabled: Boolean,
+        thinkingLevel: String
     ): String {
         val base = baseUrl.removeSuffix("/")
         val urlStr = if (base.endsWith("/chat/completions")) base else "$base/chat/completions"
@@ -355,6 +356,9 @@ object DiaryEngine {
             put("messages", messagesArray)
             put("temperature", temperature.toDouble())
             put("max_tokens", 2048)
+            if (thinkingLevel != "off") {
+                put("reasoning_effort", thinkingLevel)
+            }
 
             if (serviceType == AiServiceType.OPEN_AI) {
                 // OpenAI 官方 Schema 强约束

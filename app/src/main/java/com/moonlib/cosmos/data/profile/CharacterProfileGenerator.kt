@@ -77,7 +77,7 @@ object CharacterProfileGenerator {
         if (isGeminiOfficial) {
             executeGeminiOfficial(baseUrl, modelName, apiKey, temperature, userIdea)
         } else {
-            executeOpenAISync(baseUrl, modelName, apiKey, temperature, userIdea)
+            executeOpenAISync(baseUrl, modelName, apiKey, temperature, userIdea, activeProfile.thinkingLevel)
         }
     }
 
@@ -154,7 +154,8 @@ object CharacterProfileGenerator {
         modelName: String,
         apiKey: String,
         temperature: Float,
-        userIdea: String
+        userIdea: String,
+        thinkingLevel: String
     ): String {
         val base = baseUrl.removeSuffix("/")
         val urlStr = if (base.endsWith("/chat/completions")) base else "$base/chat/completions"
@@ -184,6 +185,9 @@ object CharacterProfileGenerator {
             put("model", modelName)
             put("messages", messagesArray)
             put("temperature", temperature.toDouble())
+            if (thinkingLevel != "off") {
+                put("reasoning_effort", thinkingLevel)
+            }
         }
 
         // 写入数据

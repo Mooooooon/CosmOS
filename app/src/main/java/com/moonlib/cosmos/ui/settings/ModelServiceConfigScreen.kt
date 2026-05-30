@@ -10,6 +10,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
@@ -63,6 +64,9 @@ fun ModelServiceConfigScreen(
     }
     var temperature by remember {
         mutableStateOf(initialProfile?.temperature ?: 0.7f)
+    }
+    var thinkingLevel by remember {
+        mutableStateOf(initialProfile?.thinkingLevel ?: "off")
     }
 
     // 状态控制：API Key 是否可见
@@ -371,6 +375,74 @@ fun ModelServiceConfigScreen(
                             Text("极富创意 (1.5)", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f), fontSize = 10.sp)
                         }
                     }
+
+                    // 思考等级 (Reasoning Effort)
+                    var isThinkingLevelExpanded by remember { mutableStateOf(false) }
+                    val thinkingLevels = listOf(
+                        "off" to "关闭 (不指定)",
+                        "minimal" to "微小 (Minimal)",
+                        "low" to "低 (Low)",
+                        "medium" to "中 (Medium)",
+                        "high" to "高 (High)"
+                    )
+                    val currentLevelLabel = thinkingLevels.firstOrNull { it.first == thinkingLevel }?.second ?: "关闭 (不指定)"
+
+                    Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                        Text(
+                            text = "思考等级 (Reasoning Effort)",
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
+                        )
+                        Box(modifier = Modifier.fillMaxWidth()) {
+                            OutlinedCard(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(56.dp)
+                                    .clickable { isThinkingLevelExpanded = true },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.outlinedCardColors(
+                                    containerColor = Color.Transparent
+                                ),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = currentLevelLabel,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        fontSize = 14.sp
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowDropDown,
+                                        contentDescription = "选择思考等级",
+                                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                    )
+                                }
+                            }
+                            DropdownMenu(
+                                expanded = isThinkingLevelExpanded,
+                                onDismissRequest = { isThinkingLevelExpanded = false },
+                                modifier = Modifier.fillMaxWidth(0.85f).background(MaterialTheme.colorScheme.surfaceVariant)
+                            ) {
+                                thinkingLevels.forEach { (level, label) ->
+                                    DropdownMenuItem(
+                                        text = { Text(label, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface) },
+                                        onClick = {
+                                            thinkingLevel = level
+                                            isThinkingLevelExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -379,14 +451,15 @@ fun ModelServiceConfigScreen(
                 onClick = {
                     if (isFormValid) {
                         val finalProfile = AiProfile(
-                            id          = initialProfile?.id ?: UUID.randomUUID().toString(),
-                            name        = name.trim(),
-                            serviceType = serviceType,
-                            apiKey      = apiKey.trim(),
-                            baseUrl     = baseUrl.trim(),
-                            modelName   = modelName.trim(),
-                            temperature = temperature,
-                            isActive    = initialProfile?.isActive ?: false
+                            id            = initialProfile?.id ?: UUID.randomUUID().toString(),
+                            name          = name.trim(),
+                            serviceType   = serviceType,
+                            apiKey        = apiKey.trim(),
+                            baseUrl       = baseUrl.trim(),
+                            modelName     = modelName.trim(),
+                            temperature   = temperature,
+                            isActive      = initialProfile?.isActive ?: false,
+                            thinkingLevel = thinkingLevel
                         )
                         onSaveClick(finalProfile)
                     }

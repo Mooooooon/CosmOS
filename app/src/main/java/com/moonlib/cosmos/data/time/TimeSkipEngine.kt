@@ -212,7 +212,7 @@ object TimeSkipEngine {
             val responseText = if (isGeminiOfficial) {
                 executeGeminiOfficialForSkip(baseUrl, modelName, apiKey, temperature, systemPrompt)
             } else {
-                executeOpenAIForSkip(baseUrl, modelName, apiKey, temperature, systemPrompt, activeProfile.serviceType)
+                executeOpenAIForSkip(baseUrl, modelName, apiKey, temperature, systemPrompt, activeProfile.serviceType, activeProfile.thinkingLevel)
             }
 
             // ── 拦截并保存 AI 通讯日志 ──────────────────────────
@@ -369,7 +369,8 @@ object TimeSkipEngine {
         apiKey: String,
         temperature: Float,
         systemPrompt: String,
-        serviceType: AiServiceType
+        serviceType: AiServiceType,
+        thinkingLevel: String
     ): String {
         val base = baseUrl.removeSuffix("/")
         val urlStr = if (base.endsWith("/chat/completions")) base else "$base/chat/completions"
@@ -399,6 +400,9 @@ object TimeSkipEngine {
             put("messages", messagesArray)
             put("temperature", temperature.toDouble())
             put("max_tokens", 2048)
+            if (thinkingLevel != "off") {
+                put("reasoning_effort", thinkingLevel)
+            }
             
             if (serviceType == AiServiceType.OPEN_AI) {
                 val replySchema = JSONObject().apply {

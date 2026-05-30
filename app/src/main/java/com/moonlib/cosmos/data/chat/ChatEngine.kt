@@ -71,7 +71,7 @@ object ChatEngine {
         val responseText = if (isGeminiOfficial) {
             executeGeminiOfficial(baseUrl, modelName, apiKey, temperature, systemPrompt, recentMerged)
         } else {
-            executeOpenAI(baseUrl, modelName, apiKey, temperature, systemPrompt, recentMerged, activeProfile.serviceType, contact.nickname)
+            executeOpenAI(baseUrl, modelName, apiKey, temperature, systemPrompt, recentMerged, activeProfile.serviceType, contact.nickname, activeProfile.thinkingLevel)
         }
 
         // ── 拦截并记录本次 AI 通讯日志 ──────────────────────────
@@ -356,7 +356,8 @@ object ChatEngine {
         systemPrompt: String,
         history: List<MergedMessage>,
         serviceType: AiServiceType,
-        senderName: String
+        senderName: String,
+        thinkingLevel: String
     ): String {
         val base = baseUrl.removeSuffix("/")
         val urlStr = if (base.endsWith("/chat/completions")) base else "$base/chat/completions"
@@ -438,6 +439,9 @@ object ChatEngine {
             put("messages", messagesArray)
             put("temperature", temperature.toDouble())
             put("max_tokens", 2048)
+            if (thinkingLevel != "off") {
+                put("reasoning_effort", thinkingLevel)
+            }
             
             // 区分服务商，选择最适合的 JSON 输出配置
             if (serviceType == AiServiceType.OPEN_AI) {

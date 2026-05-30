@@ -132,14 +132,15 @@ class AiConfigRepository(context: Context) {
         }
 
         return AiProfile(
-            id          = json.getString("id"),
-            name        = json.getString("name"),
-            serviceType = serviceType,
-            apiKey      = json.getString("apiKey"),
-            baseUrl     = json.getString("baseUrl"),
-            modelName   = json.getString("modelName"),
-            temperature = json.optDouble("temperature", 0.7).toFloat(),
-            isActive    = json.optBoolean("isActive", false)
+            id            = json.getString("id"),
+            name          = json.getString("name"),
+            serviceType   = serviceType,
+            apiKey        = json.getString("apiKey"),
+            baseUrl       = json.getString("baseUrl"),
+            modelName     = json.getString("modelName"),
+            temperature   = json.optDouble("temperature", 0.7).toFloat(),
+            isActive      = json.optBoolean("isActive", false),
+            thinkingLevel = json.optString("thinkingLevel", "off")
         )
     }
 
@@ -156,6 +157,7 @@ class AiConfigRepository(context: Context) {
             put("modelName", profile.modelName)
             put("temperature", profile.temperature.toDouble())
             put("isActive", profile.isActive)
+            put("thinkingLevel", profile.thinkingLevel)
         }
     }
 }

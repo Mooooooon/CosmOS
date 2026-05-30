@@ -26,5 +26,6 @@ data class AiProfile(
     val baseUrl: String,
     val modelName: String,
     val temperature: Float = 0.7f,
-    val isActive: Boolean = false
+    val isActive: Boolean = false,
+    val thinkingLevel: String = "off"
 )
