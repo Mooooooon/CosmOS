@@ -37,6 +37,9 @@ import com.moonlib.cosmos.data.interaction.InteractionRepository
 import com.moonlib.cosmos.data.profile.CharacterProfileRepository
 import com.moonlib.cosmos.data.time.VirtualTimeManager
 import com.moonlib.cosmos.ui.chat.AvatarView
+import com.moonlib.cosmos.ui.common.conversationContentImeResize
+import com.moonlib.cosmos.ui.common.conversationInputInsets
+import com.moonlib.cosmos.ui.common.rememberImeVisible
 import com.moonlib.cosmos.ui.theme.LocalThemeConfig
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -84,6 +87,7 @@ fun InteractionConversationScreen(
     var messages by remember { mutableStateOf(interactionRepo.getMessages(characterId)) }
     var inputText by remember { mutableStateOf("") }
     var isAiGenerating by remember { mutableStateOf(false) }
+    val isImeVisible = rememberImeVisible()
 
     // 自动滑动到底部的核心方法
     val scrollToBottom: (Boolean) -> Unit = { smooth ->
@@ -101,6 +105,13 @@ fun InteractionConversationScreen(
     // 首次载入自动置底 (不带动画，秒开最自然)
     LaunchedEffect(messages.size) {
         scrollToBottom(false)
+    }
+
+    LaunchedEffect(isImeVisible) {
+        if (isImeVisible) {
+            delay(250)
+            scrollToBottom(false)
+        }
     }
 
     // 实体互动发送消息核心方法
@@ -199,12 +210,21 @@ fun InteractionConversationScreen(
                 )
             )
         },
+        bottomBar = {
+            InteractionInputBar(
+                inputText = inputText,
+                isAiGenerating = isAiGenerating,
+                onInputChange = { inputText = it },
+                onSend = handleSend
+            )
+        },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .conversationContentImeResize()
         ) {
             // ─── 1. 实体动作消息渲染区 ─────────────────────────────────
             LazyColumn(
@@ -308,61 +328,69 @@ fun InteractionConversationScreen(
                     }
                 }
             }
+        }
+    }
+}
 
-            // ─── 2. 底部实体动作输入区 ─────────────────────────────────
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 2.dp
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding() // 底部避让系统虚拟条
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedTextField(
-                        value = inputText,
-                        onValueChange = { inputText = it },
-                        placeholder = { Text("输入动作和对白，例如：（摸摸头）好久不见...") },
-                        maxLines = 4,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                        keyboardActions = KeyboardActions(onSend = { handleSend() }),
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(end = 8.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                        ),
-                        shape = RoundedCornerShape(20.dp)
+@Composable
+private fun InteractionInputBar(
+    inputText: String,
+    isAiGenerating: Boolean,
+    onInputChange: (String) -> Unit,
+    onSend: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 2.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .conversationInputInsets()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = inputText,
+                onValueChange = onInputChange,
+                placeholder = { Text("输入动作和对白，例如：（摸摸头）好久不见...") },
+                maxLines = 4,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                keyboardActions = KeyboardActions(onSend = { onSend() }),
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                ),
+                shape = RoundedCornerShape(20.dp)
+            )
+
+            IconButton(
+                onClick = onSend,
+                enabled = inputText.isNotBlank() && !isAiGenerating,
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(
+                        color = if (inputText.isNotBlank() && !isAiGenerating)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                        shape = CircleShape
                     )
-
-                    IconButton(
-                        onClick = handleSend,
-                        enabled = inputText.isNotBlank() && !isAiGenerating,
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(
-                                color = if (inputText.isNotBlank() && !isAiGenerating)
-                                    MaterialTheme.colorScheme.primary
-                                else
-                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                                shape = CircleShape
-                            )
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Send,
-                            contentDescription = "发送",
-                            tint = if (inputText.isNotBlank() && !isAiGenerating)
-                                Color.White
-                            else
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Send,
+                    contentDescription = "发送",
+                    tint = if (inputText.isNotBlank() && !isAiGenerating)
+                        Color.White
+                    else
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                    modifier = Modifier.size(18.dp)
+                )
             }
         }
     }
