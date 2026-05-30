@@ -79,6 +79,7 @@ object ChatEngine {
 
         // 获取当前格式化的虚拟时间
         val currentVirtualTimeStr = VirtualTimeManager.formatTime("yyyy-MM-dd HH:mm:ss")
+        val currentVirtualTimeWithWeekdayStr = VirtualTimeManager.formatTime("yyyy-MM-dd HH:mm:ss EEEE")
 
         val systemPrompt = """
             $mainPrompt
@@ -98,7 +99,7 @@ object ChatEngine {
             1. 你当前正在通过 CosmOS 虚拟手机聊天软件与用户【$userNickname】远程在线聊天。
             2. 在聊天中，你的昵称是【${contact.nickname}】，你的个性签名是【${contact.signature}】。
             3. 用户的聊天昵称是【$userNickname】。
-            4. 【当前虚拟世界的时间】是：$currentVirtualTimeStr。
+            4. 【当前虚拟世界的时间】是：$currentVirtualTimeWithWeekdayStr。
             
             【对话上下文（线上线下记忆融合）合并说明】：
             我们已经将你与用户的【线上聊天】历史和【线下面对应实体互动】历史按时间顺序合并在下方。
@@ -158,7 +159,7 @@ object ChatEngine {
         val responseText = if (isGeminiOfficial) {
             executeGeminiOfficial(baseUrl, modelName, apiKey, temperature, systemPrompt, recentMerged)
         } else {
-            executeOpenAI(baseUrl, modelName, apiKey, temperature, systemPrompt, recentMerged)
+            executeOpenAI(baseUrl, modelName, apiKey, temperature, systemPrompt, recentMerged, activeProfile.serviceType, contact.nickname)
         }
 
         // ── 拦截并记录本次 AI 通讯日志 ──────────────────────────
@@ -431,7 +432,9 @@ object ChatEngine {
         apiKey: String,
         temperature: Float,
         systemPrompt: String,
-        history: List<MergedMessage>
+        history: List<MergedMessage>,
+        serviceType: AiServiceType,
+        senderName: String
     ): String {
         val base = baseUrl.removeSuffix("/")
         val urlStr = if (base.endsWith("/chat/completions")) base else "$base/chat/completions"
@@ -439,8 +442,8 @@ object ChatEngine {
         val conn = url.openConnection() as HttpURLConnection
         
         conn.requestMethod = "POST"
-        conn.connectTimeout = 60000
-        conn.readTimeout = 60000
+        conn.connectTimeout = 15000
+        conn.readTimeout = 15000
         conn.setRequestProperty("Authorization", "Bearer $apiKey")
         conn.setRequestProperty("Content-Type", "application/json")
         conn.doOutput = true
@@ -454,14 +457,58 @@ object ChatEngine {
             put("content", systemPrompt)
         })
 
-        // 2. 对话历史
-        for (msg in history) {
-            val role = if (msg.senderId == "user") "user" else "assistant"
-            val prefix = if (msg.isOnline) "[线上聊天]" else "[线下互动]"
-            messagesArray.put(JSONObject().apply {
-                put("role", role)
-                put("content", "$prefix ${msg.content}")
-            })
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
+
+        // 2. 对话历史聚合装填，并在最后一条用户消息内容末尾注入 JSON 强制要求指令，合并连续助手回复防止模仿偏差
+        var i = 0
+        val size = history.size
+        while (i < size) {
+            val msg = history[i]
+            if (msg.senderId == "user") {
+                val prefix = if (msg.isOnline) "[线上聊天]" else "[线下互动]"
+                var content = "$prefix ${msg.content}"
+                if (i == size - 1) {
+                    content += "\n(注意：你必须以指定的 JSON 格式输出回复，不要包含 any markdown 块或废话)"
+                }
+                messagesArray.put(JSONObject().apply {
+                    put("role", "user")
+                    put("content", content)
+                })
+                i++
+            } else {
+                // 聚合连续的助手消息气泡到同一个 JSON 中
+                val repliesArray = JSONArray()
+                var j = i
+                while (j < size && history[j].senderId != "user") {
+                    val aMsg = history[j]
+                    val formattedTime = try {
+                        sdf.format(java.util.Date(aMsg.timestamp))
+                    } catch (e: Exception) {
+                        sdf.format(java.util.Date())
+                    }
+                    
+                    repliesArray.put(JSONObject().apply {
+                        put("type", "text")
+                        put("time", formattedTime)
+                        // 注意：为了避免模型在吐出的最新 JSON 的 content 中强加 [线下互动] / [线上聊天] 前缀，
+                        // 我们必须在此直接装填干净的内容，绝对不加入任何前缀。
+                        put("content", aMsg.content)
+                    })
+                    j++
+                }
+                
+                val assistantJson = JSONObject().apply {
+                    put("sender", senderName)
+                    put("replies", repliesArray)
+                }
+                
+                messagesArray.put(JSONObject().apply {
+                    put("role", "assistant")
+                    put("content", assistantJson.toString())
+                })
+                
+                i = j
+            }
         }
 
         val requestJson = JSONObject().apply {
@@ -469,10 +516,55 @@ object ChatEngine {
             put("messages", messagesArray)
             put("temperature", temperature.toDouble())
             put("max_tokens", 2048)
-            // 开启 OpenAI/DeepSeek 官方 JSON Mode
-            put("response_format", JSONObject().apply {
-                put("type", "json_object")
-            })
+            
+            // 区分服务商，选择最适合的 JSON 输出配置
+            if (serviceType == AiServiceType.OPEN_AI) {
+                // OpenAI 官方标准 Structured Outputs (strict json_schema)
+                val replySchema = JSONObject().apply {
+                    put("type", "object")
+                    put("properties", JSONObject().apply {
+                        put("type", JSONObject().apply { put("type", "string") })
+                        put("time", JSONObject().apply { put("type", "string") })
+                        put("content", JSONObject().apply { put("type", "string") })
+                    })
+                    put("required", JSONArray().apply {
+                        put("type")
+                        put("time")
+                        put("content")
+                    })
+                    put("additionalProperties", false)
+                }
+
+                val openAiSchema = JSONObject().apply {
+                    put("type", "object")
+                    put("properties", JSONObject().apply {
+                        put("sender", JSONObject().apply { put("type", "string") })
+                        put("replies", JSONObject().apply {
+                            put("type", "array")
+                            put("items", replySchema)
+                        })
+                    })
+                    put("required", JSONArray().apply {
+                        put("sender")
+                        put("replies")
+                    })
+                    put("additionalProperties", false)
+                }
+
+                put("response_format", JSONObject().apply {
+                    put("type", "json_schema")
+                    put("json_schema", JSONObject().apply {
+                        put("name", "ai_chat_response")
+                        put("strict", true)
+                        put("schema", openAiSchema)
+                    })
+                })
+            } else {
+                // DeepSeek / 其他服务商的标准 JSON Mode (json_object)
+                put("response_format", JSONObject().apply {
+                    put("type", "json_object")
+                })
+            }
         }
 
         conn.outputStream.use { os ->
