@@ -484,6 +484,7 @@ object DiaryEngine {
                 put(JSONObject().apply { put("text", "System Instructions:\n$systemPrompt\n\nUser Input:\n$userPrompt") })
             }
             val contentsObj = JSONObject().apply {
+                put("role", "user")
                 put("parts", partsArray)
             }
             put("contents", JSONArray().put(contentsObj))

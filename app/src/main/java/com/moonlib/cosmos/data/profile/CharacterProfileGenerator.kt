@@ -122,6 +122,7 @@ object CharacterProfileGenerator {
         val requestJson = JSONObject().apply {
             put("contents", JSONArray().put(
                 JSONObject().apply {
+                    put("role", "user")
                     put("parts", JSONArray().put(
                         JSONObject().apply {
                             put("text", fullPrompt)
