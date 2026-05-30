@@ -4,6 +4,7 @@ import android.content.Context
 import com.moonlib.cosmos.data.profile.CharacterProfileRepository
 import com.moonlib.cosmos.data.settings.AiConfigRepository
 import com.moonlib.cosmos.data.settings.AiServiceType
+import com.moonlib.cosmos.data.settings.AiSceneType
 import com.moonlib.cosmos.data.settings.SystemPromptRepository
 import com.moonlib.cosmos.data.time.VirtualTimeManager
 import com.moonlib.cosmos.data.interaction.InteractionRepository
@@ -55,103 +56,14 @@ object ChatEngine {
             throw Exception("激活的 AI 配置文件不完整，请前往【系统设置】检查。")
         }
 
-        // 3. 构建深度结合聊天的 System Prompt
-        val systemPromptRepo = SystemPromptRepository(context)
-        val mainPrompt = systemPromptRepo.getMainPromptContent()
-
-        val userNickname = chatRepo.getUserNickname()
-        
-        // 获取用户档案，提取用户真实姓名
-        val playerProfile = profileRepo.getProfiles().firstOrNull { it.isPlayer }
-        val playerRealName = playerProfile?.name ?: userNickname // 兜底使用网名
-        
-        val rawPrompt = charProfile.prompt
-        
-        // 动态替换人设提示词里的变量（使用真名替换 {{user}}）
-        val processedCharPrompt = rawPrompt
-            .replace("{{char}}", charProfile.name)
-            .replace("{{user}}", playerRealName)
-
-        val playerPrompt = playerProfile?.prompt ?: "普通用户，无更多公开身份设定。"
-        val processedPlayerPrompt = playerPrompt
-            .replace("{{char}}", charProfile.name)
-            .replace("{{user}}", playerRealName)
-
-        // 获取当前格式化的虚拟时间
-        val currentVirtualTimeStr = VirtualTimeManager.formatTime("yyyy-MM-dd HH:mm:ss")
-        val currentVirtualTimeWithWeekdayStr = VirtualTimeManager.formatTime("yyyy-MM-dd HH:mm:ss EEEE")
-
-        val systemPrompt = """
-            $mainPrompt
-            
-            你现在正在扮演角色【${charProfile.name}】。
-            以下是你的详细背景、性格以及外貌设定：
-            ------------------------------------------------
-            $processedCharPrompt
-            ------------------------------------------------
-            
-            以下是你的聊天对象用户【$userNickname】（真实姓名：$playerRealName）的详细设定（请利用这些设定来增强对话细节，实现完美互动）：
-            ------------------------------------------------
-            $processedPlayerPrompt
-            ------------------------------------------------
-            
-            【手机聊天上下文信息】：
-            1. 你当前正在通过 CosmOS 虚拟手机聊天软件与用户【$userNickname】远程在线聊天。
-            2. 在聊天中，你的昵称是【${contact.nickname}】，你的个性签名是【${contact.signature}】。
-            3. 用户的聊天昵称是【$userNickname】。
-            4. 【当前虚拟世界的时间】是：$currentVirtualTimeWithWeekdayStr。
-            
-            【对话上下文（线上线下记忆融合）合并说明】：
-            我们已经将你与用户的【线上聊天】历史和【线下面对应实体互动】历史按时间顺序合并在下方。
-            - 带有 `[线上聊天]` 前缀的消息表示你们在虚拟手机聊天软件上的对话。
-            - 带有 `[线下互动]` 前缀的消息表示你们在线下实体见面的动作对话，其中包含括弧动作描写。
-            - 注意：你当前正在【线上聊天 APP】中回复用户。你的回复必须符合【线上远程手机聊天】的特征：简洁、轻松、口语化、纯对话文本、**严禁夹带任何括弧内的动作描写（如 `（看向对方）` 等）或表情符号**！你不需要在 JSON 的 `content` 字段中添加 `[线上聊天]` 前缀，直接进行回复即可。
-            
-            【核心对话要求】：
-            1. 请必须百分之百扮演【${charProfile.name}】。绝对不可脱离角色（OOC）。
-            2. 聊天交流应当符合手机聊天的特征：简洁、轻松、口语化。
-            3. 单次回复可以是一条或多条连续消息（建议1到3条消息），每条消息字数应控制在1到3句话之内（建议单条不超过50字）。
-            4. 绝对不可在回复中出现任何 emoji、颜文字或任何表情符号（如：😊, 😂, (๑•̀ㅂ•́)و✧, O(∩_∩)O 等）。所有消息内容必须完全使用纯文本进行表达和回复。
-            
-            【底层通信输出格式】：
-            为了与其他 system 集成，你必须以 JSON 格式输出，不要包含任何 markdown 块或额外的解释文本。你的输出必须能够被直接解析为以下 JSON 格式：
-            {
-              "sender": "${contact.nickname}",
-              "replies": [
-                {
-                  "type": "text",
-                  "time": "yyyy-MM-dd HH:mm:ss",
-                  "content": "第一条纯文本消息内容，不能含有任何 emoji 或表情符号"
-                },
-                {
-                  "type": "text",
-                  "time": "yyyy-MM-dd HH:mm:ss",
-                  "content": "第二条纯文本消息内容，不能含有任何 emoji 或表情符号"
-                }
-              ]
-            }
-            
-            特别注意：
-            - `replies` 数组内可以包含 1 到 3 条消息。
-            - 每一条回复的 `time` 字段必须是符合 `yyyy-MM-dd HH:mm:ss` 格式的虚拟时间，且必须比上一个时间（以及当前虚拟时间：$currentVirtualTimeStr）更晚（建议每条之间间隔 5 秒到 1 分钟，代表思考和打字发送 of 间隔时间）。
-            - 每一条回复的 `content` 必须是纯文本，严禁夹带任何表情和颜文字。
-            - 你的最后一条回复的 `time` 将被作为新的虚拟世界时间。请据此来推进虚拟世界的时间！
-            - 必须只返回纯 JSON，不能包裹在 ```json ... ``` 块中，也不要说任何废话。
-        """.trimIndent()
-
-        // 4. 提取最近 15 条合并消息作为上下文（融合线上聊天与线下互动）
-        val interactionRepo = InteractionRepository(context)
-        val onlineMsgs = chatRepo.getMessages(contact.id)
-        val offlineMsgs = interactionRepo.getMessages(contact.characterId)
-
-        // 合并并以时间戳排序
-        val mergedHistory = (
-            onlineMsgs.map { MergedMessage(it.senderId, it.content, it.timestamp, isOnline = true) } +
-            offlineMsgs.map { MergedMessage(it.senderId, it.content, it.timestamp, isOnline = false) }
-        ).sortedBy { it.timestamp }
-
-        // 取最近 15 条
-        val recentMerged = mergedHistory.takeLast(15)
+                // 3. Build system prompt and merge history via AiPromptHelper
+        val (systemPrompt, recentMerged) = AiPromptHelper.buildPromptAndHistory(
+            context = context,
+            charProfile = charProfile,
+            sceneType = AiSceneType.CHAT,
+            chatNickname = contact.nickname,
+            chatSignature = contact.signature
+        )
 
         // 识别是否为 Gemini 官方 API
         val isGeminiOfficial = activeProfile.serviceType == AiServiceType.GEMINI && baseUrl.contains("googleapis.com")

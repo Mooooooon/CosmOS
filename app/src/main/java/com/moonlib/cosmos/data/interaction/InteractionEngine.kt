@@ -5,6 +5,8 @@ import com.moonlib.cosmos.data.profile.CharacterProfile
 import com.moonlib.cosmos.data.profile.CharacterProfileRepository
 import com.moonlib.cosmos.data.settings.AiConfigRepository
 import com.moonlib.cosmos.data.settings.AiServiceType
+import com.moonlib.cosmos.data.settings.AiSceneType
+import com.moonlib.cosmos.data.chat.AiPromptHelper
 import com.moonlib.cosmos.data.settings.SystemPromptRepository
 import com.moonlib.cosmos.data.time.VirtualTimeManager
 import kotlinx.coroutines.Dispatchers
@@ -57,105 +59,12 @@ object InteractionEngine {
             throw Exception("激活的 AI 配置文件不完整，请前往【系统设置】检查。")
         }
 
-        // 3. 构建深度结合实体动作互动的 System Prompt
-        val systemPromptRepo = SystemPromptRepository(context)
-        val mainPrompt = systemPromptRepo.getMainPromptContent()
-
-        val userNickname = chatRepo.getUserNickname()
-        
-        // 获取用户档案，提取用户真实姓名
-        val playerProfile = profileRepo.getProfiles().firstOrNull { it.isPlayer }
-        val playerRealName = playerProfile?.name ?: userNickname // 兜底使用网名
-        
-        val rawPrompt = charProfile.prompt
-        
-        // 动态替换人设提示词里的变量（使用真名替换 {{user}}）
-        val processedCharPrompt = rawPrompt
-            .replace("{{char}}", charProfile.name)
-            .replace("{{user}}", playerRealName)
-
-        val playerPrompt = playerProfile?.prompt ?: "普通用户，无更多公开身份设定。"
-        val processedPlayerPrompt = playerPrompt
-            .replace("{{char}}", charProfile.name)
-            .replace("{{user}}", playerRealName)
-
-        // 获取当前格式化的虚拟时间
-        val currentVirtualTimeStr = VirtualTimeManager.formatTime("yyyy-MM-dd HH:mm:ss")
-        val currentVirtualTimeWithWeekdayStr = VirtualTimeManager.formatTime("yyyy-MM-dd HH:mm:ss EEEE")
-
-        val systemPrompt = """
-            $mainPrompt
-            
-            你现在正在扮演角色【${charProfile.name}】。
-            以下是你的详细背景、性格以及外貌设定：
-            ------------------------------------------------
-            $processedCharPrompt
-            ------------------------------------------------
-            
-            以下是你的互动对象用户【$playerRealName】的详细设定（请利用这些设定来增强对话细节，实现完美互动）：
-            ------------------------------------------------
-            $processedPlayerPrompt
-            ------------------------------------------------
-            
-            【实体互动（线下面面对面互动）上下文信息】：
-            1. 你当前正在与用户【$playerRealName】进行【实体线下面对面互动】（而非通过手机聊天软件）。
-            2. 用户的真实姓名是【$playerRealName】。
-            3. 【当前虚拟世界的时间】是：$currentVirtualTimeWithWeekdayStr。
-            
-            【对话上下文（线上线下记忆融合）合并说明】：
-            我们已经将你与用户的【线上聊天】历史和【线下面面对面实体互动】历史按时间顺序合并在下方。
-            - 带有 `[线上聊天]` 前缀的消息表示你们先前在手机软件上的远程聊天。
-            - 带有 `[线下互动]` 前缀的消息表示你们在现实线下见面的动作对话，其中包含括弧动作描写。
-            - 注意：你现在正在与用户进行【线下面面对面实体互动】。因此你作为角色的下一组回复中，**除了言语对话，还必须夹带丰富的肢体动作、神态、语气、心理或眼神等描写（写在中文小括号 `（动作描写）` 内，例如：`（看向对方，脸上有些疑惑）带了，怎么啦？`）**。
-            
-            【核心对话要求】：
-            1. 请必须百分之百扮演【${charProfile.name}】。绝对不可脱离角色（OOC）。
-            2. 这是一个面对面的场景，你的动作应当是生动、写实、符合人设神态的。
-            3. 你的每一句回复，除纯说话内容外，**必须带有括号动作描写**。例如：
-               - `（摸了摸自己的口袋，神色微微有些慌张）坏了，东西好像丢了。`
-               - `（眼神游离，不好意思地揉了揉头发）那个，我刚才没听清，能再说一遍吗？`
-            4. 单次回复可以是一条或多条连续消息（建议1到3条），每条字数控制在1到3句话（建议单条不超过60字）。
-            5. 绝对不可在回复中出现任何 emoji、颜文字或任何表情符号。所有非动作描写的对话必须是纯文本。
-            
-            【底层通信输出格式】：
-            为了与其他系统集成，你必须以 JSON 格式输出，不要包含任何 markdown 块或额外的解释文本。你的输出必须能够被直接解析为以下 JSON 格式：
-            {
-              "sender": "${charProfile.name}",
-              "replies": [
-                {
-                  "type": "text",
-                  "time": "yyyy-MM-dd HH:mm:ss",
-                  "content": "（动作描写）第一条动作加对话内容，不能含有任何 emoji"
-                },
-                {
-                  "type": "text",
-                  "time": "yyyy-MM-dd HH:mm:ss",
-                  "content": "（动作描写）第二条动作加对话内容，不能含有任何 emoji"
-                }
-              ]
-            }
-            
-            特别注意：
-            - `replies` 数组内可以包含 1 到 3 条消息。
-            - 每一条回复的 `time` 必须是符合 `yyyy-MM-dd HH:mm:ss` 格式的虚拟时间，且必须比上一个时间（以及当前虚拟时间：$currentVirtualTimeStr）更晚（建议每条之间间隔 5 秒到 1 分钟，代表动作和说话的物理间隔）。
-            - 每一条回复的 `content` 必须带有中文括号 `（动作描写）`，严禁夹带任何表情和颜文字。
-            - 你的最后一条回复的 `time` 将被作为新的虚拟世界时间。请据此来推进虚拟世界的时间！
-            - 必须只返回纯 JSON，不能包裹在 ```json ... ``` 块中，也不要说任何废话。
-        """.trimIndent()
-
-        // 4. 获取合并上下文（包含线上聊天与线下互动）
-        val contact = chatRepo.getContacts().firstOrNull { it.characterId == characterId }
-        val onlineMsgs = if (contact != null) chatRepo.getMessages(contact.id) else emptyList()
-        val offlineMsgs = interactionRepo.getMessages(characterId)
-        
-        // 合并并以时间戳排序
-        val mergedHistory = (
-            onlineMsgs.map { MergedMessage(it.senderId, it.content, it.timestamp, isOnline = true) } +
-            offlineMsgs.map { MergedMessage(it.senderId, it.content, it.timestamp, isOnline = false) }
-        ).sortedBy { it.timestamp }
-        
-        // 截取最近 15 条
-        val recentMerged = mergedHistory.takeLast(15)
+                // 3. Build system prompt and merge history via AiPromptHelper
+        val (systemPrompt, recentMerged) = AiPromptHelper.buildPromptAndHistory(
+            context = context,
+            charProfile = charProfile,
+            sceneType = AiSceneType.INTERACTION
+        )
 
         // 识别是否为 Gemini 官方 API
         val isGeminiOfficial = activeProfile.serviceType == AiServiceType.GEMINI && baseUrl.contains("googleapis.com")

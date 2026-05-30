@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -43,6 +44,7 @@ fun SettingsMainScreen(
     onPromptClick: () -> Unit,
     onThemeClick: () -> Unit,
     onLogsClick: () -> Unit,
+    onAiChatSettingsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -110,6 +112,14 @@ fun SettingsMainScreen(
                     title = "提示词设置",
                     subtitle = "配置全局主提示词与指令要求",
                     onClick = onPromptClick
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), thickness = 0.5.dp)
+                SettingItem(
+                    icon = Icons.Default.Tune,
+                    iconBgColor = Color(0xFFF59E0B),
+                    title = "AI通讯设置",
+                    subtitle = "设置AI聊天与互动的上下文消息数限制",
+                    onClick = onAiChatSettingsClick
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), thickness = 0.5.dp)
                 SettingItem(

@@ -28,6 +28,7 @@ sealed interface SettingsScreenState {
     data class AiLogDetail(val logId: String) : SettingsScreenState
     object SystemPromptList : SettingsScreenState
     data class EditSystemPrompt(val promptId: String) : SettingsScreenState
+    object AiChatSettings : SettingsScreenState
 }
 
 /**
@@ -83,6 +84,7 @@ fun SettingsAppScreen(
             is SettingsScreenState.AiLogDetail -> currentScreen = SettingsScreenState.AiLogsList
             is SettingsScreenState.SystemPromptList -> currentScreen = SettingsScreenState.Main
             is SettingsScreenState.EditSystemPrompt -> currentScreen = SettingsScreenState.SystemPromptList
+            is SettingsScreenState.AiChatSettings -> currentScreen = SettingsScreenState.Main
         }
     }
 
@@ -113,6 +115,9 @@ fun SettingsAppScreen(
                     },
                     onLogsClick = {
                         currentScreen = SettingsScreenState.AiLogsList
+                    },
+                    onAiChatSettingsClick = {
+                        currentScreen = SettingsScreenState.AiChatSettings
                     }
                 )
             }
@@ -245,6 +250,15 @@ fun SettingsAppScreen(
                 } else {
                     currentScreen = SettingsScreenState.SystemPromptList
                 }
+            }
+
+            // ── 9. AI 通讯设置页面 ────────────────────────────────────
+            is SettingsScreenState.AiChatSettings -> {
+                AiChatSettingsScreen(
+                    onBackClick = {
+                        currentScreen = SettingsScreenState.Main
+                    }
+                )
             }
         }
     }
