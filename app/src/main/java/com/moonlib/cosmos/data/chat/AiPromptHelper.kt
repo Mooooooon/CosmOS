@@ -96,6 +96,23 @@ object AiPromptHelper {
             ""
         }
 
+        // 增加对该角色所参与的过往日记摘要的读取与提示注入，实现线上/线下/日记三方记忆连通
+        val diaryRepo = com.moonlib.cosmos.data.diary.DiaryRepository(context)
+        val involvedDiaries = diaryRepo.getDiaries().filter { it.involvedCharacterIds.contains(charProfile.id) }.sortedBy { it.timestamp }
+        val diariesPrompt = if (involvedDiaries.isNotEmpty()) {
+            val diariesStr = involvedDiaries.joinToString("\n") { diary ->
+                "- [虚拟时间: ${diary.virtualTime}] 经历与感悟摘要: ${diary.summary}"
+            }
+            """
+            
+            【与该角色的共同往期经历与生活日记纪实（极其重要的长期记忆）】:
+            你在先前与用户的日常相处、实体互动或日记写作中，记录下了以下共同经历与情感日记。在本次交流中，请将这些回忆作为你的长期记忆与情感背景，在言谈中可以顺理成章、恰当地引用：
+            $diariesStr
+            """
+        } else {
+            ""
+        }
+
         // 3. 根据不同的场景类型进行 Prompt 的定制分发
         val systemPrompt = when (sceneType) {
             AiSceneType.CHAT -> {
@@ -109,6 +126,7 @@ object AiPromptHelper {
                     ------------------------------------------------
                     $processedCharPrompt
                     ------------------------------------------------
+                    $diariesPrompt
                     
                     以下是你的聊天对象用户【$userNickname】（真实姓名：$playerRealName）的详细设定（请利用这些设定来增强对话细节，实现完美互动）：
                     ------------------------------------------------
@@ -121,10 +139,11 @@ object AiPromptHelper {
                     3. 用户的聊天昵称是【$userNickname】。
                     4. 【当前虚拟世界的时间】是：$currentVirtualTimeWithWeekdayStr。
                     
-                    【对话上下文（线上线下记忆融合）合并说明】：
-                    我们已经将你与用户的【线上聊天】历史和【线下面对应实体互动】历史按时间顺序合并在下方。
+                    【对话上下文（线上线下、剧情日记记忆融合）合并说明】：
+                    我们已经将你与用户的【线上聊天】历史、【线下面对应实体互动】历史以及【剧情日记】摘要按时间顺序合并在下方。
                     - 带有 `[线上聊天]` 前缀的消息表示你们在虚拟手机聊天软件上的对话。
                     - 带有 `[线下互动]` 前缀的消息表示你们在线下实体见面的动作对话，其中包含括弧动作描写。
+                    - 带有 `[剧情日记]` 前缀的消息表示你们共同写下的剧情和情感生活日记摘要，帮助你保持完整的长期剧情记忆。
                     - 注意：你当前正在【线上聊天 APP】中回复用户。你的回复必须符合【线上远程手机聊天】的特征：简洁、轻松、口语化、纯对话文本、**严禁夹带任何括弧内的动作描写（如 `（看向对方）` 等）或表情符号**！你不需要在 JSON 的 `content` 字段中添加 `[线上聊天]` 前缀，直接进行回复即可。
                     
                     【多媒体与特殊消息交互指引（极其重要）】：
@@ -194,6 +213,7 @@ object AiPromptHelper {
                     ------------------------------------------------
                     $processedCharPrompt
                     ------------------------------------------------
+                    $diariesPrompt
                     
                     以下是你的互动对象用户【$playerRealName】的详细设定（请利用这些设定来增强对话细节，实现完美互动）：
                     ------------------------------------------------
@@ -206,10 +226,11 @@ object AiPromptHelper {
                     3. 【当前虚拟世界的时间】是：$currentVirtualTimeWithWeekdayStr。
                     $statusPrompt
                     
-                    【对话上下文（线上线下记忆融合）合并说明】：
-                    We have merged the online chat and offline physical interaction history in chronological order.
+                    【对话上下文（线上线下、剧情日记记忆融合）合并说明】：
+                    We have merged the online chat, offline physical interaction, and story diary history in chronological order.
                     - 带有 `[线上聊天]` 前缀的消息表示你们先前在手机软件上的远程聊天。
                     - 带有 `[线下互动]` 前缀的消息表示你们在现实线下见面的动作对话，其中包含括弧动作描写。
+                    - 带有 `[剧情日记]` 前缀的消息表示你们共同写下的剧情和情感生活日记摘要，帮助你保持完整的长期剧情记忆。
                     - 注意：你现在正在与用户进行【线下面面对面实体互动】。因此你作为角色的下一组回复中，**除了言语对话，还必须夹带丰富的肢体动作、神态、语气、心理或眼神等描写（写在中文小括号 `（动作描写）` 内，例如：`（看向对方，脸上有些疑惑）带了，怎么啦？`）**。
                     
                     【核心对话要求】：
@@ -269,10 +290,21 @@ object AiPromptHelper {
         }
         val offlineMsgs = interactionRepo.getMessages(charProfile.id)
 
+        // 提取该角色相关的日记并序列化为剧情日记消息合并入会话流中
+        val diaryMergedMsgs = diaryRepo.getDiaries().filter { it.involvedCharacterIds.contains(charProfile.id) }.map { diary ->
+            MergedMessage(
+                senderId = "system",
+                content = "[剧情日记] 剧情摘要: ${diary.summary}",
+                timestamp = diary.timestamp,
+                isOnline = false
+            )
+        }
+
         // 合并为 MergedMessage 结构并按时间戳升序排序
         val mergedHistory = (
             formattedOnlineMsgs.map { MergedMessage(it.senderId, it.content, it.timestamp, isOnline = true) } +
-            offlineMsgs.map { MergedMessage(it.senderId, it.content, it.timestamp, isOnline = false) }
+            offlineMsgs.map { MergedMessage(it.senderId, it.content, it.timestamp, isOnline = false) } +
+            diaryMergedMsgs
         ).sortedBy { it.timestamp }
 
         // 5. 根据全局设置的 maxContextSize 提取最近的历史切片

@@ -29,6 +29,7 @@ class InteractionSettingsRepository(private val context: Context) {
     companion object {
         private const val PREF_NAME = "cosmos_interaction_settings_prefs"
         private const val KEY_STATUS_CARD_ENABLED = "status_card_enabled"
+        private const val KEY_DIARY_STATUS_CARD_ENABLED = "diary_status_card_enabled"
         private const val KEY_STATUS_KEYS = "status_keys"
         private const val PREFIX_CHARACTER_STATUS = "character_status_"
 
@@ -57,6 +58,20 @@ class InteractionSettingsRepository(private val context: Context) {
      */
     fun setStatusCardEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_STATUS_CARD_ENABLED, enabled).apply()
+    }
+
+    /**
+     * 判断日记是否开启状态卡
+     */
+    fun isDiaryStatusCardEnabled(): Boolean {
+        return prefs.getBoolean(KEY_DIARY_STATUS_CARD_ENABLED, false)
+    }
+
+    /**
+     * 日记开启/关闭状态卡
+     */
+    fun setDiaryStatusCardEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_DIARY_STATUS_CARD_ENABLED, enabled).apply()
     }
 
     /**

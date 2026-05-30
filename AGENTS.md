@@ -56,8 +56,12 @@ E:\Android\CosmOS
 │       │   │   │   │   ├── SaveManager.kt
 │       │   │   │   │   ├── SystemPromptRepository.kt
 │       │   │   │   │   └── ThemeSettingsRepository.kt
-│       │   │   │   └── time
-│       │   │   │       └── VirtualTimeManager.kt
+│       │   │   │   ├── time
+│       │   │   │   │   └── VirtualTimeManager.kt
+│       │   │   │   └── diary
+│       │   │   │       ├── DiaryEngine.kt
+│       │   │   │       ├── DiaryEntry.kt
+│       │   │   │       └── DiaryRepository.kt
 │       │   │   ├── ui
 │       │   │   │   ├── chat
 │       │   │   │   │   ├── AvatarComponents.kt
@@ -104,8 +108,10 @@ E:\Android\CosmOS
 │       │   │   │   │   ├── Color.kt
 │       │   │   │   │   ├── Theme.kt
 │       │   │   │   │   └── Type.kt
-│       │   │   │   └── time
-│       │   │   │       └── TimeAppScreen.kt
+│       │   │   │   ├── time
+│       │   │   │   │   └── TimeAppScreen.kt
+│       │   │   │   └── diary
+│       │   │   │       └── DiaryAppScreen.kt
 │       │   │   └── utils
 │       │   │       └── ImageUtils.kt
 │       │   └── res
@@ -136,6 +142,7 @@ E:\Android\CosmOS
 - `app/src/main/java/com/moonlib/cosmos/data/profile`：角色档案模型、AI 档案生成与档案持久化仓库。
 - `app/src/main/java/com/moonlib/cosmos/data/settings`：AI 服务配置、模型参数、日志、存档、系统提示词与主题配置持久化仓库。
 - `app/src/main/java/com/moonlib/cosmos/data/time`：虚拟时间状态与推进逻辑。
+- `app/src/main/java/com/moonlib/cosmos/data/diary`：日记数据模型、多槽存档隔离日记仓库与日记 AI 生成引擎。
 - `app/src/main/java/com/moonlib/cosmos/ui/chat`：聊天应用入口、会话页、联系人列表、消息列表、联系人编辑与头像组件。
 - `app/src/main/java/com/moonlib/cosmos/ui/common`：跨界面复用的通用 UI / Insets 工具。
 - `app/src/main/java/com/moonlib/cosmos/ui/desktop`：桌面主界面相关 UI 组件与自适应壁纸。
@@ -144,6 +151,7 @@ E:\Android\CosmOS
 - `app/src/main/java/com/moonlib/cosmos/ui/settings`：设置入口、AI 聊天设置、模型服务配置、模型选择、日志、存档、系统提示词与主题配置界面。
 - `app/src/main/java/com/moonlib/cosmos/ui/theme`：Compose 主题、配色集（深浅双色板）与 CompositionLocal 定义。
 - `app/src/main/java/com/moonlib/cosmos/ui/time`：虚拟时间应用界面。
+- `app/src/main/java/com/moonlib/cosmos/ui/diary`：日记应用入口、信纸流卡片、参与人 @ 多选与独立状态卡渲染界面。
 - `app/src/main/java/com/moonlib/cosmos/utils`：跨层级复用的工具函数。
 - `app/src/main/res`：Android 资源文件。
 - `app/src/test`：本地单元测试。
