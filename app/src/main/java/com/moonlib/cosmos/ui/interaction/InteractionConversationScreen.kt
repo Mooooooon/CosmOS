@@ -317,6 +317,7 @@ fun InteractionConversationScreen(
                                 CharacterInteractionRow(
                                     content = msg.content,
                                     characterName = character.name,
+                                    characterAvatar = character.avatar,
                                     onDelete = {
                                         interactionRepo.deleteMessage(characterId, msg.id)
                                         messages = interactionRepo.getMessages(characterId)
@@ -565,23 +566,11 @@ private fun UserInteractionRow(
 private fun CharacterInteractionRow(
     content: String,
     characterName: String,
+    characterAvatar: String,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showMenu by remember { mutableStateOf(false) }
-    val themeConfig = LocalThemeConfig.current
-    val isDark = themeConfig.isDark
-
-    // 圆形首字头像
-    val firstChar = remember(characterName) {
-        if (characterName.isNotBlank()) characterName.take(1) else "?"
-    }
-    val avatarBgColor = remember(characterName, isDark) {
-        getMorandiColor(characterName, isDark)
-    }
-    val avatarTextColor = remember(isDark) {
-        if (isDark) Color(0xFFECEFF4) else Color(0xFF2E3440)
-    }
 
     Row(
         modifier = modifier
@@ -590,21 +579,12 @@ private fun CharacterInteractionRow(
         horizontalArrangement = Arrangement.Start,
         verticalAlignment = Alignment.Top
     ) {
-        // 圆形首字头像
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(avatarBgColor),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = firstChar,
-                color = avatarTextColor,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
+        // 角色头像
+        AvatarView(
+            avatarPath = characterAvatar,
+            name = characterName,
+            size = 40.dp
+        )
 
         Box(
             modifier = Modifier

@@ -24,7 +24,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.ui.platform.LocalContext
 import com.moonlib.cosmos.data.profile.CharacterProfile
+import com.moonlib.cosmos.data.profile.CharacterProfileRepository
+import com.moonlib.cosmos.ui.chat.AvatarView
 import com.moonlib.cosmos.ui.theme.LocalThemeConfig
 import java.util.UUID
 
@@ -47,20 +55,38 @@ fun ProfileEditScreen(
     val isDark = themeConfig.isDark
     val isEditMode = initialProfile != null
 
+    val context = LocalContext.current
+    val repository = remember { CharacterProfileRepository(context) }
+    val targetProfileId = remember { initialProfile?.id ?: UUID.randomUUID().toString() }
+
     // ── 核心输入状态 ──────────────────────────────────────────
     var name by remember { mutableStateOf(initialProfile?.name ?: "") }
     var prompt by remember { mutableStateOf(initialProfile?.prompt ?: "") }
+    var avatarPath by remember { mutableStateOf(initialProfile?.avatar ?: "") }
 
     // ── 对话框显示状态 ────────────────────────────────────────
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showAiDialog by remember { mutableStateOf(false) }
 
+    // ── 图片选择器 Launcher ────────────────────────────────────
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            val localPath = repository.copyAvatarToLocal(it.toString(), targetProfileId)
+            if (localPath.isNotBlank()) {
+                avatarPath = localPath
+            }
+        }
+    }
+
     // ── 检查是否有未保存的改动 ────────────────────────────────
-    val hasChanges = remember(name, prompt, initialProfile) {
+    val hasChanges = remember(name, prompt, avatarPath, initialProfile) {
         val originalName = initialProfile?.name ?: ""
         val originalPrompt = initialProfile?.prompt ?: ""
-        name != originalName || prompt != originalPrompt
+        val originalAvatar = initialProfile?.avatar ?: ""
+        name != originalName || prompt != originalPrompt || avatarPath != originalAvatar
     }
 
     // 物理返回键安全拦截
@@ -149,6 +175,40 @@ fun ProfileEditScreen(
                     modifier = Modifier.padding(18.dp),
                     verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
+                    // 头像上传框
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(90.dp)
+                                .clickable { imagePickerLauncher.launch("image/*") },
+                            contentAlignment = Alignment.BottomEnd
+                        ) {
+                            AvatarView(
+                                avatarPath = avatarPath,
+                                name = name.ifBlank { if (isPlayer) "我" else "角" },
+                                size = 90.dp
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .background(MaterialTheme.colorScheme.primary, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PhotoCamera,
+                                    contentDescription = "选择照片",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+
                     // 姓名输入
                     OutlinedTextField(
                         value = name,
@@ -236,10 +296,11 @@ fun ProfileEditScreen(
                 onClick = {
                     if (isFormValid) {
                         val finalProfile = CharacterProfile(
-                            id = initialProfile?.id ?: UUID.randomUUID().toString(),
+                            id = targetProfileId,
                             name = name.trim(),
                             prompt = prompt.trim(),
-                            isPlayer = isPlayer
+                            isPlayer = isPlayer,
+                            avatar = avatarPath
                         )
                         onSaveClick(finalProfile)
                     }

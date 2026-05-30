@@ -2,15 +2,18 @@ package com.moonlib.cosmos.data.profile
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.net.Uri
+import com.moonlib.cosmos.utils.ImageUtils
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 
 /**
  * 用户与角色人设持久化仓库类
  * 
  * 职责单一：负责对人设进行增删改查及保证“用户设定唯一性”的业务逻辑。
  */
-class CharacterProfileRepository(context: Context) {
+class CharacterProfileRepository(private val context: Context) {
 
     private val prefs: SharedPreferences = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
 
@@ -94,12 +97,54 @@ class CharacterProfileRepository(context: Context) {
         }
     }
 
+    /**
+     * 将从系统图库选择的 Uri 头像经过居中正方形裁剪和大图缩小后，拷贝到应用的私有存储空间
+     * @param uriString 外部图片 Uri 字符串
+     * @param destId 目标人设 ID
+     * @return 拷贝处理后的本地绝对路径。如果拷贝失败，返回空字符串。
+     */
+    fun copyAvatarToLocal(uriString: String, destId: String): String {
+        if (uriString.isBlank()) return ""
+        val uri = if (uriString.startsWith("content://") || uriString.startsWith("file://")) {
+            Uri.parse(uriString)
+        } else {
+            val file = File(uriString)
+            if (file.exists()) {
+                Uri.fromFile(file)
+            } else {
+                return ""
+            }
+        }
+        return try {
+            val dir = File(context.filesDir, "profile_avatars")
+            if (!dir.exists()) {
+                dir.mkdirs()
+            }
+            
+            // 清理对应 ID 先前持有的旧人设头像
+            val oldFiles = dir.listFiles { _, name -> name.startsWith(destId + "_") }
+            oldFiles?.forEach { it.delete() }
+
+            val file = File(dir, "${destId}_${System.currentTimeMillis()}.jpg")
+            val success = ImageUtils.processAndSaveAvatar(context, uri, file)
+            if (success) {
+                file.absolutePath
+            } else {
+                ""
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            ""
+        }
+    }
+
     private fun parseProfile(json: JSONObject): CharacterProfile {
         return CharacterProfile(
             id = json.getString("id"),
             name = json.getString("name"),
             prompt = json.getString("prompt"),
-            isPlayer = json.optBoolean("isPlayer", false)
+            isPlayer = json.optBoolean("isPlayer", false),
+            avatar = json.optString("avatar", "")
         )
     }
 
@@ -109,6 +154,7 @@ class CharacterProfileRepository(context: Context) {
             put("name", profile.name)
             put("prompt", profile.prompt)
             put("isPlayer", profile.isPlayer)
+            put("avatar", profile.avatar)
         }
     }
 }

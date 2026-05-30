@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.moonlib.cosmos.data.profile.CharacterProfile
 import com.moonlib.cosmos.ui.theme.LocalThemeConfig
+import com.moonlib.cosmos.ui.chat.AvatarView
 
 /**
  * 档案列表页面
@@ -182,20 +183,11 @@ fun ProfileListScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(36.dp)
-                                            .clip(CircleShape)
-                                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Person,
-                                            contentDescription = "用户",
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
+                                    AvatarView(
+                                        avatarPath = playerProfile.avatar,
+                                        name = playerProfile.name,
+                                        size = 36.dp
+                                    )
                                     Text(
                                         text = playerProfile.name,
                                         fontSize = 18.sp,
@@ -353,20 +345,11 @@ fun ProfileListScreen(
                                 .padding(horizontal = 16.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.SupportAgent,
-                                    contentDescription = "角色",
-                                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
+                             AvatarView(
+                                 avatarPath = character.avatar,
+                                 name = character.name,
+                                 size = 40.dp
+                             )
 
                             Spacer(modifier = Modifier.width(12.dp))
 

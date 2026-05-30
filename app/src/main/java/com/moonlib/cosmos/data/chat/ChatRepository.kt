@@ -3,6 +3,7 @@ package com.moonlib.cosmos.data.chat
 import android.content.Context
 import android.content.SharedPreferences
 import android.net.Uri
+import com.moonlib.cosmos.utils.ImageUtils
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -163,18 +164,17 @@ class ChatRepository(private val context: Context) {
      */
     fun copyAvatarToLocal(uriString: String, destId: String): String {
         if (uriString.isBlank()) return ""
-        if (!uriString.startsWith("content://") && !uriString.startsWith("file://")) {
-            // 如果已经是绝对文件路径，无需二次拷贝
-            if (File(uriString).exists()) {
-                return uriString
+        val uri = if (uriString.startsWith("content://") || uriString.startsWith("file://")) {
+            Uri.parse(uriString)
+        } else {
+            val file = File(uriString)
+            if (file.exists()) {
+                Uri.fromFile(file)
+            } else {
+                return ""
             }
-            return ""
         }
         return try {
-            val uri = Uri.parse(uriString)
-            val resolver = context.contentResolver
-            val inputStream = resolver.openInputStream(uri) ?: return ""
-            
             val dir = File(context.filesDir, "chat_avatars")
             if (!dir.exists()) {
                 dir.mkdirs()
@@ -185,12 +185,12 @@ class ChatRepository(private val context: Context) {
             oldFiles?.forEach { it.delete() }
 
             val file = File(dir, "${destId}_${System.currentTimeMillis()}.jpg")
-            FileOutputStream(file).use { outputStream ->
-                inputStream.use { input ->
-                    input.copyTo(outputStream)
-                }
+            val success = ImageUtils.processAndSaveAvatar(context, uri, file)
+            if (success) {
+                file.absolutePath
+            } else {
+                ""
             }
-            file.absolutePath
         } catch (e: Exception) {
             e.printStackTrace()
             ""

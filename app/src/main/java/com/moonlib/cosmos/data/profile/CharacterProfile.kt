@@ -10,4 +10,5 @@ data class CharacterProfile(
     val name: String,
     val prompt: String,
     val isPlayer: Boolean,
+    val avatar: String = "",
 )

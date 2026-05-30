@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.moonlib.cosmos.data.profile.CharacterProfileRepository
+import com.moonlib.cosmos.ui.chat.AvatarView
 import com.moonlib.cosmos.ui.theme.LocalThemeConfig
 
 /**
@@ -158,21 +159,12 @@ fun InteractionListScreen(
                                 .padding(horizontal = 16.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // 圆形首字头像
-                            Box(
-                                modifier = Modifier
-                                    .size(46.dp)
-                                    .clip(CircleShape)
-                                    .background(avatarBgColor),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = firstChar,
-                                    color = avatarTextColor,
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
+                            // 圆形头像
+                            AvatarView(
+                                avatarPath = character.avatar,
+                                name = character.name,
+                                size = 46.dp
+                            )
 
                             Spacer(modifier = Modifier.width(16.dp))
 
