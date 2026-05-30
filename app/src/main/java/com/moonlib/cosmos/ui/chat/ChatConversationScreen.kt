@@ -136,11 +136,14 @@ fun ChatConversationScreen(
                     delay(800)
                     
                     // 调用 AI 聊天引擎（引擎在内部分析、保存并推进时间）
-                    ChatEngine.getAiResponse(context, contact)
-                    
-                    // 刷新消息列表
-                    messages = chatRepo.getMessages(contactId)
-                    scrollToBottom(true)
+                    val aiReplies = ChatEngine.getAiResponse(context, contact)
+
+                    revealAiReplies(
+                        currentMessages = messages,
+                        replies = aiReplies,
+                        onMessagesChanged = { messages = it },
+                        onReplyRevealed = { scrollToBottom(true) }
+                    )
                 } catch (e: Exception) {
                     e.printStackTrace()
                     
@@ -274,9 +277,13 @@ fun ChatConversationScreen(
                                         coroutineScope.launch {
                                             try {
                                                 delay(800)
-                                                ChatEngine.getAiResponse(context, contact)
-                                                messages = chatRepo.getMessages(contactId)
-                                                scrollToBottom(true)
+                                                val aiReplies = ChatEngine.getAiResponse(context, contact)
+                                                revealAiReplies(
+                                                    currentMessages = messages,
+                                                    replies = aiReplies,
+                                                    onMessagesChanged = { messages = it },
+                                                    onReplyRevealed = { scrollToBottom(true) }
+                                                )
                                             } catch (e: Exception) {
                                                 e.printStackTrace()
                                                 val errorMsg = ChatMessage(
