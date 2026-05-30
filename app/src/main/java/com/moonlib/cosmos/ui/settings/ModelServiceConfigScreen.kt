@@ -1,7 +1,6 @@
 package com.moonlib.cosmos.ui.settings
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -10,7 +9,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
@@ -18,7 +16,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -28,7 +25,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.moonlib.cosmos.data.settings.AiProfile
 import com.moonlib.cosmos.data.settings.AiServiceType
-import com.moonlib.cosmos.ui.theme.StarWhite
 import java.util.UUID
 
 /**
@@ -376,74 +372,12 @@ fun ModelServiceConfigScreen(
                         }
                     }
 
-                    // 思考等级 (Reasoning Effort)
-                    var isThinkingLevelExpanded by remember { mutableStateOf(false) }
-                    val thinkingLevels = listOf(
-                        "default" to "默认 (不指定)",
-                        "off" to "关闭 (Off)",
-                        "minimal" to "微小 (Minimal)",
-                        "low" to "低 (Low)",
-                        "medium" to "中 (Medium)",
-                        "high" to "高 (High)"
+                    ThinkingLevelSelector(
+                        serviceType = serviceType,
+                        modelName = modelName,
+                        thinkingLevel = thinkingLevel,
+                        onThinkingLevelChange = { thinkingLevel = it }
                     )
-                    val currentLevelLabel = thinkingLevels.firstOrNull { it.first == thinkingLevel }?.second ?: "默认 (不指定)"
-
-                    Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                        Text(
-                            text = "思考等级 (Reasoning Effort)",
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
-                        )
-                        Box(modifier = Modifier.fillMaxWidth()) {
-                            OutlinedCard(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(56.dp)
-                                    .clickable { isThinkingLevelExpanded = true },
-                                shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.outlinedCardColors(
-                                    containerColor = Color.Transparent
-                                ),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(horizontal = 16.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = currentLevelLabel,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        fontSize = 14.sp
-                                    )
-                                    Icon(
-                                        imageVector = Icons.Default.ArrowDropDown,
-                                        contentDescription = "选择思考等级",
-                                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                                    )
-                                }
-                            }
-                            DropdownMenu(
-                                expanded = isThinkingLevelExpanded,
-                                onDismissRequest = { isThinkingLevelExpanded = false },
-                                modifier = Modifier.fillMaxWidth(0.85f).background(MaterialTheme.colorScheme.surfaceVariant)
-                            ) {
-                                thinkingLevels.forEach { (level, label) ->
-                                    DropdownMenuItem(
-                                        text = { Text(label, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface) },
-                                        onClick = {
-                                            thinkingLevel = level
-                                            isThinkingLevelExpanded = false
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
                 }
             }
 

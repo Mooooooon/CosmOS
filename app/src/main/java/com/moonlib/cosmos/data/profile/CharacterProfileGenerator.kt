@@ -3,6 +3,7 @@ package com.moonlib.cosmos.data.profile
 import android.content.Context
 import com.moonlib.cosmos.data.settings.AiConfigRepository
 import com.moonlib.cosmos.data.settings.AiProfile
+import com.moonlib.cosmos.data.settings.AiReasoningRequestOptions
 import com.moonlib.cosmos.data.settings.AiServiceType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -186,20 +187,7 @@ object CharacterProfileGenerator {
             put("model", modelName)
             put("messages", messagesArray)
             put("temperature", temperature.toDouble())
-            if (thinkingLevel == "off") {
-                if (serviceType == AiServiceType.DEEP_SEEK || modelName.contains("deepseek", ignoreCase = true)) {
-                    put("thinking", JSONObject().apply {
-                        put("type", "disabled")
-                    })
-                }
-            } else if (thinkingLevel != "default") {
-                put("reasoning_effort", thinkingLevel)
-                if (serviceType == AiServiceType.DEEP_SEEK || modelName.contains("deepseek", ignoreCase = true)) {
-                    put("thinking", JSONObject().apply {
-                        put("type", "enabled")
-                    })
-                }
-            }
+            AiReasoningRequestOptions.applyTo(this, serviceType, modelName, thinkingLevel)
         }
 
         // 写入数据

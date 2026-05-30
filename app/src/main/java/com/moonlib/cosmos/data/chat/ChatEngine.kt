@@ -3,6 +3,7 @@ package com.moonlib.cosmos.data.chat
 import android.content.Context
 import com.moonlib.cosmos.data.profile.CharacterProfileRepository
 import com.moonlib.cosmos.data.settings.AiConfigRepository
+import com.moonlib.cosmos.data.settings.AiReasoningRequestOptions
 import com.moonlib.cosmos.data.settings.AiServiceType
 import com.moonlib.cosmos.data.settings.AiSceneType
 import com.moonlib.cosmos.data.settings.SystemPromptRepository
@@ -435,20 +436,7 @@ object ChatEngine {
             put("messages", messagesArray)
             put("temperature", temperature.toDouble())
             put("max_tokens", 2048)
-            if (thinkingLevel == "off") {
-                if (serviceType == AiServiceType.DEEP_SEEK || modelName.contains("deepseek", ignoreCase = true)) {
-                    put("thinking", JSONObject().apply {
-                        put("type", "disabled")
-                    })
-                }
-            } else if (thinkingLevel != "default") {
-                put("reasoning_effort", thinkingLevel)
-                if (serviceType == AiServiceType.DEEP_SEEK || modelName.contains("deepseek", ignoreCase = true)) {
-                    put("thinking", JSONObject().apply {
-                        put("type", "enabled")
-                    })
-                }
-            }
+            AiReasoningRequestOptions.applyTo(this, serviceType, modelName, thinkingLevel)
             
             // 区分服务商，选择最适合的 JSON 输出配置
             if (serviceType == AiServiceType.OPEN_AI) {

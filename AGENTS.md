@@ -50,11 +50,13 @@ E:\Android\CosmOS
 │       │   │   │   │   ├── CharacterProfileGenerator.kt
 │       │   │   │   │   └── CharacterProfileRepository.kt
 │       │   │   │   ├── settings
+│       │   │   │   │   ├── AiReasoningRequestOptions.kt
 │       │   │   │   │   ├── AiConfigRepository.kt
 │       │   │   │   │   ├── AiLogRepository.kt
 │       │   │   │   │   ├── AiProfile.kt
 │       │   │   │   │   ├── AiSceneType.kt
 │       │   │   │   │   ├── AiSettingsRepository.kt
+│       │   │   │   │   ├── AiThinkingLevel.kt
 │       │   │   │   │   ├── SaveManager.kt
 │       │   │   │   │   ├── SystemPromptRepository.kt
 │       │   │   │   │   └── ThemeSettingsRepository.kt
@@ -105,6 +107,7 @@ E:\Android\CosmOS
 │       │   │   │   │   ├── SettingsMainScreen.kt
 │       │   │   │   │   ├── SystemPromptEditScreen.kt
 │       │   │   │   │   ├── SystemPromptListScreen.kt
+│       │   │   │   │   ├── ThinkingLevelSelector.kt
 │       │   │   │   │   └── ThemeSettingsScreen.kt
 │       │   │   │   ├── theme
 │       │   │   │   │   ├── Color.kt
@@ -143,7 +146,7 @@ E:\Android\CosmOS
 - `app/src/main/java/com/moonlib/cosmos/data/context`：跨聊天、互动、日记的融合上下文构建与裁剪逻辑。
 - `app/src/main/java/com/moonlib/cosmos/data/interaction`：互动消息、消息合并、互动配置、互动仓库与互动引擎。
 - `app/src/main/java/com/moonlib/cosmos/data/profile`：角色档案模型、AI 档案生成与档案持久化仓库。
-- `app/src/main/java/com/moonlib/cosmos/data/settings`：AI 服务配置、模型参数、日志、存档、系统提示词与主题配置持久化仓库。
+- `app/src/main/java/com/moonlib/cosmos/data/settings`：AI 服务配置、模型参数、思考等级请求参数转换、日志、存档、系统提示词与主题配置持久化仓库。
 - `app/src/main/java/com/moonlib/cosmos/data/time`：虚拟时间状态与推进逻辑。
 - `app/src/main/java/com/moonlib/cosmos/data/diary`：日记数据模型、多槽存档隔离日记仓库与日记 AI 生成引擎。
 - `app/src/main/java/com/moonlib/cosmos/ui/chat`：聊天应用入口、会话页、联系人列表、消息列表、联系人编辑与头像组件。
@@ -151,7 +154,7 @@ E:\Android\CosmOS
 - `app/src/main/java/com/moonlib/cosmos/ui/desktop`：桌面主界面相关 UI 组件与自适应壁纸。
 - `app/src/main/java/com/moonlib/cosmos/ui/interaction`：互动应用入口、互动列表、互动会话与互动设置界面。
 - `app/src/main/java/com/moonlib/cosmos/ui/profile`：角色档案应用入口、档案列表、档案编辑、AI 灵感输入与档案界面状态。
-- `app/src/main/java/com/moonlib/cosmos/ui/settings`：设置入口、AI 聊天设置、模型服务配置、模型选择、日志、存档、系统提示词与主题配置界面。
+- `app/src/main/java/com/moonlib/cosmos/ui/settings`：设置入口、AI 聊天设置、模型服务配置、模型选择、思考等级选择、日志、存档、系统提示词与主题配置界面。
 - `app/src/main/java/com/moonlib/cosmos/ui/theme`：Compose 主题、配色集（深浅双色板）与 CompositionLocal 定义。
 - `app/src/main/java/com/moonlib/cosmos/ui/time`：虚拟时间应用界面。
 - `app/src/main/java/com/moonlib/cosmos/ui/diary`：日记应用入口、信纸流卡片、参与人 @ 多选与独立状态卡渲染界面。

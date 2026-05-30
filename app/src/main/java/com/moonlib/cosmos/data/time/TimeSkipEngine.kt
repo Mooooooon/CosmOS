@@ -6,6 +6,7 @@ import com.moonlib.cosmos.data.chat.ChatRepository
 import com.moonlib.cosmos.data.profile.CharacterProfileRepository
 import com.moonlib.cosmos.data.settings.AiConfigRepository
 import com.moonlib.cosmos.data.settings.AiLogRepository
+import com.moonlib.cosmos.data.settings.AiReasoningRequestOptions
 import com.moonlib.cosmos.data.settings.AiServiceType
 import com.moonlib.cosmos.data.settings.AiSettingsRepository
 import com.moonlib.cosmos.data.settings.SystemPromptRepository
@@ -400,20 +401,7 @@ object TimeSkipEngine {
             put("messages", messagesArray)
             put("temperature", temperature.toDouble())
             put("max_tokens", 2048)
-            if (thinkingLevel == "off") {
-                if (serviceType == AiServiceType.DEEP_SEEK || modelName.contains("deepseek", ignoreCase = true)) {
-                    put("thinking", JSONObject().apply {
-                        put("type", "disabled")
-                    })
-                }
-            } else if (thinkingLevel != "default") {
-                put("reasoning_effort", thinkingLevel)
-                if (serviceType == AiServiceType.DEEP_SEEK || modelName.contains("deepseek", ignoreCase = true)) {
-                    put("thinking", JSONObject().apply {
-                        put("type", "enabled")
-                    })
-                }
-            }
+            AiReasoningRequestOptions.applyTo(this, serviceType, modelName, thinkingLevel)
             
             if (serviceType == AiServiceType.OPEN_AI) {
                 val replySchema = JSONObject().apply {
