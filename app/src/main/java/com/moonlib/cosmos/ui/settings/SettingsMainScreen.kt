@@ -97,7 +97,7 @@ fun SettingsMainScreen(
             }
 
             // ── 3. 核心功能：模型服务 ──────────────────────────────────
-            SettingGroup(title = "AI 核心配置") {
+            SettingGroup(title = "核心配置") {
                 SettingItem(
                     icon = Icons.Default.Psychology,
                     iconBgColor = Color(0xFF8B5CF6),
@@ -117,7 +117,7 @@ fun SettingsMainScreen(
                 SettingItem(
                     icon = Icons.Default.Tune,
                     iconBgColor = Color(0xFFF59E0B),
-                    title = "AI通讯设置",
+                    title = "通讯设置",
                     subtitle = "设置AI聊天与互动的上下文消息数限制",
                     onClick = onAiChatSettingsClick
                 )

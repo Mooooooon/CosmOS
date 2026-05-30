@@ -44,7 +44,7 @@ fun AiChatSettingsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "AI 通讯设置",
+                        text = "通讯设置",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground
