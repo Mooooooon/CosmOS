@@ -276,15 +276,12 @@ fun TwitterThreadScreen(
                                 repliesList = repository.getTweets()
                                 selectedReplyNode = null
 
-                                // 触发 AI 异步评论盖楼流程
-                                TwitterEngine.triggerNpcRepliesAsync(context, myReply.id)
-                                Toast.makeText(context, "评论发表成功，虚拟时间已推进", Toast.LENGTH_SHORT).show()
-
-                                // 3秒后刷新，NPC 可能已做出回复
-                                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                                // 触发 AI 异步评论盖楼流程，支持高保真真实通讯状态回调
+                                TwitterEngine.triggerNpcRepliesAsync(context, myReply.id) {
                                     repliesList = repository.getTweets()
                                     isLoadingReplies = false
-                                }, 3000)
+                                }
+                                Toast.makeText(context, "评论发表成功，虚拟时间已推进", Toast.LENGTH_SHORT).show()
                             },
                             enabled = textInput.trim().isNotBlank() && !isLoadingReplies,
                             modifier = Modifier

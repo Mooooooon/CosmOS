@@ -34,12 +34,16 @@ object TwitterEngine {
     /**
      * 当用户发推或回复后，异步触发被关注的角色进行盖楼评论
      */
-    fun triggerNpcRepliesAsync(context: Context, tweetId: String) {
+    fun triggerNpcRepliesAsync(context: Context, tweetId: String, onComplete: (() -> Unit)? = null) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 checkAndGenerateNpcReplies(context, tweetId)
             } catch (e: Exception) {
                 e.printStackTrace()
+            } finally {
+                withContext(Dispatchers.Main) {
+                    onComplete?.invoke()
+                }
             }
         }
     }
