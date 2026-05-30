@@ -15,6 +15,7 @@ import com.moonlib.cosmos.data.settings.AiLog
 import com.moonlib.cosmos.data.settings.AiLogRepository
 import com.moonlib.cosmos.data.settings.SystemPromptRepository
 import com.moonlib.cosmos.data.settings.SystemPromptItem
+import com.moonlib.cosmos.data.settings.SaveManager
 
 /**
  * 设置内部的子页面路由状态
@@ -29,6 +30,7 @@ sealed interface SettingsScreenState {
     object SystemPromptList : SettingsScreenState
     data class EditSystemPrompt(val promptId: String) : SettingsScreenState
     object AiChatSettings : SettingsScreenState
+    object SaveSlotsList : SettingsScreenState
 }
 
 /**
@@ -85,6 +87,7 @@ fun SettingsAppScreen(
             is SettingsScreenState.SystemPromptList -> currentScreen = SettingsScreenState.Main
             is SettingsScreenState.EditSystemPrompt -> currentScreen = SettingsScreenState.SystemPromptList
             is SettingsScreenState.AiChatSettings -> currentScreen = SettingsScreenState.Main
+            is SettingsScreenState.SaveSlotsList -> currentScreen = SettingsScreenState.Main
         }
     }
 
@@ -102,6 +105,7 @@ fun SettingsAppScreen(
             is SettingsScreenState.Main -> {
                 SettingsMainScreen(
                     activeProfileName = activeProfileName,
+                    activeSaveName = SaveManager.getActiveSaveName(),
                     onModelServiceClick = {
                         refreshData()
                         currentScreen = SettingsScreenState.ProfileList
@@ -118,6 +122,9 @@ fun SettingsAppScreen(
                     },
                     onAiChatSettingsClick = {
                         currentScreen = SettingsScreenState.AiChatSettings
+                    },
+                    onSaveManagerClick = {
+                        currentScreen = SettingsScreenState.SaveSlotsList
                     }
                 )
             }
@@ -255,6 +262,15 @@ fun SettingsAppScreen(
             // ── 9. AI 通讯设置页面 ────────────────────────────────────
             is SettingsScreenState.AiChatSettings -> {
                 AiChatSettingsScreen(
+                    onBackClick = {
+                        currentScreen = SettingsScreenState.Main
+                    }
+                )
+            }
+            
+            // ── 10. 存档管理控制台页面 ──────────────────────────────────
+            is SettingsScreenState.SaveSlotsList -> {
+                SaveSlotsListScreen(
                     onBackClick = {
                         currentScreen = SettingsScreenState.Main
                     }

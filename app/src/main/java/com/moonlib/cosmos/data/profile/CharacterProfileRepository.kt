@@ -7,6 +7,7 @@ import com.moonlib.cosmos.utils.ImageUtils
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import com.moonlib.cosmos.data.settings.SaveManager
 
 /**
  * 用户与角色人设持久化仓库类
@@ -15,7 +16,8 @@ import java.io.File
  */
 class CharacterProfileRepository(private val context: Context) {
 
-    private val prefs: SharedPreferences = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+    private val prefs: SharedPreferences
+        get() = context.getSharedPreferences(SaveManager.getPrefName(PREF_NAME), Context.MODE_PRIVATE)
 
     companion object {
         private const val PREF_NAME = "cosmos_character_profiles_prefs"
@@ -116,7 +118,7 @@ class CharacterProfileRepository(private val context: Context) {
             }
         }
         return try {
-            val dir = File(context.filesDir, "profile_avatars")
+            val dir = File(context.filesDir, SaveManager.getAvatarDirName("profile_avatars"))
             if (!dir.exists()) {
                 dir.mkdirs()
             }

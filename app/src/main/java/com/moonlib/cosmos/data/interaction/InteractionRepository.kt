@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
+import com.moonlib.cosmos.data.settings.SaveManager
 
 /**
  * 线下互动数据持久化仓库
@@ -13,7 +14,8 @@ import java.util.UUID
  */
 class InteractionRepository(private val context: Context) {
 
-    private val prefs: SharedPreferences = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+    private val prefs: SharedPreferences
+        get() = context.getSharedPreferences(SaveManager.getPrefName(PREF_NAME), Context.MODE_PRIVATE)
 
     companion object {
         private const val PREF_NAME = "cosmos_interaction_prefs"

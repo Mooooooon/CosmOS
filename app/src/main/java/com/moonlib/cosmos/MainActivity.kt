@@ -19,6 +19,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // 初始化全局存档系统
+        com.moonlib.cosmos.data.settings.SaveManager.init(this)
+
         // 初始化虚拟时间系统
         VirtualTimeManager.init(this)
 
@@ -30,6 +33,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             var isDark by remember { mutableStateOf(themeRepository.isDarkTheme()) }
+            val activeSaveId by com.moonlib.cosmos.data.settings.SaveManager.activeSaveIdState
 
             CompositionLocalProvider(
                 LocalThemeConfig provides ThemeConfig(
@@ -41,7 +45,9 @@ class MainActivity : ComponentActivity() {
                 )
             ) {
                 CosmOSTheme(isDarkTheme = isDark) {
-                    DesktopScreen()
+                    key(activeSaveId) {
+                        DesktopScreen()
+                    }
                 }
             }
         }

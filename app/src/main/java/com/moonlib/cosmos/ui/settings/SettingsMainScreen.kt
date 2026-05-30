@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -40,11 +41,13 @@ import com.moonlib.cosmos.ui.theme.StarWhite
 @Composable
 fun SettingsMainScreen(
     activeProfileName: String,
+    activeSaveName: String,
     onModelServiceClick: () -> Unit,
     onPromptClick: () -> Unit,
     onThemeClick: () -> Unit,
     onLogsClick: () -> Unit,
     onAiChatSettingsClick: () -> Unit,
+    onSaveManagerClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -142,6 +145,14 @@ fun SettingsMainScreen(
                     title = "个性化",
                     subtitle = themeSubtitle,
                     onClick = onThemeClick
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), thickness = 0.5.dp)
+                SettingItem(
+                    icon = Icons.Default.Backup,
+                    iconBgColor = Color(0xFF3B82F6),
+                    title = "存档管理",
+                    subtitle = "当前装载：$activeSaveName",
+                    onClick = onSaveManagerClick
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), thickness = 0.5.dp)
                 SimulatedSettingItem(

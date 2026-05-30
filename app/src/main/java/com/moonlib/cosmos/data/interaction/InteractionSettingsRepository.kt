@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import org.json.JSONArray
 import org.json.JSONObject
+import com.moonlib.cosmos.data.settings.SaveManager
 
 /**
  * 状态卡词条定义
@@ -22,7 +23,8 @@ data class StatusKey(
  */
 class InteractionSettingsRepository(private val context: Context) {
 
-    private val prefs: SharedPreferences = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+    private val prefs: SharedPreferences
+        get() = context.getSharedPreferences(SaveManager.getPrefName(PREF_NAME), Context.MODE_PRIVATE)
 
     companion object {
         private const val PREF_NAME = "cosmos_interaction_settings_prefs"

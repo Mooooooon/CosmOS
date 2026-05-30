@@ -8,6 +8,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
+import com.moonlib.cosmos.data.settings.SaveManager
 
 /**
  * 聊天持久化仓库类
@@ -16,7 +17,8 @@ import java.io.FileOutputStream
  */
 class ChatRepository(private val context: Context) {
 
-    private val prefs: SharedPreferences = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+    private val prefs: SharedPreferences
+        get() = context.getSharedPreferences(SaveManager.getPrefName(PREF_NAME), Context.MODE_PRIVATE)
 
     companion object {
         private const val PREF_NAME = "cosmos_chat_prefs"
@@ -175,7 +177,7 @@ class ChatRepository(private val context: Context) {
             }
         }
         return try {
-            val dir = File(context.filesDir, "chat_avatars")
+            val dir = File(context.filesDir, SaveManager.getAvatarDirName("chat_avatars"))
             if (!dir.exists()) {
                 dir.mkdirs()
             }

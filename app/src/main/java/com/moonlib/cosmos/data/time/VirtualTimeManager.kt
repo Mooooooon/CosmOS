@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import com.moonlib.cosmos.data.settings.SaveManager
 
 /**
  * 虚拟世界时间管理器
@@ -28,7 +29,8 @@ object VirtualTimeManager {
      * 在 App 启动时初始化虚拟时间管理器
      */
     fun init(context: Context) {
-        prefs = context.applicationContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        val prefName = SaveManager.getPrefName(PREF_NAME)
+        prefs = context.applicationContext.getSharedPreferences(prefName, Context.MODE_PRIVATE)
         // 首次启动默认设为当前系统真实时间
         val savedTime = prefs.getLong(KEY_VIRTUAL_TIME, System.currentTimeMillis())
         _currentTimeFlow.value = savedTime
