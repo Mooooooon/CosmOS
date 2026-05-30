@@ -163,6 +163,7 @@ private fun ProfileCard(
         AiServiceType.OPEN_AI -> Color(0xFF10B981)
         AiServiceType.DEEP_SEEK -> Color(0xFF3B82F6)
         AiServiceType.GEMINI -> Color(0xFF8B5CF6)
+        AiServiceType.VERTEX -> Color(0xFFEA4335)
     }
 
     Card(

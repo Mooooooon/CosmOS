@@ -1,10 +1,12 @@
 package com.moonlib.cosmos.data.profile
 
 import android.content.Context
+import com.moonlib.cosmos.data.settings.AiAuthorizationHeader
 import com.moonlib.cosmos.data.settings.AiConfigRepository
 import com.moonlib.cosmos.data.settings.AiProfile
 import com.moonlib.cosmos.data.settings.AiReasoningRequestOptions
 import com.moonlib.cosmos.data.settings.AiServiceType
+import com.moonlib.cosmos.data.settings.AiVertexConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -72,11 +74,11 @@ object CharacterProfileGenerator {
             throw Exception("激活的 AI 配置文件不完整，请前往【系统设置】检查配置。")
         }
 
-        // 识别是否为 Gemini 官方 API
-        val isGeminiOfficial = activeProfile.serviceType == AiServiceType.GEMINI && baseUrl.contains("googleapis.com")
+        val isNativeGenerateContent = activeProfile.serviceType == AiServiceType.VERTEX ||
+            (activeProfile.serviceType == AiServiceType.GEMINI && baseUrl.contains("googleapis.com"))
 
-        if (isGeminiOfficial) {
-            executeGeminiOfficial(baseUrl, modelName, apiKey, temperature, userIdea)
+        if (isNativeGenerateContent) {
+            executeGeminiOfficial(baseUrl, modelName, apiKey, temperature, userIdea, activeProfile.serviceType, activeProfile.vertexRegion)
         } else {
             executeOpenAISync(baseUrl, modelName, apiKey, temperature, userIdea, activeProfile.serviceType, activeProfile.thinkingLevel)
         }
@@ -90,11 +92,17 @@ object CharacterProfileGenerator {
         modelName: String,
         apiKey: String,
         temperature: Float,
-        userIdea: String
+        userIdea: String,
+        serviceType: AiServiceType = AiServiceType.GEMINI,
+        vertexRegion: String = AiVertexConfig.DEFAULT_REGION
     ): String {
         val base = baseUrl.removeSuffix("/")
         // Gemini 官方 generateContent 接口地址
-        val urlStr = "$base/v1beta/models/$modelName:generateContent?key=$apiKey"
+        val urlStr = if (serviceType == AiServiceType.VERTEX) {
+            AiVertexConfig.buildGenerateContentUrl(apiKey, vertexRegion, modelName)
+        } else {
+            "$base/v1beta/models/$modelName:generateContent?key=$apiKey"
+        }
         val url = URL(urlStr)
         val conn = url.openConnection() as HttpURLConnection
         
@@ -102,6 +110,9 @@ object CharacterProfileGenerator {
         conn.connectTimeout = 60000
         conn.readTimeout = 60000
         conn.setRequestProperty("Content-Type", "application/json")
+        if (serviceType == AiServiceType.VERTEX) {
+            conn.setRequestProperty("Authorization", AiAuthorizationHeader.create(serviceType, apiKey))
+        }
         conn.doOutput = true
 
         // 拼接 Prompt：由于官方 Gemini 结构不同，将 system instruction 拼在 prompt 头
@@ -167,7 +178,7 @@ object CharacterProfileGenerator {
         conn.requestMethod = "POST"
         conn.connectTimeout = 60000
         conn.readTimeout = 60000
-        conn.setRequestProperty("Authorization", "Bearer $apiKey")
+        conn.setRequestProperty("Authorization", AiAuthorizationHeader.create(serviceType, apiKey))
         conn.setRequestProperty("Content-Type", "application/json")
         conn.doOutput = true
 

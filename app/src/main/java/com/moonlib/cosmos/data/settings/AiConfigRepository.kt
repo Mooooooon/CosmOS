@@ -140,7 +140,8 @@ class AiConfigRepository(context: Context) {
             modelName     = json.getString("modelName"),
             temperature   = json.optDouble("temperature", 0.7).toFloat(),
             isActive      = json.optBoolean("isActive", false),
-            thinkingLevel = json.optString("thinkingLevel", "default")
+            thinkingLevel = json.optString("thinkingLevel", "default"),
+            vertexRegion  = json.optString("vertexRegion", AiVertexConfig.DEFAULT_REGION)
         )
     }
 
@@ -158,6 +159,7 @@ class AiConfigRepository(context: Context) {
             put("temperature", profile.temperature.toDouble())
             put("isActive", profile.isActive)
             put("thinkingLevel", profile.thinkingLevel)
+            put("vertexRegion", profile.vertexRegion)
         }
     }
 }

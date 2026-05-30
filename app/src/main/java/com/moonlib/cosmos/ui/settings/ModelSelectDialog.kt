@@ -14,10 +14,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.moonlib.cosmos.data.settings.AiAuthorizationHeader
 import com.moonlib.cosmos.data.settings.AiServiceType
+import com.moonlib.cosmos.data.settings.ModelListCacheRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -32,9 +35,14 @@ import java.net.URL
 suspend fun fetchModelsOnline(
     serviceType: AiServiceType,
     apiKey: String,
-    baseUrl: String
+    baseUrl: String,
+    vertexRegion: String = "global"
 ): List<String> = withContext(Dispatchers.IO) {
     val isGeminiOfficial = serviceType == AiServiceType.GEMINI && baseUrl.contains("googleapis.com")
+    if (serviceType == AiServiceType.VERTEX) {
+        return@withContext fetchVertexModels(apiKey)
+    }
+
     val urlStr = if (isGeminiOfficial) {
         val base = baseUrl.removeSuffix("/")
         "$base/v1beta/models?key=$apiKey"
@@ -51,7 +59,7 @@ suspend fun fetchModelsOnline(
     
     // 非 Gemini 官方接口需要添加 Bearer token
     if (!isGeminiOfficial) {
-        conn.setRequestProperty("Authorization", "Bearer $apiKey")
+        conn.setRequestProperty("Authorization", AiAuthorizationHeader.create(serviceType, apiKey))
     }
     conn.setRequestProperty("Content-Type", "application/json")
     conn.setRequestProperty("Accept", "application/json")
@@ -99,6 +107,62 @@ suspend fun fetchModelsOnline(
     }
 }
 
+private suspend fun fetchVertexModels(
+    serviceAccountJson: String
+): List<String> = withContext(Dispatchers.IO) {
+    val url = URL("https://aiplatform.googleapis.com/v1beta1/publishers/google/models?listAllVersions=true&pageSize=200")
+    val conn = url.openConnection() as HttpURLConnection
+    conn.requestMethod = "GET"
+    conn.connectTimeout = 60000
+    conn.readTimeout = 60000
+    conn.setRequestProperty("Authorization", AiAuthorizationHeader.create(AiServiceType.VERTEX, serviceAccountJson))
+    conn.setRequestProperty("Accept", "application/json")
+
+    if (conn.responseCode != 200) {
+        val errorText = try {
+            conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+        } catch (e: Exception) {
+            ""
+        }
+        throw Exception(
+            "Vertex 未返回模型列表 HTTP ${conn.responseCode}，请检查服务账号权限。${errorText.take(120)}"
+        )
+    }
+
+    val json = JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
+    val models = mutableListOf<String>()
+    val array = json.optJSONArray("publisherModels") ?: json.optJSONArray("models")
+    if (array != null) {
+        for (i in 0 until array.length()) {
+            val item = array.getJSONObject(i)
+            val id = item.optString("name").substringAfterLast("/")
+                .takeIf { it.isNotBlank() }
+            if (id != null && id.startsWith("gemini-")) {
+                models.add(id)
+            }
+        }
+    }
+    if (models.isEmpty()) {
+        throw Exception("Vertex /models 响应为空，已保留推荐列表")
+    }
+    models.distinct().sorted()
+}
+
+private fun vertexRecommendModels(): List<String> {
+    return listOf(
+        "gemini-3-pro-preview",
+        "gemini-3-flash-preview",
+        "gemini-2.5-pro",
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite",
+        "gemini-2.5-flash-image-preview",
+        "gemini-2.0-flash-001",
+        "gemini-2.0-flash-lite-001",
+        "gemini-1.5-pro-002",
+        "gemini-1.5-flash-002"
+    )
+}
+
 /**
  * 智能模型选择与在线获取对话框
  * 职责单一：负责展示及选择 AI 模型列表，提供本地快捷推荐和在线拉取功能
@@ -109,12 +173,18 @@ fun ModelSelectDialog(
     serviceType: AiServiceType,
     apiKey: String,
     baseUrl: String,
+    vertexRegion: String = "global",
     onDismiss: () -> Unit,
     onModelSelected: (String) -> Unit
 ) {
+    val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val cacheRepository = remember { ModelListCacheRepository(context) }
+    val cacheKey = remember(serviceType, baseUrl, vertexRegion) {
+        ModelListCacheRepository.key(serviceType, baseUrl, vertexRegion)
+    }
     var isLoading by remember { mutableStateOf(false) }
-    var onlineModels by remember { mutableStateOf<List<String>?>(null) }
+    var onlineModels by remember(cacheKey) { mutableStateOf(cacheRepository.getModels(cacheKey)) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var searchQuery by remember { mutableStateOf("") }
 
@@ -123,16 +193,18 @@ fun ModelSelectDialog(
         AiServiceType.OPEN_AI -> listOf("gpt-4o", "gpt-4o-mini", "o1-mini", "o1-preview", "gpt-4-turbo", "gpt-3.5-turbo")
         AiServiceType.DEEP_SEEK -> listOf("deepseek-chat", "deepseek-coder")
         AiServiceType.GEMINI -> listOf("gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.0-pro", "gemini-2.0-flash-exp")
+        AiServiceType.VERTEX -> vertexRecommendModels()
     }
 
-    // 初始化时，如果已填写 Key & BaseURL，则静默/自动发起一次在线拉取
-    LaunchedEffect(Unit) {
-        if (apiKey.isNotBlank() && baseUrl.isNotBlank()) {
+    // 初始化时优先使用缓存；没有缓存时才自动拉取一次。
+    LaunchedEffect(cacheKey) {
+        if (onlineModels == null && apiKey.isNotBlank() && baseUrl.isNotBlank()) {
             isLoading = true
             errorMessage = null
             try {
-                val fetched = fetchModelsOnline(serviceType, apiKey, baseUrl)
+                val fetched = fetchModelsOnline(serviceType, apiKey, baseUrl, vertexRegion)
                 onlineModels = fetched
+                cacheRepository.saveModels(cacheKey, fetched)
             } catch (e: Exception) {
                 errorMessage = e.message ?: "网络连接失败，请检查网络"
             } finally {
@@ -272,7 +344,7 @@ fun ModelSelectDialog(
                         ) {
                             val isOnline = onlineModels != null
                             Text(
-                                text = if (isOnline) "● 在线获取模型 (${filteredModels.size} 个)" else "★ 常用推荐模型",
+                                text = if (isOnline) "已缓存模型 (${filteredModels.size} 个)" else "常用推荐模型",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (isOnline) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
@@ -337,8 +409,9 @@ fun ModelSelectDialog(
                                 isLoading = true
                                 errorMessage = null
                                 try {
-                                    val fetched = fetchModelsOnline(serviceType, apiKey, baseUrl)
+                                    val fetched = fetchModelsOnline(serviceType, apiKey, baseUrl, vertexRegion)
                                     onlineModels = fetched
+                                    cacheRepository.saveModels(cacheKey, fetched)
                                 } catch (e: Exception) {
                                     errorMessage = e.message ?: "拉取失败，请检查配置与网络"
                                 } finally {

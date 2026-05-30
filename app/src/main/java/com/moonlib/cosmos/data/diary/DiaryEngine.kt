@@ -2,9 +2,11 @@ package com.moonlib.cosmos.data.diary
 
 import android.content.Context
 import com.moonlib.cosmos.data.profile.CharacterProfileRepository
+import com.moonlib.cosmos.data.settings.AiAuthorizationHeader
 import com.moonlib.cosmos.data.settings.AiConfigRepository
 import com.moonlib.cosmos.data.settings.AiReasoningRequestOptions
 import com.moonlib.cosmos.data.settings.AiServiceType
+import com.moonlib.cosmos.data.settings.AiVertexConfig
 import com.moonlib.cosmos.data.settings.SystemPromptRepository
 import com.moonlib.cosmos.data.time.VirtualTimeManager
 import com.moonlib.cosmos.data.interaction.InteractionSettingsRepository
@@ -245,9 +247,10 @@ object DiaryEngine {
         """.trimIndent()
 
         // 4. 调用 AI 接口获取响应
-        val isGeminiOfficial = activeProfile.serviceType == AiServiceType.GEMINI && baseUrl.contains("googleapis.com")
-        val responseText = if (isGeminiOfficial) {
-            executeGeminiOfficial(baseUrl, modelName, apiKey, temperature, systemPrompt, userPrompt)
+        val isNativeGenerateContent = activeProfile.serviceType == AiServiceType.VERTEX ||
+            (activeProfile.serviceType == AiServiceType.GEMINI && baseUrl.contains("googleapis.com"))
+        val responseText = if (isNativeGenerateContent) {
+            executeGeminiOfficial(baseUrl, modelName, apiKey, temperature, systemPrompt, userPrompt, activeProfile.serviceType, activeProfile.vertexRegion)
         } else {
             executeOpenAI(baseUrl, modelName, apiKey, temperature, systemPrompt, userPrompt, activeProfile.serviceType, characterProfiles, statusKeys, diaryStatusCardEnabled, activeProfile.thinkingLevel)
         }
@@ -343,7 +346,7 @@ object DiaryEngine {
         conn.requestMethod = "POST"
         conn.connectTimeout = 60000
         conn.readTimeout = 60000
-        conn.setRequestProperty("Authorization", "Bearer $apiKey")
+        conn.setRequestProperty("Authorization", AiAuthorizationHeader.create(serviceType, apiKey))
         conn.setRequestProperty("Content-Type", "application/json")
         conn.doOutput = true
 
@@ -454,10 +457,16 @@ object DiaryEngine {
         apiKey: String,
         temperature: Float,
         systemPrompt: String,
-        userPrompt: String
+        userPrompt: String,
+        serviceType: AiServiceType = AiServiceType.GEMINI,
+        vertexRegion: String = AiVertexConfig.DEFAULT_REGION
     ): String {
         val base = baseUrl.removeSuffix("/")
-        val urlStr = "$base/v1beta/models/$modelName:generateContent?key=$apiKey"
+        val urlStr = if (serviceType == AiServiceType.VERTEX) {
+            AiVertexConfig.buildGenerateContentUrl(apiKey, vertexRegion, modelName)
+        } else {
+            "$base/v1beta/models/$modelName:generateContent?key=$apiKey"
+        }
         val url = URL(urlStr)
         val conn = url.openConnection() as HttpURLConnection
 
@@ -465,6 +474,9 @@ object DiaryEngine {
         conn.connectTimeout = 60000
         conn.readTimeout = 60000
         conn.setRequestProperty("Content-Type", "application/json")
+        if (serviceType == AiServiceType.VERTEX) {
+            conn.setRequestProperty("Authorization", AiAuthorizationHeader.create(serviceType, apiKey))
+        }
         conn.doOutput = true
 
         val requestJson = JSONObject().apply {

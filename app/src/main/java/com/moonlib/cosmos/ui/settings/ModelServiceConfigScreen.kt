@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.moonlib.cosmos.data.settings.AiProfile
 import com.moonlib.cosmos.data.settings.AiServiceType
+import com.moonlib.cosmos.data.settings.AiVertexConfig
 import java.util.UUID
 
 /**
@@ -64,6 +65,9 @@ fun ModelServiceConfigScreen(
     var thinkingLevel by remember {
         mutableStateOf(initialProfile?.thinkingLevel ?: "default")
     }
+    var vertexRegion by remember {
+        mutableStateOf(initialProfile?.vertexRegion ?: AiVertexConfig.DEFAULT_REGION)
+    }
 
     // 状态控制：API Key 是否可见
     var isApiKeyVisible by remember { mutableStateOf(false) }
@@ -73,30 +77,27 @@ fun ModelServiceConfigScreen(
 
     // ── 自动填充智能逻辑 ──────────────────────────────────────
     val updateServiceType = { type: AiServiceType ->
+        val previousType = serviceType
         serviceType = type
         
         // 自动填写配置名称默认提示（如果用户没写或者还是旧服务商名）
-        if (name.isEmpty() || name == "OpenAI" || name == "DeepSeek" || name == "Gemini") {
+        if (name.isEmpty() || AiServiceType.entries.any { name == it.displayName }) {
             name = type.displayName
         }
 
         // 只有当端点和模型是旧服务商的默认值，或为空时，才进行自动覆盖填充
-        val currentDefaults = listOf(
-            AiServiceType.OPEN_AI.defaultUrl,
-            AiServiceType.DEEP_SEEK.defaultUrl,
-            AiServiceType.GEMINI.defaultUrl
-        )
-        if (baseUrl.trim() in currentDefaults || baseUrl.trim().isEmpty()) {
+        val currentDefaults = AiServiceType.entries.map { it.defaultUrl }
+        if (baseUrl.trim() in currentDefaults || baseUrl.trim().isEmpty() || previousType == AiServiceType.VERTEX) {
             baseUrl = type.defaultUrl
         }
 
-        val currentModelDefaults = listOf(
-            AiServiceType.OPEN_AI.defaultModel,
-            AiServiceType.DEEP_SEEK.defaultModel,
-            AiServiceType.GEMINI.defaultModel
-        )
+        val currentModelDefaults = AiServiceType.entries.map { it.defaultModel }
         if (modelName.trim() in currentModelDefaults || modelName.trim().isEmpty()) {
             modelName = type.defaultModel
+        }
+
+        if (type == AiServiceType.VERTEX && vertexRegion.isBlank()) {
+            vertexRegion = AiVertexConfig.DEFAULT_REGION
         }
     }
 
@@ -108,7 +109,25 @@ fun ModelServiceConfigScreen(
     }
 
     // ── 表单合法性校验 ────────────────────────────────────────
-    val isFormValid = name.isNotBlank() && apiKey.isNotBlank() && baseUrl.isNotBlank() && modelName.isNotBlank()
+    val vertexBaseUrl = remember(serviceType, apiKey, vertexRegion) {
+        if (serviceType == AiServiceType.VERTEX && apiKey.isNotBlank()) {
+            runCatching { AiVertexConfig.buildNativeBaseUrl(apiKey, vertexRegion) }.getOrNull()
+        } else {
+            null
+        }
+    }
+    val effectiveBaseUrl = remember(serviceType, baseUrl, vertexBaseUrl) {
+        if (serviceType == AiServiceType.VERTEX) {
+            vertexBaseUrl.orEmpty()
+        } else {
+            baseUrl
+        }
+    }
+    val isFormValid = name.isNotBlank() &&
+        apiKey.isNotBlank() &&
+        effectiveBaseUrl.isNotBlank() &&
+        modelName.isNotBlank() &&
+        (serviceType != AiServiceType.VERTEX || vertexRegion.isNotBlank())
 
     Scaffold(
         topBar = {
@@ -149,60 +168,10 @@ fun ModelServiceConfigScreen(
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             // ── 1. 服务商快捷选择面板 ───────────────────────────────
-            Column {
-                Text(
-                    text = "选择服务商类型",
-                    color = MaterialTheme.colorScheme.primary,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    AiServiceType.values().forEach { type ->
-                        val isSelected = serviceType == type
-                        val brandColor = when (type) {
-                            AiServiceType.OPEN_AI -> Color(0xFF10B981)
-                            AiServiceType.DEEP_SEEK -> Color(0xFF3B82F6)
-                            AiServiceType.GEMINI -> Color(0xFF8B5CF6)
-                        }
-
-                        Card(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(56.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable { updateServiceType(type) },
-                            border = if (isSelected) {
-                                BorderStroke(1.5.dp, brandColor)
-                            } else {
-                                BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
-                            },
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (isSelected) {
-                                    brandColor.copy(alpha = 0.15f)
-                                } else {
-                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                                }
-                            )
-                        ) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = type.displayName,
-                                    color = if (isSelected) brandColor else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-                }
-            }
+            ServiceTypeSelector(
+                selectedType = serviceType,
+                onTypeSelected = updateServiceType
+            )
 
             // ── 2. 表单配置字段 ─────────────────────────────────────
             Card(
@@ -235,22 +204,30 @@ fun ModelServiceConfigScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    // API Key
+                    // API Key / Vertex 服务账号 JSON
                     OutlinedTextField(
                         value = apiKey,
                         onValueChange = { apiKey = it },
-                        label = { Text("API Key") },
-                        placeholder = { Text("输入您的 API 访问密钥") },
-                        singleLine = true,
-                        visualTransformation = if (isApiKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        label = {
+                            Text(if (serviceType == AiServiceType.VERTEX) "服务账号 JSON" else "API Key")
+                        },
+                        placeholder = {
+                            Text(if (serviceType == AiServiceType.VERTEX) "粘贴完整 Google Cloud Service Account JSON" else "输入您的 API 访问密钥")
+                        },
+                        singleLine = serviceType != AiServiceType.VERTEX,
+                        minLines = if (serviceType == AiServiceType.VERTEX) 5 else 1,
+                        maxLines = if (serviceType == AiServiceType.VERTEX) 8 else 1,
+                        visualTransformation = if (isApiKeyVisible || serviceType == AiServiceType.VERTEX) VisualTransformation.None else PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         trailingIcon = {
-                            IconButton(onClick = { isApiKeyVisible = !isApiKeyVisible }) {
-                                Icon(
-                                    imageVector = if (isApiKeyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = "切换可见性",
-                                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                                )
+                            if (serviceType != AiServiceType.VERTEX) {
+                                IconButton(onClick = { isApiKeyVisible = !isApiKeyVisible }) {
+                                    Icon(
+                                        imageVector = if (isApiKeyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        contentDescription = "切换可见性",
+                                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                    )
+                                }
                             }
                         },
                         colors = OutlinedTextFieldDefaults.colors(
@@ -266,25 +243,56 @@ fun ModelServiceConfigScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    // Base URL
-                    OutlinedTextField(
-                        value = baseUrl,
-                        onValueChange = { baseUrl = it },
-                        label = { Text("API 端点 (Base URL)") },
-                        placeholder = { Text("例如：https://api.openai.com/v1") },
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
-                            focusedLabelColor = MaterialTheme.colorScheme.primary,
-                            unfocusedLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                            focusedPlaceholderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                            unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    if (serviceType == AiServiceType.VERTEX) {
+                        OutlinedTextField(
+                            value = vertexRegion,
+                            onValueChange = { vertexRegion = it.ifBlank { AiVertexConfig.DEFAULT_REGION } },
+                            label = { Text("地区 (Location)") },
+                            placeholder = { Text("global") },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
+                                focusedLabelColor = MaterialTheme.colorScheme.primary,
+                                unfocusedLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                focusedPlaceholderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                                unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text(
+                            text = if (effectiveBaseUrl.isNotBlank()) {
+                                "端点: $effectiveBaseUrl"
+                            } else {
+                                "端点: 等待有效服务账号 JSON"
+                            },
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+                    } else {
+                        // Base URL
+                        OutlinedTextField(
+                            value = baseUrl,
+                            onValueChange = { baseUrl = it },
+                            label = { Text("API 端点 (Base URL)") },
+                            placeholder = { Text("例如：https://api.openai.com/v1") },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
+                                focusedLabelColor = MaterialTheme.colorScheme.primary,
+                                unfocusedLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                focusedPlaceholderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                                unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
 
                     // Model Name + 获取按钮
                     Row(
@@ -390,11 +398,12 @@ fun ModelServiceConfigScreen(
                             name          = name.trim(),
                             serviceType   = serviceType,
                             apiKey        = apiKey.trim(),
-                            baseUrl       = baseUrl.trim(),
+                            baseUrl       = effectiveBaseUrl.trim(),
                             modelName     = modelName.trim(),
                             temperature   = temperature,
                             isActive      = initialProfile?.isActive ?: false,
-                            thinkingLevel = thinkingLevel
+                            thinkingLevel = thinkingLevel,
+                            vertexRegion  = AiVertexConfig.normalizeRegion(vertexRegion)
                         )
                         onSaveClick(finalProfile)
                     }
@@ -424,7 +433,8 @@ fun ModelServiceConfigScreen(
         ModelSelectDialog(
             serviceType = serviceType,
             apiKey = apiKey,
-            baseUrl = baseUrl,
+            baseUrl = effectiveBaseUrl,
+            vertexRegion = vertexRegion,
             onDismiss = { showModelSelectDialog = false },
             onModelSelected = { selectedModel ->
                 modelName = selectedModel

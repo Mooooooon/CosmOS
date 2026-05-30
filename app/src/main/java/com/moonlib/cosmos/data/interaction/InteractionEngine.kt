@@ -3,10 +3,12 @@ package com.moonlib.cosmos.data.interaction
 import android.content.Context
 import com.moonlib.cosmos.data.profile.CharacterProfile
 import com.moonlib.cosmos.data.profile.CharacterProfileRepository
+import com.moonlib.cosmos.data.settings.AiAuthorizationHeader
 import com.moonlib.cosmos.data.settings.AiConfigRepository
 import com.moonlib.cosmos.data.settings.AiReasoningRequestOptions
 import com.moonlib.cosmos.data.settings.AiServiceType
 import com.moonlib.cosmos.data.settings.AiSceneType
+import com.moonlib.cosmos.data.settings.AiVertexConfig
 import com.moonlib.cosmos.data.chat.AiPromptHelper
 import com.moonlib.cosmos.data.settings.SystemPromptRepository
 import com.moonlib.cosmos.data.time.VirtualTimeManager
@@ -67,11 +69,11 @@ object InteractionEngine {
             sceneType = AiSceneType.INTERACTION
         )
 
-        // 识别是否为 Gemini 官方 API
-        val isGeminiOfficial = activeProfile.serviceType == AiServiceType.GEMINI && baseUrl.contains("googleapis.com")
+        val isNativeGenerateContent = activeProfile.serviceType == AiServiceType.VERTEX ||
+            (activeProfile.serviceType == AiServiceType.GEMINI && baseUrl.contains("googleapis.com"))
 
-        val responseText = if (isGeminiOfficial) {
-            executeGeminiOfficial(context, baseUrl, modelName, apiKey, temperature, systemPrompt, recentMerged)
+        val responseText = if (isNativeGenerateContent) {
+            executeGeminiOfficial(context, baseUrl, modelName, apiKey, temperature, systemPrompt, recentMerged, activeProfile.serviceType, activeProfile.vertexRegion)
         } else {
             executeOpenAI(context, baseUrl, modelName, apiKey, temperature, systemPrompt, recentMerged, activeProfile.serviceType, charProfile.name, activeProfile.thinkingLevel)
         }
@@ -281,10 +283,16 @@ object InteractionEngine {
         apiKey: String,
         temperature: Float,
         systemPrompt: String,
-        history: List<MergedMessage>
+        history: List<MergedMessage>,
+        serviceType: AiServiceType = AiServiceType.GEMINI,
+        vertexRegion: String = AiVertexConfig.DEFAULT_REGION
     ): String {
         val base = baseUrl.removeSuffix("/")
-        val urlStr = "$base/v1beta/models/$modelName:generateContent?key=$apiKey"
+        val urlStr = if (serviceType == AiServiceType.VERTEX) {
+            AiVertexConfig.buildGenerateContentUrl(apiKey, vertexRegion, modelName)
+        } else {
+            "$base/v1beta/models/$modelName:generateContent?key=$apiKey"
+        }
         val url = URL(urlStr)
         val conn = url.openConnection() as HttpURLConnection
         
@@ -292,6 +300,9 @@ object InteractionEngine {
         conn.connectTimeout = 60000
         conn.readTimeout = 60000
         conn.setRequestProperty("Content-Type", "application/json")
+        if (serviceType == AiServiceType.VERTEX) {
+            conn.setRequestProperty("Authorization", AiAuthorizationHeader.create(serviceType, apiKey))
+        }
         conn.doOutput = true
   
         val fullPromptBuilder = StringBuilder()
@@ -416,7 +427,7 @@ object InteractionEngine {
         conn.requestMethod = "POST"
         conn.connectTimeout = 60000
         conn.readTimeout = 60000
-        conn.setRequestProperty("Authorization", "Bearer $apiKey")
+        conn.setRequestProperty("Authorization", AiAuthorizationHeader.create(serviceType, apiKey))
         conn.setRequestProperty("Content-Type", "application/json")
         conn.doOutput = true
 

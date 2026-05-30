@@ -4,11 +4,13 @@ import android.content.Context
 import com.moonlib.cosmos.data.chat.ChatMessage
 import com.moonlib.cosmos.data.chat.ChatRepository
 import com.moonlib.cosmos.data.profile.CharacterProfileRepository
+import com.moonlib.cosmos.data.settings.AiAuthorizationHeader
 import com.moonlib.cosmos.data.settings.AiConfigRepository
 import com.moonlib.cosmos.data.settings.AiLogRepository
 import com.moonlib.cosmos.data.settings.AiReasoningRequestOptions
 import com.moonlib.cosmos.data.settings.AiServiceType
 import com.moonlib.cosmos.data.settings.AiSettingsRepository
+import com.moonlib.cosmos.data.settings.AiVertexConfig
 import com.moonlib.cosmos.data.settings.SystemPromptRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -208,10 +210,11 @@ object TimeSkipEngine {
             }
 
             // 发起请求并获取响应文本
-            val isGeminiOfficial = activeProfile.serviceType == AiServiceType.GEMINI && baseUrl.contains("googleapis.com")
+            val isNativeGenerateContent = activeProfile.serviceType == AiServiceType.VERTEX ||
+                (activeProfile.serviceType == AiServiceType.GEMINI && baseUrl.contains("googleapis.com"))
             
-            val responseText = if (isGeminiOfficial) {
-                executeGeminiOfficialForSkip(baseUrl, modelName, apiKey, temperature, systemPrompt)
+            val responseText = if (isNativeGenerateContent) {
+                executeGeminiOfficialForSkip(baseUrl, modelName, apiKey, temperature, systemPrompt, activeProfile.serviceType, activeProfile.vertexRegion)
             } else {
                 executeOpenAIForSkip(baseUrl, modelName, apiKey, temperature, systemPrompt, activeProfile.serviceType, activeProfile.thinkingLevel)
             }
@@ -311,10 +314,16 @@ object TimeSkipEngine {
         modelName: String,
         apiKey: String,
         temperature: Float,
-        systemPrompt: String
+        systemPrompt: String,
+        serviceType: AiServiceType = AiServiceType.GEMINI,
+        vertexRegion: String = AiVertexConfig.DEFAULT_REGION
     ): String {
         val base = baseUrl.removeSuffix("/")
-        val urlStr = "$base/v1beta/models/$modelName:generateContent?key=$apiKey"
+        val urlStr = if (serviceType == AiServiceType.VERTEX) {
+            AiVertexConfig.buildGenerateContentUrl(apiKey, vertexRegion, modelName)
+        } else {
+            "$base/v1beta/models/$modelName:generateContent?key=$apiKey"
+        }
         val url = URL(urlStr)
         val conn = url.openConnection() as HttpURLConnection
         
@@ -322,6 +331,9 @@ object TimeSkipEngine {
         conn.connectTimeout = 60000
         conn.readTimeout = 60000
         conn.setRequestProperty("Content-Type", "application/json")
+        if (serviceType == AiServiceType.VERTEX) {
+            conn.setRequestProperty("Authorization", AiAuthorizationHeader.create(serviceType, apiKey))
+        }
         conn.doOutput = true
 
         val requestJson = JSONObject().apply {
@@ -381,7 +393,7 @@ object TimeSkipEngine {
         conn.requestMethod = "POST"
         conn.connectTimeout = 45000
         conn.readTimeout = 45000
-        conn.setRequestProperty("Authorization", "Bearer $apiKey")
+        conn.setRequestProperty("Authorization", AiAuthorizationHeader.create(serviceType, apiKey))
         conn.setRequestProperty("Content-Type", "application/json")
         conn.doOutput = true
 
