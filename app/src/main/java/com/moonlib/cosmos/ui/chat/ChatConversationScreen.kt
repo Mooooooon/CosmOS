@@ -199,34 +199,6 @@ fun ChatConversationScreen(
             VirtualTimeManager.updateTime(currentVirtualTime + 15000L)
             messages = chatRepo.getMessages(contactId) // 刷新 UI
             scrollToBottom(true)
-
-            // 触发 AI 回复
-            isAiGenerating = true
-            coroutineScope.launch {
-                try {
-                    delay(800)
-                    val aiReplies = ChatEngine.getAiResponse(context, contact)
-                    revealAiReplies(
-                        currentMessages = messages,
-                        replies = aiReplies,
-                        onMessagesChanged = { messages = it },
-                        onReplyRevealed = { scrollToBottom(true) }
-                    )
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    val errorMsg = ChatMessage(
-                        id = UUID.randomUUID().toString(),
-                        senderId = "system",
-                        content = "【系统提示】: ${e.localizedMessage ?: "AI 服务暂时开小差啦，请在系统设置中确认 AI 密钥。"}",
-                        timestamp = VirtualTimeManager.getCurrentTimeMillis()
-                    )
-                    chatRepo.saveMessage(contactId, errorMsg)
-                    messages = chatRepo.getMessages(contactId)
-                    scrollToBottom(true)
-                } finally {
-                    isAiGenerating = false
-                }
-            }
         }
     }
 
@@ -640,13 +612,15 @@ private fun UserMessageRow(
                 onDismissRequest = { showMenu = false },
                 modifier = Modifier.background(MaterialTheme.colorScheme.surface)
             ) {
-                DropdownMenuItem(
-                    text = { Text("重新发送", color = MaterialTheme.colorScheme.primary) },
-                    onClick = {
-                        showMenu = false
-                        onResend()
-                    }
-                )
+                if (msg.type == "text") {
+                    DropdownMenuItem(
+                        text = { Text("重新发送", color = MaterialTheme.colorScheme.primary) },
+                        onClick = {
+                            showMenu = false
+                            onResend()
+                        }
+                    )
+                }
                 DropdownMenuItem(
                     text = { Text("删除", color = MaterialTheme.colorScheme.error) },
                     onClick = {
