@@ -185,7 +185,7 @@ fun InteractionConversationScreen(
                         )
                         if (isAiGenerating) {
                             Text(
-                                text = "对方正在回应实体互动...",
+                                text = "对方正在回应...",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(top = 1.dp)
@@ -356,7 +356,7 @@ private fun InteractionInputBar(
             OutlinedTextField(
                 value = inputText,
                 onValueChange = onInputChange,
-                placeholder = { Text("输入动作和对白，例如：（摸摸头）好久不见...") },
+                placeholder = { Text("说点什么吧...") },
                 maxLines = 4,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(onSend = { onSend() }),

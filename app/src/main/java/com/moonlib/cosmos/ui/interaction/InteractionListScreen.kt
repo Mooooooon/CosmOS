@@ -54,7 +54,7 @@ fun InteractionListScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "实体互动",
+                        text = "互动",
                         fontSize = 19.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground
@@ -102,7 +102,7 @@ fun InteractionListScreen(
                         verticalArrangement = Arrangement.Center
                     ) {
                         Text(
-                            text = "暂无实体互动角色",
+                            text = "暂无互动角色",
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium
@@ -180,7 +180,7 @@ fun InteractionListScreen(
                             // 进入按钮箭头
                             Icon(
                                 imageVector = Icons.Default.ChevronRight,
-                                contentDescription = "进入实体互动",
+                                contentDescription = "进入互动",
                                 tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f),
                                 modifier = Modifier.size(20.dp)
                             )
