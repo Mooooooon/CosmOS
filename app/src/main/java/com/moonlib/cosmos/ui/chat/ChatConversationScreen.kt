@@ -121,7 +121,7 @@ fun ChatConversationScreen(
     }
 
     // 消息发送核心方法
-    val handleSend: () -> Unit = {
+    val handleSend: (Boolean) -> Unit = { triggerAi ->
         val text = inputText.trim()
         if (text.isNotBlank() && !isAiGenerating) {
             inputText = ""
@@ -145,38 +145,42 @@ fun ChatConversationScreen(
             // 2.2 自动置底
             scrollToBottom(true)
 
-            // 2.3 开启协程触发 AI 回复
-            isAiGenerating = true
-            coroutineScope.launch {
-                try {
-                    // 模拟网络延迟输入，使“对方正在输入”动画状态更真实
-                    delay(800)
-                    
-                    // 调用 AI 聊天引擎（引擎在内部分析、保存并推进时间）
-                    val aiReplies = ChatEngine.getAiResponse(context, contact)
+            if (triggerAi) {
+                // 2.3 开启协程触发 AI 回复
+                isAiGenerating = true
+                coroutineScope.launch {
+                    try {
+                        // 模拟网络延迟输入，使“对方正在输入”动画状态更真实
+                        delay(800)
+                        
+                        // 调用 AI 聊天引擎（引擎在内部分析、保存并推进时间）
+                        val aiReplies = ChatEngine.getAiResponse(context, contact)
 
-                    revealAiReplies(
-                        currentMessages = messages,
-                        replies = aiReplies,
-                        onMessagesChanged = { messages = it },
-                        onReplyRevealed = { scrollToBottom(true) }
-                    )
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    
-                    // 保存一个系统级假报错消息渲染在左侧，保障健壮性
-                    val errorMsg = ChatMessage(
-                        id = UUID.randomUUID().toString(),
-                        senderId = "system",
-                        content = "【系统提示】: ${e.localizedMessage ?: "AI 服务暂时开小差啦，请在系统设置中确认 AI 密钥。"}",
-                        timestamp = VirtualTimeManager.getCurrentTimeMillis()
-                    )
-                    chatRepo.saveMessage(contactId, errorMsg)
-                    messages = chatRepo.getMessages(contactId)
-                    scrollToBottom(true)
-                } finally {
-                    isAiGenerating = false
+                        revealAiReplies(
+                            currentMessages = messages,
+                            replies = aiReplies,
+                            onMessagesChanged = { messages = it },
+                            onReplyRevealed = { scrollToBottom(true) }
+                        )
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        
+                        // 保存一个系统级假报错消息渲染在左侧，保障健壮性
+                        val errorMsg = ChatMessage(
+                            id = UUID.randomUUID().toString(),
+                            senderId = "system",
+                            content = "【系统提示】: ${e.localizedMessage ?: "AI 服务暂时开小差啦，请在系统设置中确认 AI 密钥。"}",
+                            timestamp = VirtualTimeManager.getCurrentTimeMillis()
+                        )
+                        chatRepo.saveMessage(contactId, errorMsg)
+                        messages = chatRepo.getMessages(contactId)
+                        scrollToBottom(true)
+                    } finally {
+                        isAiGenerating = false
+                    }
                 }
+            } else {
+                Toast.makeText(context, "已发送至记录 (未触发 AI 回复)", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -248,7 +252,8 @@ fun ChatConversationScreen(
                     isAiGenerating = isAiGenerating,
                     placeholder = "聊点什么吧...",
                     onInputChange = { inputText = it },
-                    onSend = handleSend,
+                    onSend = { handleSend(true) },
+                    onLongSend = { handleSend(false) },
                     isAttachmentOpen = showAttachmentPanel,
                     onToggleAttachment = onToggleAttachmentPanel
                 )
@@ -450,6 +455,7 @@ private fun ConversationInputBar(
     placeholder: String,
     onInputChange: (String) -> Unit,
     onSend: () -> Unit,
+    onLongSend: () -> Unit,
     isAttachmentOpen: Boolean,
     onToggleAttachment: () -> Unit,
     modifier: Modifier = Modifier
@@ -496,23 +502,28 @@ private fun ConversationInputBar(
                     )
                 }
             } else {
-                Button(
-                    onClick = onSend,
-                    enabled = !isAiGenerating,
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = Color.White
-                    ),
+                Box(
                     modifier = Modifier
                         .height(38.dp)
                         .padding(start = 2.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(if (!isAiGenerating) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+                        .pointerInput(isAiGenerating) {
+                            if (!isAiGenerating) {
+                                detectTapGestures(
+                                    onTap = { onSend() },
+                                    onLongPress = { onLongSend() }
+                                )
+                            }
+                        }
+                        .padding(horizontal = 14.dp),
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "发送",
                         fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
                     )
                 }
             }

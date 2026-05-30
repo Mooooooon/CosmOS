@@ -125,7 +125,7 @@ fun InteractionConversationScreen(
     }
 
     // 实体互动发送消息核心方法
-    val handleSend: () -> Unit = {
+    val handleSend: (Boolean) -> Unit = { triggerAi ->
         val text = inputText.trim()
         if (text.isNotBlank() && !isAiGenerating) {
             inputText = ""
@@ -148,35 +148,39 @@ fun InteractionConversationScreen(
 
             scrollToBottom(true)
 
-            // 开启协程触发 AI 回复
-            isAiGenerating = true
-            coroutineScope.launch {
-                try {
-                    // 模拟实体面对面的思考对白动作延迟
-                    delay(1000)
+            if (triggerAi) {
+                // 开启协程触发 AI 回复
+                isAiGenerating = true
+                coroutineScope.launch {
+                    try {
+                        // 模拟实体面对面的思考对白动作延迟
+                        delay(1000)
 
-                    // 调用实体互动 AI 引擎（引擎内部分析、保存并推进时间）
-                    InteractionEngine.getAiResponse(context, characterId)
+                        // 调用实体互动 AI 引擎（引擎内部分析、保存并推进时间）
+                        InteractionEngine.getAiResponse(context, characterId)
 
-                    // 刷新消息列表
-                    messages = interactionRepo.getMessages(characterId)
-                    scrollToBottom(true)
-                } catch (e: Exception) {
-                    e.printStackTrace()
+                        // 刷新消息列表
+                        messages = interactionRepo.getMessages(characterId)
+                        scrollToBottom(true)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
 
-                    // 保存一个系统级假报错消息渲染在中央，保障健壮性
-                    val errorMsg = InteractionMessage(
-                        id = UUID.randomUUID().toString(),
-                        senderId = "system",
-                        content = "【系统提示】: ${e.localizedMessage ?: "AI 服务暂时开小差啦，请在系统设置中确认 AI 密钥。"}",
-                        timestamp = VirtualTimeManager.getCurrentTimeMillis()
-                    )
-                    interactionRepo.saveMessage(characterId, errorMsg)
-                    messages = interactionRepo.getMessages(characterId)
-                    scrollToBottom(true)
-                } finally {
-                    isAiGenerating = false
+                        // 保存一个系统级假报错消息渲染在中央，保障健壮性
+                        val errorMsg = InteractionMessage(
+                            id = UUID.randomUUID().toString(),
+                            senderId = "system",
+                            content = "【系统提示】: ${e.localizedMessage ?: "AI 服务暂时开小差啦，请在系统设置中确认 AI 密钥。"}",
+                            timestamp = VirtualTimeManager.getCurrentTimeMillis()
+                        )
+                        interactionRepo.saveMessage(characterId, errorMsg)
+                        messages = interactionRepo.getMessages(characterId)
+                        scrollToBottom(true)
+                    } finally {
+                        isAiGenerating = false
+                    }
                 }
+            } else {
+                Toast.makeText(context, "已发送至互动记录 (未触发 AI 回复)", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -225,7 +229,8 @@ fun InteractionConversationScreen(
                 inputText = inputText,
                 isAiGenerating = isAiGenerating,
                 onInputChange = { inputText = it },
-                onSend = handleSend
+                onSend = { handleSend(true) },
+                onLongSend = { handleSend(false) }
             )
         },
         containerColor = MaterialTheme.colorScheme.background
@@ -433,6 +438,7 @@ private fun InteractionInputBar(
     isAiGenerating: Boolean,
     onInputChange: (String) -> Unit,
     onSend: () -> Unit,
+    onLongSend: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -464,23 +470,31 @@ private fun InteractionInputBar(
                 shape = RoundedCornerShape(20.dp)
             )
 
-            IconButton(
-                onClick = onSend,
-                enabled = inputText.isNotBlank() && !isAiGenerating,
+            val isEnabled = inputText.isNotBlank() && !isAiGenerating
+            Box(
                 modifier = Modifier
                     .size(40.dp)
+                    .clip(CircleShape)
                     .background(
-                        color = if (inputText.isNotBlank() && !isAiGenerating)
+                        color = if (isEnabled)
                             MaterialTheme.colorScheme.primary
                         else
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                        shape = CircleShape
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
                     )
+                    .pointerInput(isEnabled) {
+                        if (isEnabled) {
+                            detectTapGestures(
+                                onTap = { onSend() },
+                                onLongPress = { onLongSend() }
+                            )
+                        }
+                    },
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.Send,
                     contentDescription = "发送",
-                    tint = if (inputText.isNotBlank() && !isAiGenerating)
+                    tint = if (isEnabled)
                         Color.White
                     else
                         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
