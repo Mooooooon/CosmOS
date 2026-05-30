@@ -39,6 +39,11 @@ fun AiChatSettingsScreen(
         mutableStateOf(aiSettingsRepo.getMaxContextSize())
     }
 
+    // 初始化时间跳过单人最大消息数状态
+    var timeSkipMaxMessages by remember {
+        mutableStateOf(aiSettingsRepo.getTimeSkipMaxMessages())
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -159,6 +164,88 @@ fun AiChatSettingsScreen(
                 }
             }
 
+            Text(
+                text = "时间跳过设置",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = 2.dp)
+            )
+
+            // ── 1.5 时间跳过单人限制卡片 ─────────────────────────────
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp)),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "时间跳过单人最大消息数",
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "$timeSkipMaxMessages 条",
+                            color = MaterialTheme.colorScheme.primary,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
+
+                    // 滑动条 (范围为 1 到 100)
+                    Slider(
+                        value = timeSkipMaxMessages.toFloat(),
+                        onValueChange = { newValue ->
+                            timeSkipMaxMessages = newValue.roundToInt()
+                        },
+                        onValueChangeFinished = {
+                            // 滑动松开时持久化
+                            aiSettingsRepo.saveTimeSkipMaxMessages(timeSkipMaxMessages)
+                        },
+                        valueRange = 1f..100f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = MaterialTheme.colorScheme.primary,
+                            activeTrackColor = MaterialTheme.colorScheme.primary,
+                            inactiveTrackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    // 辅助刻度
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "精简 (1)",
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                            fontSize = 11.sp
+                        )
+                        Text(
+                            text = "默认 (5)",
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                            fontSize = 11.sp
+                        )
+                        Text(
+                            text = "海量 (100)",
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+            }
+
             // ── 2. 高级指南说明卡片 ────────────────────────────────────
             Card(
                 modifier = Modifier
@@ -174,14 +261,14 @@ fun AiChatSettingsScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text(
-                        text = "💡 什么是上下文消息数？",
+                        text = "💡 什么是上下文限额与跳过限制？",
                         color = MaterialTheme.colorScheme.primary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
                     )
                     
                     Text(
-                        text = "上下文消息数决定了您在与 AI 角色进行【线上手机聊天】或【线下面面对面互动】时，系统每次向 AI 请求所附带的最近历史对话记忆的总长度。",
+                        text = "系统上下文限额决定了您在与 AI 角色进行聊天或互动时，系统每次向 AI 请求所附带的最近历史对话记忆的总长度。",
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                         fontSize = 12.sp,
                         lineHeight = 18.sp
@@ -194,21 +281,21 @@ fun AiChatSettingsScreen(
                     )
 
                     Text(
-                        text = "• 较小限制 (10 ~ 20条)：AI 响应耗时低、极其节省 API 的 Token 流量消耗，但在长对话中 AI 可能会遗忘较早前发生的故事或谈论的主题。",
+                        text = "• 较小上下文限制 (10 ~ 20条)：AI 响应耗时低、极其节省 API 的 Token 流量消耗，但在长对话中 AI 可能会遗忘较早前发生的故事或谈论的主题。",
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         fontSize = 11.sp,
                         lineHeight = 16.sp
                     )
 
                     Text(
-                        text = "• 系统默认 (100条)：推荐配置。在绝大多数对话场景下，都能提供优秀的记忆回溯力与较快生成响应的平衡状态。",
+                        text = "• 系统默认上下文 (100条)：推荐配置。在绝大多数对话场景下，都能提供优秀的记忆回溯力与较快生成响应的平衡状态。",
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         fontSize = 11.sp,
                         lineHeight = 16.sp
                     )
 
                     Text(
-                        text = "• 较大限制 (300 ~ 500条)：AI 拥有极深的历史连贯记忆，但对于单次网络交互的请求体积会有所增加，并可能略微提升 AI 的思考延迟。",
+                        text = "• 时间跳过单人限制 (1 ~ 100条)：决定了在虚拟时间 App 中跳过时间后，AI 最多会为每位有会话的角色模拟生成多少条离线消息。调低能极大节省 Token 流量消耗并提高时间跳过模拟速度；调高能让这期间收到的离线未读剧情更丰盈饱满。",
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         fontSize = 11.sp,
                         lineHeight = 16.sp

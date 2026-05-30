@@ -2,6 +2,7 @@ package com.moonlib.cosmos.ui.time
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,6 +22,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.moonlib.cosmos.data.time.VirtualTimeManager
+import com.moonlib.cosmos.data.time.TimeSkipEngine
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -117,6 +120,11 @@ fun TimeAppScreen(
                 onTimeChange = { newTime ->
                     VirtualTimeManager.rollbackTime(newTime)
                 }
+            )
+
+            // ── 4. 时间跳过与离线消息模拟 ──
+            TimeSkipSimulationCard(
+                currentTimeMillis = currentVirtualTime
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -419,6 +427,208 @@ private fun TimeActionCard(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(text = "同步回系统当前真实时间", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 时间跳过与消息模拟控制面板
+ */
+@Composable
+private fun TimeSkipSimulationCard(
+    currentTimeMillis: Long
+) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
+    var userActivity by remember { mutableStateOf("") }
+    var targetHourDelta by remember { mutableStateOf(8) } // 默认跳过 8 小时
+    var isSimulating by remember { mutableStateOf(false) }
+    var simulationResultText by remember { mutableStateOf<String?>(null) }
+
+    Column {
+        Text(
+            text = "时间跳过与消息模拟",
+            color = MaterialTheme.colorScheme.primary,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(start = 6.dp, bottom = 8.dp)
+        )
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp)),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // 1. 玩家活动输入
+                OutlinedTextField(
+                    value = userActivity,
+                    onValueChange = { userActivity = it },
+                    label = { Text("你这段时间在做什么？（如：睡觉）", fontSize = 12.sp) },
+                    placeholder = { Text("例如：睡觉、上学、在公司加班等", fontSize = 12.sp) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    ),
+                    singleLine = true
+                )
+
+                // 2. 快捷跳过时长 Chip 组
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "选择要推进的时间长度：",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        val durationOptions = listOf(
+                            Pair(1, "1小时"),
+                            Pair(4, "4小时"),
+                            Pair(8, "8小时 (睡)"),
+                            Pair(12, "12小时"),
+                            Pair(24, "24小时")
+                        )
+                        durationOptions.forEach { (hours, label) ->
+                            val isSelected = targetHourDelta == hours
+                            val chipBgColor = if (isSelected) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant
+                            }
+                            val chipTextColor = if (isSelected) {
+                                MaterialTheme.colorScheme.onPrimary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(chipBgColor)
+                                    .clickable { targetHourDelta = hours }
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = chipTextColor
+                                )
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f), thickness = 0.5.dp)
+
+                // 3. 目标时刻预览与触发按钮
+                val targetTimeMillis = currentTimeMillis + targetHourDelta * 3600 * 1000L
+                val previewTimeStr = remember(targetTimeMillis) {
+                    val instant = Instant.ofEpochMilli(targetTimeMillis)
+                    val ldt = LocalDateTime.ofInstant(instant, ZoneId.systemDefault())
+                    ldt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "推进后时间将变成：",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = previewTimeStr,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    if (isSimulating) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Button(
+                            onClick = {
+                                isSimulating = true
+                                simulationResultText = null
+                                coroutineScope.launch {
+                                    val result = TimeSkipEngine.executeTimeSkip(
+                                        context = context,
+                                        startTimeMillis = currentTimeMillis,
+                                        endTimeMillis = targetTimeMillis,
+                                        userActivity = userActivity
+                                    )
+                                    isSimulating = false
+                                    if (result.success) {
+                                        simulationResultText = "时间推进成功！这期间模拟收到 ${result.simulatedMessageCount} 条离线消息。"
+                                        userActivity = "" // 清空输入
+                                    } else {
+                                        simulationResultText = "时间推进失败：${result.errorMessage}"
+                                    }
+                                }
+                            },
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            ),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            Text("开始推进", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                // 4. 显示模拟状态/结果
+                simulationResultText?.let { text ->
+                    val isSuccess = text.startsWith("时间推进成功")
+                    val alertColor = if (isSuccess) Color(0xFF10B981) else MaterialTheme.colorScheme.error
+                    val alertBgColor = alertColor.copy(alpha = 0.1f)
+                    
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(alertBgColor, shape = RoundedCornerShape(8.dp))
+                            .padding(10.dp)
+                    ) {
+                        Text(
+                            text = text,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = alertColor
+                        )
+                    }
                 }
             }
         }
