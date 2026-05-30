@@ -81,8 +81,7 @@ object ChatEngine {
                 fullPromptBuilder.append(systemPrompt).append("\n\n=== 融合历史记忆（线上/线下） ===\n")
                 for (msg in recentMerged) {
                     val roleName = if (msg.senderId == "user") "用户" else "你"
-                    val prefix = if (msg.isOnline) "[线上聊天]" else "[线下互动]"
-                    fullPromptBuilder.append("$roleName: $prefix ${msg.content}\n")
+                    fullPromptBuilder.append("$roleName: ${msg.prefix} ${msg.content}\n")
                 }
                 fullPromptBuilder.append("请记住你是谁，直接输出你作为角色的下一组符合 JSON 格式的回复：")
                 fullPromptBuilder.toString()
@@ -91,8 +90,7 @@ object ChatEngine {
                 sb.append("[System Prompt]\n").append(systemPrompt).append("\n\n[Unified Chat/Interaction History]\n")
                 for (msg in recentMerged) {
                     val role = if (msg.senderId == "user") "User" else "Assistant"
-                    val prefix = if (msg.isOnline) "[线上聊天]" else "[线下互动]"
-                    sb.append("$role: $prefix ${msg.content}\n")
+                    sb.append("$role: ${msg.prefix} ${msg.content}\n")
                 }
                 sb.toString()
             }
@@ -299,8 +297,7 @@ object ChatEngine {
         fullPromptBuilder.append(systemPrompt).append("\n\n=== 融合历史记忆（线上/线下） ===\n")
         for (msg in history) {
             val roleName = if (msg.senderId == "user") "用户" else "你"
-            val prefix = if (msg.isOnline) "[线上聊天]" else "[线下互动]"
-            fullPromptBuilder.append("$roleName: $prefix ${msg.content}\n")
+            fullPromptBuilder.append("$roleName: ${msg.prefix} ${msg.content}\n")
         }
         fullPromptBuilder.append("请记住你是谁，直接输出你作为角色的下一组符合 JSON 格式的回复：")
 
@@ -388,8 +385,7 @@ object ChatEngine {
         while (i < size) {
             val msg = history[i]
             if (msg.senderId == "user") {
-                val prefix = if (msg.isOnline) "[线上聊天]" else "[线下互动]"
-                var content = "$prefix ${msg.content}"
+                var content = "${msg.prefix} ${msg.content}"
                 if (i == size - 1) {
                     content += "\n(注意：你必须以指定的 JSON 格式输出回复，不要包含 any markdown 块或废话)"
                 }

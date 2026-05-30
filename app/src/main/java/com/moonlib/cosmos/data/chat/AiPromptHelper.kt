@@ -1,13 +1,13 @@
 package com.moonlib.cosmos.data.chat
 
 import android.content.Context
+import com.moonlib.cosmos.data.context.ConversationContextBuilder
 import com.moonlib.cosmos.data.profile.CharacterProfile
 import com.moonlib.cosmos.data.profile.CharacterProfileRepository
 import com.moonlib.cosmos.data.settings.AiSceneType
 import com.moonlib.cosmos.data.settings.AiSettingsRepository
 import com.moonlib.cosmos.data.settings.SystemPromptRepository
 import com.moonlib.cosmos.data.time.VirtualTimeManager
-import com.moonlib.cosmos.data.interaction.InteractionRepository
 import com.moonlib.cosmos.data.interaction.MergedMessage
 
 /**
@@ -32,7 +32,6 @@ object AiPromptHelper {
         chatSignature: String? = null
     ): AiPromptData {
         val chatRepo = ChatRepository(context)
-        val interactionRepo = InteractionRepository(context)
         val profileRepo = CharacterProfileRepository(context)
 
         // 1. 获取全局上下文数量设置
@@ -140,10 +139,10 @@ object AiPromptHelper {
                     4. 【当前虚拟世界的时间】是：$currentVirtualTimeWithWeekdayStr。
                     
                     【对话上下文（线上线下、剧情日记记忆融合）合并说明】：
-                    我们已经将你与用户的【线上聊天】历史、【线下面对应实体互动】历史以及【剧情日记】摘要按时间顺序合并在下方。
+                    我们已经将你与用户的【线上聊天】历史、【线下面对应实体互动】历史以及【剧情日记】按时间顺序合并在下方。
                     - 带有 `[线上聊天]` 前缀的消息表示你们在虚拟手机聊天软件上的对话。
                     - 带有 `[线下互动]` 前缀的消息表示你们在线下实体见面的动作对话，其中包含括弧动作描写。
-                    - 带有 `[剧情日记]` 前缀的消息表示你们共同写下的剧情和情感生活日记摘要，帮助你保持完整的长期剧情记忆。
+                    - 带有 `[剧情日记]` 前缀的消息表示你们共同写下的剧情和情感生活日记，帮助你保持完整的长期剧情记忆；如果时间线最后一条消息是日记，系统会提供该日记完整正文。
                     - 注意：你当前正在【线上聊天 APP】中回复用户。你的回复必须符合【线上远程手机聊天】的特征：简洁、轻松、口语化、纯对话文本、**严禁夹带任何括弧内的动作描写（如 `（看向对方）` 等）或表情符号**！你不需要在 JSON 的 `content` 字段中添加 `[线上聊天]` 前缀，直接进行回复即可。
                     
                     【多媒体与特殊消息交互指引（极其重要）】：
@@ -230,7 +229,7 @@ object AiPromptHelper {
                     We have merged the online chat, offline physical interaction, and story diary history in chronological order.
                     - 带有 `[线上聊天]` 前缀的消息表示你们先前在手机软件上的远程聊天。
                     - 带有 `[线下互动]` 前缀的消息表示你们在现实线下见面的动作对话，其中包含括弧动作描写。
-                    - 带有 `[剧情日记]` 前缀的消息表示你们共同写下的剧情和情感生活日记摘要，帮助你保持完整的长期剧情记忆。
+                    - 带有 `[剧情日记]` 前缀的消息表示你们共同写下的剧情和情感生活日记，帮助你保持完整的长期剧情记忆；如果时间线最后一条消息是日记，系统会提供该日记完整正文。
                     - 注意：你现在正在与用户进行【线下面面对面实体互动】。因此你作为角色的下一组回复中，**除了言语对话，还必须夹带丰富的肢体动作、神态、语气、心理或眼神等描写（写在中文小括号 `（动作描写）` 内，例如：`（看向对方，脸上有些疑惑）带了，怎么啦？`）**。
                     
                     【核心对话要求】：
@@ -272,32 +271,7 @@ object AiPromptHelper {
             }
         }
 
-        // 4. 融合并合并双渠道历史记忆（线上聊天 + 线下面面对面实体互动）
-        val contact = chatRepo.getContacts().firstOrNull { it.characterId == charProfile.id }
-        val onlineMsgs = if (contact != null) chatRepo.getMessages(contact.id) else emptyList()
-        
-        // 智能转译多媒体特殊类型消息，使用自然语言包装喂给 AI 历史，实现拟真剧情回应
-        val formattedOnlineMsgs = onlineMsgs.map { msg ->
-            val formattedContent = when (msg.type) {
-                "image" -> "[发送了图片：${msg.content}]"
-                "video" -> "[发送了视频：${msg.content}]"
-                "red_packet" -> "[发送了红包：${msg.content}元，留言：${msg.extra ?: "恭喜发财，大吉大利"}]"
-                "transfer" -> "[发送了转账：${msg.content}元]"
-                "location" -> "[发送了位置：${msg.content}]"
-                else -> msg.content
-            }
-            msg.copy(content = formattedContent)
-        }
-        val offlineMsgs = interactionRepo.getMessages(charProfile.id)
-
-        // 合并为 MergedMessage 结构并按时间戳升序排序
-        val mergedHistory = (
-            formattedOnlineMsgs.map { MergedMessage(it.senderId, it.content, it.timestamp, isOnline = true) } +
-            offlineMsgs.map { MergedMessage(it.senderId, it.content, it.timestamp, isOnline = false) }
-        ).sortedBy { it.timestamp }
-
-        // 5. 根据全局设置的 maxContextSize 提取最近的历史切片
-        val recentMerged = mergedHistory.takeLast(maxContextSize)
+        val recentMerged = ConversationContextBuilder.buildForCharacter(context, charProfile, maxContextSize)
 
         return AiPromptData(systemPrompt, recentMerged)
     }

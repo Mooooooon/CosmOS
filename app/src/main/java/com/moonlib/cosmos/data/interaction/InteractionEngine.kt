@@ -82,13 +82,12 @@ object InteractionEngine {
             for (i in recentMerged.indices) {
                 val msg = recentMerged[i]
                 val roleName = if (msg.senderId == "user") "用户" else "你"
-                val prefix = if (msg.isOnline) "[线上聊天]" else "[线下互动]"
                 val finalContent = if (i == recentMerged.lastIndex && msg.senderId == "user") {
                     msg.content + "\n(注意：你必须以指定的 JSON 格式输出回复，不要包含任何 markdown 块或废话)"
                 } else {
                     msg.content
                 }
-                sbPrompt.append("$roleName: $prefix $finalContent\n")
+                sbPrompt.append("$roleName: ${msg.prefix} $finalContent\n")
             }
             sbPrompt.append("请记住你是谁，直接输出你作为角色的下一组线下实体互动 JSON 回复：")
 
@@ -298,8 +297,7 @@ object InteractionEngine {
         fullPromptBuilder.append(systemPrompt).append("\n\n=== 混合上下文记忆流（包含线上/线下） ===\n")
         for (msg in history) {
             val roleName = if (msg.senderId == "user") "用户" else "你"
-            val prefix = if (msg.isOnline) "[线上聊天]" else "[线下互动]"
-            fullPromptBuilder.append("$roleName: $prefix ${msg.content}\n")
+            fullPromptBuilder.append("$roleName: ${msg.prefix} ${msg.content}\n")
         }
         fullPromptBuilder.append("请记住你是谁，直接输出你作为角色的下一组线下实体互动 JSON 回复：")
 
@@ -436,8 +434,7 @@ object InteractionEngine {
         while (i < size) {
             val msg = history[i]
             if (msg.senderId == "user") {
-                val prefix = if (msg.isOnline) "[线上聊天]" else "[线下互动]"
-                var content = "$prefix ${msg.content}"
+                var content = "${msg.prefix} ${msg.content}"
                 if (i == size - 1) {
                     content += "\n(注意：你必须以指定的 JSON 格式输出回复，不要包含 any markdown 块或废话)"
                 }

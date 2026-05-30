@@ -30,6 +30,8 @@ E:\Android\CosmOS
 │       │   ├── java\com\moonlib\cosmos
 │       │   │   ├── MainActivity.kt
 │       │   │   ├── data
+│       │   │   │   ├── context
+│       │   │   │   │   └── ConversationContextBuilder.kt
 │       │   │   │   ├── chat
 │       │   │   │   │   ├── AiChatResponse.kt
 │       │   │   │   │   ├── AiPromptHelper.kt
@@ -138,6 +140,7 @@ E:\Android\CosmOS
 
 - `app/src/main/java/com/moonlib/cosmos/MainActivity.kt`：应用入口 Activity，全局主题注入处。
 - `app/src/main/java/com/moonlib/cosmos/data/chat`：聊天联系人、消息模型、AI 回复解析、提示词辅助与聊天引擎 / 仓库。
+- `app/src/main/java/com/moonlib/cosmos/data/context`：跨聊天、互动、日记的融合上下文构建与裁剪逻辑。
 - `app/src/main/java/com/moonlib/cosmos/data/interaction`：互动消息、消息合并、互动配置、互动仓库与互动引擎。
 - `app/src/main/java/com/moonlib/cosmos/data/profile`：角色档案模型、AI 档案生成与档案持久化仓库。
 - `app/src/main/java/com/moonlib/cosmos/data/settings`：AI 服务配置、模型参数、日志、存档、系统提示词与主题配置持久化仓库。
