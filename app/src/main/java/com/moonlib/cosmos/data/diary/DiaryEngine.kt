@@ -161,11 +161,17 @@ object DiaryEngine {
             } else {
                 "[剧情日记 - 剧情摘要] ${diary.summary}"
             }
+            val parsedTimestamp = try {
+                val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
+                sdf.parse(diary.virtualTime)?.time ?: diary.timestamp
+            } catch (e: Exception) {
+                diary.timestamp
+            }
             diariesHistoryMsgs.add(
                 DiaryMergedMessage(
                     sender = playerRealName,
                     content = diaryContent,
-                    timestamp = diary.timestamp
+                    timestamp = parsedTimestamp
                 )
             )
         }
@@ -300,10 +306,10 @@ object DiaryEngine {
             }
         }
 
-        // 组装最终的 DiaryEntry
+        // 组装最终 of DiaryEntry
         DiaryEntry(
             id = UUID.randomUUID().toString(),
-            timestamp = System.currentTimeMillis(),
+            timestamp = VirtualTimeManager.getCurrentTimeMillis(),
             virtualTime = VirtualTimeManager.formatTime("yyyy-MM-dd HH:mm:ss"),
             playerInput = playerInput,
             content = content,

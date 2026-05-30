@@ -290,21 +290,10 @@ object AiPromptHelper {
         }
         val offlineMsgs = interactionRepo.getMessages(charProfile.id)
 
-        // 提取该角色相关的日记并序列化为剧情日记消息合并入会话流中
-        val diaryMergedMsgs = diaryRepo.getDiaries().filter { it.involvedCharacterIds.contains(charProfile.id) }.map { diary ->
-            MergedMessage(
-                senderId = "system",
-                content = "[剧情日记] 剧情摘要: ${diary.summary}",
-                timestamp = diary.timestamp,
-                isOnline = false
-            )
-        }
-
         // 合并为 MergedMessage 结构并按时间戳升序排序
         val mergedHistory = (
             formattedOnlineMsgs.map { MergedMessage(it.senderId, it.content, it.timestamp, isOnline = true) } +
-            offlineMsgs.map { MergedMessage(it.senderId, it.content, it.timestamp, isOnline = false) } +
-            diaryMergedMsgs
+            offlineMsgs.map { MergedMessage(it.senderId, it.content, it.timestamp, isOnline = false) }
         ).sortedBy { it.timestamp }
 
         // 5. 根据全局设置的 maxContextSize 提取最近的历史切片
