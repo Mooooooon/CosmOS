@@ -10,6 +10,7 @@ import com.moonlib.cosmos.data.settings.AiServiceType
 import com.moonlib.cosmos.data.settings.AiSceneType
 import com.moonlib.cosmos.data.settings.AiVertexConfig
 import com.moonlib.cosmos.data.chat.AiPromptHelper
+import com.moonlib.cosmos.data.interaction.MergedMessageSource
 import com.moonlib.cosmos.data.settings.SystemPromptRepository
 import com.moonlib.cosmos.data.time.VirtualTimeManager
 import kotlinx.coroutines.Dispatchers
@@ -84,7 +85,7 @@ object InteractionEngine {
             sbPrompt.append(systemPrompt).append("\n\n=== 混合上下文记忆流（包含线上/线下） ===\n")
             for (i in recentMerged.indices) {
                 val msg = recentMerged[i]
-                val roleName = if (msg.senderId == "user") "用户" else "你"
+                val roleName = msg.roleNameForPrompt()
                 val finalContent = if (i == recentMerged.lastIndex && msg.senderId == "user") {
                     msg.content + "\n(注意：你必须以指定的 JSON 格式输出回复，不要包含任何 markdown 块或废话)"
                 } else {
@@ -94,7 +95,7 @@ object InteractionEngine {
             }
             sbPrompt.append("请记住你是谁，直接输出你作为角色的下一组线下实体互动 JSON 回复：")
 
-            val userInputText = recentMerged.lastOrNull { it.senderId == "user" }?.content ?: ""
+            val userInputText = recentMerged.lastOrNull { it.senderId == "user" && it.source != MergedMessageSource.DIARY }?.content ?: ""
 
             val logRepo = com.moonlib.cosmos.data.settings.AiLogRepository(context)
             logRepo.saveLog(
@@ -308,7 +309,7 @@ object InteractionEngine {
         val fullPromptBuilder = StringBuilder()
         fullPromptBuilder.append(systemPrompt).append("\n\n=== 混合上下文记忆流（包含线上/线下） ===\n")
         for (msg in history) {
-            val roleName = if (msg.senderId == "user") "用户" else "你"
+            val roleName = msg.roleNameForPrompt()
             fullPromptBuilder.append("$roleName: ${msg.prefix} ${msg.content}\n")
         }
         fullPromptBuilder.append("请记住你是谁，直接输出你作为角色的下一组线下实体互动 JSON 回复：")
@@ -446,7 +447,13 @@ object InteractionEngine {
         val size = history.size
         while (i < size) {
             val msg = history[i]
-            if (msg.senderId == "user") {
+            if (msg.source == MergedMessageSource.DIARY) {
+                messagesArray.put(JSONObject().apply {
+                    put("role", "user")
+                    put("content", "${msg.prefix} ${msg.content}")
+                })
+                i++
+            } else if (msg.senderId == "user") {
                 var content = "${msg.prefix} ${msg.content}"
                 if (i == size - 1) {
                     content += "\n(注意：你必须以指定的 JSON 格式输出回复，不要包含 any markdown 块或废话)"
@@ -460,7 +467,7 @@ object InteractionEngine {
                 // 聚合连续的助手消息气泡到同一个 JSON 中
                 val repliesArray = JSONArray()
                 var j = i
-                while (j < size && history[j].senderId != "user") {
+                while (j < size && history[j].senderId != "user" && history[j].source != MergedMessageSource.DIARY) {
                     val aMsg = history[j]
                     val formattedTime = try {
                         sdf.format(java.util.Date(aMsg.timestamp))
@@ -598,5 +605,12 @@ object InteractionEngine {
      */
     private fun cleanStatusValue(value: String): String {
         return value.replace(Regex("[()（）]"), "").trim()
+    }
+
+    private fun MergedMessage.roleNameForPrompt(): String {
+        return when (source) {
+            MergedMessageSource.DIARY -> "记忆"
+            else -> if (senderId == "user") "用户" else "你"
+        }
     }
 }

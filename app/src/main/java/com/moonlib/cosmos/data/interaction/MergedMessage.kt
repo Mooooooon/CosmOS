@@ -8,7 +8,8 @@ package com.moonlib.cosmos.data.interaction
 enum class MergedMessageSource(val prefix: String) {
     CHAT("[线上聊天]"),
     INTERACTION("[线下互动]"),
-    DIARY("[剧情日记]")
+    DIARY("[剧情日记]"),
+    TWITTER("[推特动态]")
 }
 
 data class MergedMessage(

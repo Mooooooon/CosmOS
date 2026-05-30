@@ -76,15 +76,45 @@ object ConversationContextBuilder {
                 )
             }
 
-        val sortedCandidates = (formattedOnlineMsgs + offlineMsgs + diaryMsgs).sortedBy { it.message.timestamp }
-        val fullDiaryIndex = sortedCandidates.indexOfLatestDiaryBeforeCurrentReply()
-        return sortedCandidates.mapIndexed { index, candidate ->
+        // 获取公共推特动态与回复，并合入全局历史记忆
+        val twitterRepo = com.moonlib.cosmos.data.twitter.TwitterRepository(context)
+        val twitterMsgs = twitterRepo.getTweets().map { tweet ->
+            val authorProfile = twitterRepo.getProfile(tweet.authorId)
+            val authorUsername = authorProfile?.username ?: tweet.authorId
+            val parentTweet = tweet.parentId?.let { twitterRepo.getTweet(it) }
+            val parentProfile = parentTweet?.let { twitterRepo.getProfile(it.authorId) }
+            val parentUsername = parentProfile?.username
+            
+            val formattedContent = buildString {
+                if (tweet.imagePath != null) {
+                    append("[发布了图文] ")
+                }
+                if (parentUsername != null) {
+                    append("回复 @$parentUsername: ")
+                }
+                append(tweet.content)
+            }
+            ContextCandidate(
+                message = MergedMessage(
+                    senderId = tweet.authorId,
+                    content = "@$authorUsername: $formattedContent",
+                    timestamp = tweet.timestamp,
+                    isOnline = false,
+                    source = MergedMessageSource.TWITTER
+                )
+            )
+        }
+
+        val sortedCandidates = (formattedOnlineMsgs + offlineMsgs + diaryMsgs + twitterMsgs).sortedBy { it.message.timestamp }
+        val fullDiaryIndex = sortedCandidates.indexOfLatestDiaryForCurrentReply()
+        val mergedMessages = sortedCandidates.mapIndexed { index, candidate ->
             if (index == fullDiaryIndex) {
                 candidate.message.copy(content = candidate.fullDiaryContent ?: candidate.message.content)
             } else {
                 candidate.message
             }
-        }.takeLast(maxContextSize)
+        }
+        return mergedMessages.moveFullDiaryBeforeCurrentUserInput(fullDiaryIndex).takeLast(maxContextSize)
     }
 
     private data class ContextCandidate(
@@ -92,17 +122,28 @@ object ConversationContextBuilder {
         val fullDiaryContent: String? = null
     )
 
-    private fun List<ContextCandidate>.indexOfLatestDiaryBeforeCurrentReply(): Int {
+    private fun List<ContextCandidate>.indexOfLatestDiaryForCurrentReply(): Int {
         if (isEmpty()) return -1
 
-        val anchorIndex = if (last().message.senderId == "user" && last().message.source != MergedMessageSource.DIARY) {
-            lastIndex - 1
-        } else {
-            lastIndex
-        }
+        val currentUserInputIndex = indexOfLast { it.message.senderId == "user" && it.message.source != MergedMessageSource.DIARY }
+        val searchEndIndex = if (currentUserInputIndex >= 0) currentUserInputIndex - 1 else lastIndex
+        val diaryBeforeCurrentInput = (searchEndIndex downTo 0).firstOrNull { this[it].message.source == MergedMessageSource.DIARY }
+        return diaryBeforeCurrentInput ?: indexOfLast { it.message.source == MergedMessageSource.DIARY }
+    }
 
-        if (anchorIndex < 0) return -1
-        return if (this[anchorIndex].message.source == MergedMessageSource.DIARY) anchorIndex else -1
+    private fun List<MergedMessage>.moveFullDiaryBeforeCurrentUserInput(fullDiaryIndex: Int): List<MergedMessage> {
+        if (fullDiaryIndex < 0) return this
+
+        val currentUserInputIndex = indexOfLast { it.senderId == "user" && it.source != MergedMessageSource.DIARY }
+        if (currentUserInputIndex < 0 || fullDiaryIndex == currentUserInputIndex - 1) return this
+
+        val fullDiary = this[fullDiaryIndex]
+        val withoutFullDiary = filterIndexed { index, _ -> index != fullDiaryIndex }.toMutableList()
+        val adjustedUserInputIndex = withoutFullDiary.indexOfLast { it.senderId == "user" && it.source != MergedMessageSource.DIARY }
+        if (adjustedUserInputIndex < 0) return this
+
+        withoutFullDiary.add(adjustedUserInputIndex, fullDiary)
+        return withoutFullDiary
     }
 
     private fun DiaryEntry.contextTimestamp(): Long {

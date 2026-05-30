@@ -278,6 +278,18 @@ object TimeSkipEngine {
                 savedCount++
             }
 
+            // 8.5 模拟推特主动发推动态
+            try {
+                com.moonlib.cosmos.data.twitter.TwitterEngine.simulateOfflineTweets(
+                    context = context,
+                    startTimeMillis = startTimeMillis,
+                    endTimeMillis = endTimeMillis,
+                    userActivity = userActivity
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
             // 9. 成功后推进虚拟时间为跳过目标结束时间
             VirtualTimeManager.updateTime(endTimeMillis)
 

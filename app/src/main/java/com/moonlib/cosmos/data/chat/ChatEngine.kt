@@ -12,6 +12,7 @@ import com.moonlib.cosmos.data.settings.SystemPromptRepository
 import com.moonlib.cosmos.data.time.VirtualTimeManager
 import com.moonlib.cosmos.data.interaction.InteractionRepository
 import com.moonlib.cosmos.data.interaction.MergedMessage
+import com.moonlib.cosmos.data.interaction.MergedMessageSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -84,7 +85,7 @@ object ChatEngine {
                 val fullPromptBuilder = StringBuilder()
                 fullPromptBuilder.append(systemPrompt).append("\n\n=== 融合历史记忆（线上/线下） ===\n")
                 for (msg in recentMerged) {
-                    val roleName = if (msg.senderId == "user") "用户" else "你"
+                    val roleName = msg.roleNameForPrompt()
                     fullPromptBuilder.append("$roleName: ${msg.prefix} ${msg.content}\n")
                 }
                 fullPromptBuilder.append("请记住你是谁，直接输出你作为角色的下一组符合 JSON 格式的回复：")
@@ -93,13 +94,13 @@ object ChatEngine {
                 val sb = StringBuilder()
                 sb.append("[System Prompt]\n").append(systemPrompt).append("\n\n[Unified Chat/Interaction History]\n")
                 for (msg in recentMerged) {
-                    val role = if (msg.senderId == "user") "User" else "Assistant"
+                    val role = msg.roleNameForLog()
                     sb.append("$role: ${msg.prefix} ${msg.content}\n")
                 }
                 sb.toString()
             }
 
-            val userInputText = recentMerged.lastOrNull { it.senderId == "user" }?.content ?: ""
+            val userInputText = recentMerged.lastOrNull { it.senderId == "user" && it.source != MergedMessageSource.DIARY }?.content ?: ""
 
             val logRepo = com.moonlib.cosmos.data.settings.AiLogRepository(context)
             logRepo.saveLog(
@@ -309,7 +310,7 @@ object ChatEngine {
         val fullPromptBuilder = StringBuilder()
         fullPromptBuilder.append(systemPrompt).append("\n\n=== 融合历史记忆（线上/线下） ===\n")
         for (msg in history) {
-            val roleName = if (msg.senderId == "user") "用户" else "你"
+            val roleName = msg.roleNameForPrompt()
             fullPromptBuilder.append("$roleName: ${msg.prefix} ${msg.content}\n")
         }
         fullPromptBuilder.append("请记住你是谁，直接输出你作为角色的下一组符合 JSON 格式的回复：")
@@ -398,7 +399,13 @@ object ChatEngine {
         val size = history.size
         while (i < size) {
             val msg = history[i]
-            if (msg.senderId == "user") {
+            if (msg.source == MergedMessageSource.DIARY) {
+                messagesArray.put(JSONObject().apply {
+                    put("role", "user")
+                    put("content", "${msg.prefix} ${msg.content}")
+                })
+                i++
+            } else if (msg.senderId == "user") {
                 var content = "${msg.prefix} ${msg.content}"
                 if (i == size - 1) {
                     content += "\n(注意：你必须以指定的 JSON 格式输出回复，不要包含 any markdown 块或废话)"
@@ -412,7 +419,7 @@ object ChatEngine {
                 // 聚合连续的助手消息气泡到同一个 JSON 中
                 val repliesArray = JSONArray()
                 var j = i
-                while (j < size && history[j].senderId != "user") {
+                while (j < size && history[j].senderId != "user" && history[j].source != MergedMessageSource.DIARY) {
                     val aMsg = history[j]
                     val formattedTime = try {
                         sdf.format(java.util.Date(aMsg.timestamp))
@@ -520,6 +527,19 @@ object ChatEngine {
                 ""
             }
             throw Exception("AI接口报错 HTTP $responseCode: ${errorText.take(120)}")
+        }
+    }
+    private fun MergedMessage.roleNameForPrompt(): String {
+        return when (source) {
+            MergedMessageSource.DIARY -> "记忆"
+            else -> if (senderId == "user") "用户" else "你"
+        }
+    }
+
+    private fun MergedMessage.roleNameForLog(): String {
+        return when (source) {
+            MergedMessageSource.DIARY -> "Memory"
+            else -> if (senderId == "user") "User" else "Assistant"
         }
     }
 }

@@ -16,6 +16,7 @@ import com.moonlib.cosmos.ui.settings.SettingsAppScreen
 import com.moonlib.cosmos.ui.chat.ChatAppScreen
 import com.moonlib.cosmos.ui.time.TimeAppScreen
 import com.moonlib.cosmos.ui.diary.DiaryAppScreen
+import com.moonlib.cosmos.ui.twitter.TwitterAppScreen
 import com.moonlib.cosmos.ui.theme.*
 import kotlin.random.Random
 
@@ -79,19 +80,7 @@ fun DesktopScreen() {
 
                         AppGrid(
                             onAppClick = { app ->
-                                if (app.id == "settings") {
-                                    activeAppId = "settings"
-                                } else if (app.id == "profile") {
-                                    activeAppId = "profile"
-                                } else if (app.id == "chat") {
-                                    activeAppId = "chat"
-                                } else if (app.id == "interaction") {
-                                    activeAppId = "interaction"
-                                } else if (app.id == "time") {
-                                    activeAppId = "time"
-                                } else if (app.id == "diary") {
-                                    activeAppId = "diary"
-                                }
+                                activeAppId = app.id
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -125,6 +114,11 @@ fun DesktopScreen() {
                     )
                 } else if (appId == "diary") {
                     DiaryAppScreen(
+                        onGoBack = { activeAppId = null },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else if (appId == "twitter") {
+                    TwitterAppScreen(
                         onGoBack = { activeAppId = null },
                         modifier = Modifier.fillMaxSize()
                     )
