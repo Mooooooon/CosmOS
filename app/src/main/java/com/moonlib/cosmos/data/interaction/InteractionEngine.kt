@@ -59,7 +59,7 @@ object InteractionEngine {
             throw Exception("激活的 AI 配置文件不完整，请前往【系统设置】检查。")
         }
 
-                // 3. Build system prompt and merge history via AiPromptHelper
+        // 3. Build system prompt and merge history via AiPromptHelper
         val (systemPrompt, recentMerged) = AiPromptHelper.buildPromptAndHistory(
             context = context,
             charProfile = charProfile,
@@ -70,12 +70,12 @@ object InteractionEngine {
         val isGeminiOfficial = activeProfile.serviceType == AiServiceType.GEMINI && baseUrl.contains("googleapis.com")
 
         val responseText = if (isGeminiOfficial) {
-            executeGeminiOfficial(baseUrl, modelName, apiKey, temperature, systemPrompt, recentMerged)
+            executeGeminiOfficial(context, baseUrl, modelName, apiKey, temperature, systemPrompt, recentMerged)
         } else {
-            executeOpenAI(baseUrl, modelName, apiKey, temperature, systemPrompt, recentMerged, activeProfile.serviceType, charProfile.name)
+            executeOpenAI(context, baseUrl, modelName, apiKey, temperature, systemPrompt, recentMerged, activeProfile.serviceType, charProfile.name)
         }
 
-        // ── 5. 拦截并记录本次 AI 通讯日志（保存到系统设置的日志查看器中，极其重要） ──────────
+        // ── 4. 拦截并记录本次 AI 通讯日志 ──────────
         try {
             val sbPrompt = StringBuilder()
             sbPrompt.append(systemPrompt).append("\n\n=== 混合上下文记忆流（包含线上/线下） ===\n")
@@ -102,6 +102,35 @@ object InteractionEngine {
                 aiResponse = responseText,
                 prompt = sbPrompt.toString()
             )
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        // ── 5. 解析状态卡更新字段并保存（按需静默更新） ──────────
+        try {
+            val cleanJson = cleanJsonResponse(responseText)
+            val jsonObj = JSONObject(cleanJson)
+            if (jsonObj.has("status") && !jsonObj.isNull("status")) {
+                val statusObj = jsonObj.optJSONObject("status")
+                if (statusObj != null) {
+                    val statusMap = mutableMapOf<String, String>()
+                    val keys = statusObj.keys()
+                    while (keys.hasNext()) {
+                        val key = keys.next()
+                        if (!statusObj.isNull(key)) {
+                            val value = statusObj.getString(key)
+                            // 过滤无效或未变更的值
+                            if (value.isNotBlank() && value != "null") {
+                                statusMap[key] = value
+                            }
+                        }
+                    }
+                    if (statusMap.isNotEmpty()) {
+                        val settingsRepo = InteractionSettingsRepository(context)
+                        settingsRepo.updateCharacterStatus(characterId, statusMap)
+                    }
+                }
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -246,6 +275,7 @@ object InteractionEngine {
     }
 
     private fun executeGeminiOfficial(
+        context: Context,
         baseUrl: String,
         modelName: String,
         apiKey: String,
@@ -273,6 +303,11 @@ object InteractionEngine {
         }
         fullPromptBuilder.append("请记住你是谁，直接输出你作为角色的下一组线下实体互动 JSON 回复：")
 
+        // 动态加载状态配置组装 Schema
+        val settingsRepo = InteractionSettingsRepository(context)
+        val statusCardEnabled = settingsRepo.isStatusCardEnabled()
+        val statusKeys = settingsRepo.getStatusKeys()
+
         // 构造符合 Gemini 官方标准的 responseSchema 结构
         val replySchema = JSONObject().apply {
             put("type", "OBJECT")
@@ -296,10 +331,27 @@ object InteractionEngine {
                     put("type", "ARRAY")
                     put("items", replySchema)
                 })
+                if (statusCardEnabled && statusKeys.isNotEmpty()) {
+                    val statusProperties = JSONObject()
+                    for (key in statusKeys) {
+                        statusProperties.put(key.name, JSONObject().apply {
+                            put("type", "STRING")
+                            put("nullable", true)
+                        })
+                    }
+                    put("status", JSONObject().apply {
+                        put("type", "OBJECT")
+                        put("properties", statusProperties)
+                        put("nullable", true)
+                    })
+                }
             })
             put("required", JSONArray().apply {
                 put("sender")
                 put("replies")
+                if (statusCardEnabled && statusKeys.isNotEmpty()) {
+                    put("status")
+                }
             })
         }
 
@@ -346,6 +398,7 @@ object InteractionEngine {
     }
 
     private fun executeOpenAI(
+        context: Context,
         baseUrl: String,
         modelName: String,
         apiKey: String,
@@ -376,7 +429,7 @@ object InteractionEngine {
 
         val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
 
-        // 构造 messages 对话上下文历史聚合装填，并在最后一条用户消息内容末尾注入 JSON 强制要求指令，合并连续助手回复防止模仿偏差
+        // 构造 messages 对话上下文历史聚合装填
         var i = 0
         val size = history.size
         while (i < size) {
@@ -407,8 +460,6 @@ object InteractionEngine {
                     repliesArray.put(JSONObject().apply {
                         put("type", "text")
                         put("time", formattedTime)
-                        // 注意：为了避免模型在吐出的最新 JSON 的 content 中强加 [线下互动] / [线上聊天] 前缀，
-                        // 我们必须在此直接装填干净的内容，绝对不加入任何前缀。
                         put("content", aMsg.content)
                     })
                     j++
@@ -427,6 +478,11 @@ object InteractionEngine {
                 i = j
             }
         }
+
+        // 动态加载状态配置组装 Schema
+        val settingsRepo = InteractionSettingsRepository(context)
+        val statusCardEnabled = settingsRepo.isStatusCardEnabled()
+        val statusKeys = settingsRepo.getStatusKeys()
 
         val requestJson = JSONObject().apply {
             put("model", modelName)
@@ -460,10 +516,29 @@ object InteractionEngine {
                             put("type", "array")
                             put("items", replySchema)
                         })
+                        if (statusCardEnabled && statusKeys.isNotEmpty()) {
+                            val statusProps = JSONObject()
+                            val statusRequired = JSONArray()
+                            for (key in statusKeys) {
+                                statusProps.put(key.name, JSONObject().apply {
+                                    put("type", JSONArray().apply { put("string"); put("null") })
+                                })
+                                statusRequired.put(key.name)
+                            }
+                            put("status", JSONObject().apply {
+                                put("type", JSONArray().apply { put("object"); put("null") })
+                                put("properties", statusProps)
+                                put("required", statusRequired)
+                                put("additionalProperties", false)
+                            })
+                        }
                     })
                     put("required", JSONArray().apply {
                         put("sender")
                         put("replies")
+                        if (statusCardEnabled && statusKeys.isNotEmpty()) {
+                            put("status")
+                        }
                     })
                     put("additionalProperties", false)
                 }

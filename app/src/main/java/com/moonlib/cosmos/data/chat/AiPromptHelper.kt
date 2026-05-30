@@ -64,6 +64,34 @@ object AiPromptHelper {
         val currentVirtualTimeStr = VirtualTimeManager.formatTime("yyyy-MM-dd HH:mm:ss")
         val currentVirtualTimeWithWeekdayStr = VirtualTimeManager.formatTime("yyyy-MM-dd HH:mm:ss EEEE")
 
+        // 增加对实体互动状态卡的读取与提示注入
+        val interactionSettingsRepo = com.moonlib.cosmos.data.interaction.InteractionSettingsRepository(context)
+        val statusCardEnabled = interactionSettingsRepo.isStatusCardEnabled()
+        val statusKeys = interactionSettingsRepo.getStatusKeys()
+        val charStatusMap = interactionSettingsRepo.getCharacterStatus(charProfile.id)
+
+        val statusPrompt = if (sceneType == AiSceneType.INTERACTION && statusCardEnabled && statusKeys.isNotEmpty()) {
+            val statusBulletPoints = statusKeys.joinToString("\n") { key ->
+                val currentVal = charStatusMap[key.name] ?: "未知"
+                "- 「${key.name}」（含义解释：${key.description}）：当前状态值是 「$currentVal」"
+            }
+            """
+            
+            【角色的实时状态卡（极其重要）】：
+            当前互动的角色状态卡已开启。你作为扮演的角色，需要协同维护以下几个状态词条：
+            $statusBulletPoints
+            
+            请在进行本次实体互动的回应时，密切关注用户的行动和你自己的身体/动作变化。如果你的身体姿势、动作、神态、物理位置或服装衣着在本次互动中发生了【改变】，你必须在输出 JSON 的最外层添加并输出 `"status"` 对象，将发生改变的词条更新为最新的状态值。
+            
+            状态更新输出准则（请务必严格遵守）：
+            1. 采取【按需更新】策略。对于本次回复中【没有发生任何改变】的词条，绝对不要在 `"status"` 对象里输出，或者将其对应的值设为 null。
+            2. 如果所有的状态词条相比之前均【没有发生任何改变】，请直接不要输出 `"status"` 键，或者将整个 `"status"` 键的值设为 null。绝对不要输出重复的、未改变的状态值！
+            3. 状态词条的描述应当极度生动、具体（例如：当前姿势改为“（坐起并有些局促地揉揉衣角）”或“站立”，当前服装改为“略微凌乱的睡衣”等），保持和你的动作描述高度一致。
+            """.trimIndent()
+        } else {
+            ""
+        }
+
         // 3. 根据不同的场景类型进行 Prompt 的定制分发
         val systemPrompt = when (sceneType) {
             AiSceneType.CHAT -> {
@@ -146,9 +174,10 @@ object AiPromptHelper {
                     1. 你当前正在与用户【$playerRealName】进行【实体线下面面对面互动】（而非通过手机聊天软件）。
                     2. 用户的真实姓名是【$playerRealName】。
                     3. 【当前虚拟世界的时间】是：$currentVirtualTimeWithWeekdayStr。
+                    $statusPrompt
                     
                     【对话上下文（线上线下记忆融合）合并说明】：
-                    我们已经将你与用户的【线上聊天】历史和【线下面面对面实体互动】历史按时间顺序合并在下方。
+                    We have merged the online chat and offline physical interaction history in chronological order.
                     - 带有 `[线上聊天]` 前缀的消息表示你们先前在手机软件上的远程聊天。
                     - 带有 `[线下互动]` 前缀的消息表示你们在现实线下见面的动作对话，其中包含括弧动作描写。
                     - 注意：你现在正在与用户进行【线下面面对面实体互动】。因此你作为角色的下一组回复中，**除了言语对话，还必须夹带丰富的肢体动作、神态、语气、心理或眼神等描写（写在中文小括号 `（动作描写）` 内，例如：`（看向对方，脸上有些疑惑）带了，怎么啦？`）**。
@@ -163,7 +192,7 @@ object AiPromptHelper {
                     5. 绝对不可在回复中出现任何 emoji、颜文字或任何表情符号。所有非动作描写的对话必须是纯文本。
                     
                     【底层通信输出格式】：
-                    为了与其他系统集成，你必须以 JSON 格式输出，不要包含任何 markdown 块或额外的解释文本。你的输出必须能够被直接解析为以下 JSON 格式：
+                    为了与其他系统集成，你必须以 JSON 格式输出，不要包含 any markdown 块或额外的解释文本。你的输出必须能够被直接解析为以下 JSON 格式：
                     {
                       "sender": "${charProfile.name}",
                       "replies": [
@@ -177,7 +206,7 @@ object AiPromptHelper {
                           "time": "yyyy-MM-dd HH:mm:ss",
                           "content": "（动作描写）第二条动作加对话内容，不能含有任何 emoji"
                         }
-                      ]
+                      ]${if (statusCardEnabled && statusKeys.isNotEmpty()) ",\n                      \"status\": {\n                        \"词条名称\": \"仅当该词条状态发生改变时更新的值，未改变的词条不输出或设为 null\"\n                      }" else ""}
                     }
                     
                     特别注意：
@@ -190,7 +219,7 @@ object AiPromptHelper {
             }
         }
 
-        // 4. 融合并合并双渠道历史记忆（线上聊天 + 线下面对面实体互动）
+        // 4. 融合并合并双渠道历史记忆（线上聊天 + 线下面面对面实体互动）
         val contact = chatRepo.getContacts().firstOrNull { it.characterId == charProfile.id }
         val onlineMsgs = if (contact != null) chatRepo.getMessages(contact.id) else emptyList()
         val offlineMsgs = interactionRepo.getMessages(charProfile.id)

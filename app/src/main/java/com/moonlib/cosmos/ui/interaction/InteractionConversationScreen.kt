@@ -1,6 +1,7 @@
 package com.moonlib.cosmos.ui.interaction
 
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -83,6 +84,12 @@ fun InteractionConversationScreen(
     val userNickname = remember { chatRepo.getUserNickname() }
     val userAvatar = remember { chatRepo.getUserAvatar() }
 
+    // 加载并 observe 状态卡全局及各个角色当前状态数据
+    val settingsRepo = remember { com.moonlib.cosmos.data.interaction.InteractionSettingsRepository(context) }
+    var isStatusCardEnabled by remember { mutableStateOf(settingsRepo.isStatusCardEnabled()) }
+    var statusKeys by remember { mutableStateOf(settingsRepo.getStatusKeys()) }
+    var charStatus by remember { mutableStateOf(settingsRepo.getCharacterStatus(characterId)) }
+
     // 3. 状态管理：消息列表、输入框、AI 输入生成状态
     var messages by remember { mutableStateOf(interactionRepo.getMessages(characterId)) }
     var inputText by remember { mutableStateOf("") }
@@ -102,8 +109,11 @@ fun InteractionConversationScreen(
         }
     }
 
-    // 首次载入自动置底 (不带动画，秒开最自然)
+    // 首次载入及消息量刷新时，拉取最新的状态卡配置和状态值
     LaunchedEffect(messages.size) {
+        isStatusCardEnabled = settingsRepo.isStatusCardEnabled()
+        statusKeys = settingsRepo.getStatusKeys()
+        charStatus = settingsRepo.getCharacterStatus(characterId)
         scrollToBottom(false)
     }
 
@@ -226,6 +236,83 @@ fun InteractionConversationScreen(
                 .padding(innerPadding)
                 .conversationContentImeResize()
         ) {
+            // ─── 0. 角色实体状态卡展示面板 ─────────────────────────────────────
+            if (isStatusCardEnabled && statusKeys.isNotEmpty()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .background(MaterialTheme.colorScheme.primary, CircleShape)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "${character.name} 的当前状态",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // 流式排列状态词条
+                        androidx.compose.foundation.layout.FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            for (key in statusKeys) {
+                                val value = charStatus[key.name] ?: "-"
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.45f),
+                                    border = BorderStroke(
+                                        1.dp,
+                                        MaterialTheme.colorScheme.outline.copy(alpha = 0.06f)
+                                    )
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "${key.name}: ",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                        )
+                                        Text(
+                                            text = value,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // ─── 1. 实体动作消息渲染区 ─────────────────────────────────
             LazyColumn(
                 state = listState,
