@@ -30,28 +30,84 @@ E:\Android\CosmOS
 │       │   ├── java\com\moonlib\cosmos
 │       │   │   ├── MainActivity.kt
 │       │   │   ├── data
-│       │   │   │   └── settings
-│       │   │   │       ├── AiConfigRepository.kt
-│       │   │   │       ├── AiProfile.kt
-│       │   │   │       └── ThemeSettingsRepository.kt
-│       │   │   └── ui
-│       │   │       ├── desktop
-│       │   │       │   ├── AppGrid.kt
-│       │   │       │   ├── AppIconItem.kt
-│       │   │       │   ├── DesktopApp.kt
-│       │   │       │   ├── DesktopClock.kt
-│       │   │       │   ├── DesktopScreen.kt
-│       │   │       │   └── VirtualStatusBar.kt
-│       │   │       ├── settings
-│       │   │       │   ├── ModelServiceConfigScreen.kt
-│       │   │       │   ├── ModelServicesListScreen.kt
-│       │   │       │   ├── SettingsAppScreen.kt
-│       │   │       │   ├── SettingsMainScreen.kt
-│       │   │       │   └── ThemeSettingsScreen.kt
-│       │   │       └── theme
-│       │   │           ├── Color.kt
-│       │   │           ├── Theme.kt
-│       │   │           └── Type.kt
+│       │   │   │   ├── chat
+│       │   │   │   │   ├── AiChatResponse.kt
+│       │   │   │   │   ├── AiPromptHelper.kt
+│       │   │   │   │   ├── ChatContact.kt
+│       │   │   │   │   ├── ChatEngine.kt
+│       │   │   │   │   ├── ChatMessage.kt
+│       │   │   │   │   └── ChatRepository.kt
+│       │   │   │   ├── interaction
+│       │   │   │   │   ├── InteractionEngine.kt
+│       │   │   │   │   ├── InteractionMessage.kt
+│       │   │   │   │   ├── InteractionRepository.kt
+│       │   │   │   │   ├── InteractionSettingsRepository.kt
+│       │   │   │   │   └── MergedMessage.kt
+│       │   │   │   ├── profile
+│       │   │   │   │   ├── CharacterProfile.kt
+│       │   │   │   │   ├── CharacterProfileGenerator.kt
+│       │   │   │   │   └── CharacterProfileRepository.kt
+│       │   │   │   ├── settings
+│       │   │   │   │   ├── AiConfigRepository.kt
+│       │   │   │   │   ├── AiLogRepository.kt
+│       │   │   │   │   ├── AiProfile.kt
+│       │   │   │   │   ├── AiSceneType.kt
+│       │   │   │   │   ├── AiSettingsRepository.kt
+│       │   │   │   │   ├── SaveManager.kt
+│       │   │   │   │   ├── SystemPromptRepository.kt
+│       │   │   │   │   └── ThemeSettingsRepository.kt
+│       │   │   │   └── time
+│       │   │   │       └── VirtualTimeManager.kt
+│       │   │   ├── ui
+│       │   │   │   ├── chat
+│       │   │   │   │   ├── AvatarComponents.kt
+│       │   │   │   │   ├── ChatAppScreen.kt
+│       │   │   │   │   ├── ChatConversationScreen.kt
+│       │   │   │   │   ├── ChatMainScreen.kt
+│       │   │   │   │   ├── ContactEditScreen.kt
+│       │   │   │   │   ├── ContactInfoCardScreen.kt
+│       │   │   │   │   ├── ContactListTab.kt
+│       │   │   │   │   └── MessageListTab.kt
+│       │   │   │   ├── common
+│       │   │   │   │   └── KeyboardInsets.kt
+│       │   │   │   ├── desktop
+│       │   │   │   │   ├── AppGrid.kt
+│       │   │   │   │   ├── AppIconItem.kt
+│       │   │   │   │   ├── DesktopApp.kt
+│       │   │   │   │   ├── DesktopClock.kt
+│       │   │   │   │   ├── DesktopScreen.kt
+│       │   │   │   │   └── VirtualStatusBar.kt
+│       │   │   │   ├── interaction
+│       │   │   │   │   ├── InteractionAppScreen.kt
+│       │   │   │   │   ├── InteractionConversationScreen.kt
+│       │   │   │   │   ├── InteractionListScreen.kt
+│       │   │   │   │   └── InteractionSettingsScreen.kt
+│       │   │   │   ├── profile
+│       │   │   │   │   ├── AiIdeaInputDialog.kt
+│       │   │   │   │   ├── ProfileAppScreen.kt
+│       │   │   │   │   ├── ProfileEditScreen.kt
+│       │   │   │   │   ├── ProfileListScreen.kt
+│       │   │   │   │   └── ProfileScreenState.kt
+│       │   │   │   ├── settings
+│       │   │   │   │   ├── AiChatSettingsScreen.kt
+│       │   │   │   │   ├── AiLogsScreen.kt
+│       │   │   │   │   ├── ModelSelectDialog.kt
+│       │   │   │   │   ├── ModelServiceConfigScreen.kt
+│       │   │   │   │   ├── ModelServicesListScreen.kt
+│       │   │   │   │   ├── SaveSlotsListScreen.kt
+│       │   │   │   │   ├── SettingsAppScreen.kt
+│       │   │   │   │   ├── SettingsMainScreen.kt
+│       │   │   │   │   ├── SystemPromptEditScreen.kt
+│       │   │   │   │   ├── SystemPromptListScreen.kt
+│       │   │   │   │   └── ThemeSettingsScreen.kt
+│       │   │   │   ├── theme
+│       │   │   │   │   ├── Color.kt
+│       │   │   │   │   ├── Theme.kt
+│       │   │   │   │   └── Type.kt
+│       │   │   │   └── time
+│       │   │   │       └── TimeAppScreen.kt
+│       │   │   └── utils
+│       │   │       └── ImageUtils.kt
 │       │   └── res
 │       │       ├── drawable
 │       │       ├── mipmap-anydpi
@@ -75,10 +131,20 @@ E:\Android\CosmOS
 ## 结构说明
 
 - `app/src/main/java/com/moonlib/cosmos/MainActivity.kt`：应用入口 Activity，全局主题注入处。
+- `app/src/main/java/com/moonlib/cosmos/data/chat`：聊天联系人、消息模型、AI 回复解析、提示词辅助与聊天引擎 / 仓库。
+- `app/src/main/java/com/moonlib/cosmos/data/interaction`：互动消息、消息合并、互动配置、互动仓库与互动引擎。
+- `app/src/main/java/com/moonlib/cosmos/data/profile`：角色档案模型、AI 档案生成与档案持久化仓库。
+- `app/src/main/java/com/moonlib/cosmos/data/settings`：AI 服务配置、模型参数、日志、存档、系统提示词与主题配置持久化仓库。
+- `app/src/main/java/com/moonlib/cosmos/data/time`：虚拟时间状态与推进逻辑。
+- `app/src/main/java/com/moonlib/cosmos/ui/chat`：聊天应用入口、会话页、联系人列表、消息列表、联系人编辑与头像组件。
+- `app/src/main/java/com/moonlib/cosmos/ui/common`：跨界面复用的通用 UI / Insets 工具。
 - `app/src/main/java/com/moonlib/cosmos/ui/desktop`：桌面主界面相关 UI 组件与自适应壁纸。
-- `app/src/main/java/com/moonlib/cosmos/ui/settings`：设置界面、模型服务配置与个性化主题配置。
+- `app/src/main/java/com/moonlib/cosmos/ui/interaction`：互动应用入口、互动列表、互动会话与互动设置界面。
+- `app/src/main/java/com/moonlib/cosmos/ui/profile`：角色档案应用入口、档案列表、档案编辑、AI 灵感输入与档案界面状态。
+- `app/src/main/java/com/moonlib/cosmos/ui/settings`：设置入口、AI 聊天设置、模型服务配置、模型选择、日志、存档、系统提示词与主题配置界面。
 - `app/src/main/java/com/moonlib/cosmos/ui/theme`：Compose 主题、配色集（深浅双色板）与 CompositionLocal 定义。
-- `app/src/main/java/com/moonlib/cosmos/data/settings`：AI 配置仓库与主题配置持久化仓库。
+- `app/src/main/java/com/moonlib/cosmos/ui/time`：虚拟时间应用界面。
+- `app/src/main/java/com/moonlib/cosmos/utils`：跨层级复用的工具函数。
 - `app/src/main/res`：Android 资源文件。
 - `app/src/test`：本地单元测试。
 - `app/src/androidTest`：Android 仪器测试。
@@ -112,4 +178,3 @@ E:\Android\CosmOS
 4. **美术与动效风格准则：**
    - 本项目的美术风格致力于**简洁易用**。一般情况下**使用纯色（Solid Color）而非渐变色（Gradient Color）**。
    - 除特定系统级核心交互反馈外，避免添加繁冗、晃眼的多余呼吸或循环缩放动画，保持极致的极简扁平化现代感。
-
