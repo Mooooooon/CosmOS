@@ -66,7 +66,7 @@ fun ModelServiceConfigScreen(
         mutableStateOf(initialProfile?.temperature ?: 0.7f)
     }
     var thinkingLevel by remember {
-        mutableStateOf(initialProfile?.thinkingLevel ?: "off")
+        mutableStateOf(initialProfile?.thinkingLevel ?: "default")
     }
 
     // 状态控制：API Key 是否可见
@@ -379,13 +379,14 @@ fun ModelServiceConfigScreen(
                     // 思考等级 (Reasoning Effort)
                     var isThinkingLevelExpanded by remember { mutableStateOf(false) }
                     val thinkingLevels = listOf(
-                        "off" to "关闭 (不指定)",
+                        "default" to "默认 (不指定)",
+                        "off" to "关闭 (Off)",
                         "minimal" to "微小 (Minimal)",
                         "low" to "低 (Low)",
                         "medium" to "中 (Medium)",
                         "high" to "高 (High)"
                     )
-                    val currentLevelLabel = thinkingLevels.firstOrNull { it.first == thinkingLevel }?.second ?: "关闭 (不指定)"
+                    val currentLevelLabel = thinkingLevels.firstOrNull { it.first == thinkingLevel }?.second ?: "默认 (不指定)"
 
                     Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                         Text(

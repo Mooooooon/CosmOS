@@ -140,7 +140,7 @@ class AiConfigRepository(context: Context) {
             modelName     = json.getString("modelName"),
             temperature   = json.optDouble("temperature", 0.7).toFloat(),
             isActive      = json.optBoolean("isActive", false),
-            thinkingLevel = json.optString("thinkingLevel", "off")
+            thinkingLevel = json.optString("thinkingLevel", "default")
         )
     }
 

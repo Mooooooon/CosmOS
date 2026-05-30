@@ -400,8 +400,19 @@ object TimeSkipEngine {
             put("messages", messagesArray)
             put("temperature", temperature.toDouble())
             put("max_tokens", 2048)
-            if (thinkingLevel != "off") {
+            if (thinkingLevel == "off") {
+                if (serviceType == AiServiceType.DEEP_SEEK || modelName.contains("deepseek", ignoreCase = true)) {
+                    put("thinking", JSONObject().apply {
+                        put("type", "disabled")
+                    })
+                }
+            } else if (thinkingLevel != "default") {
                 put("reasoning_effort", thinkingLevel)
+                if (serviceType == AiServiceType.DEEP_SEEK || modelName.contains("deepseek", ignoreCase = true)) {
+                    put("thinking", JSONObject().apply {
+                        put("type", "enabled")
+                    })
+                }
             }
             
             if (serviceType == AiServiceType.OPEN_AI) {

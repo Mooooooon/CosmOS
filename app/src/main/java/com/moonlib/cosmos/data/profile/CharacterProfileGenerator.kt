@@ -77,7 +77,7 @@ object CharacterProfileGenerator {
         if (isGeminiOfficial) {
             executeGeminiOfficial(baseUrl, modelName, apiKey, temperature, userIdea)
         } else {
-            executeOpenAISync(baseUrl, modelName, apiKey, temperature, userIdea, activeProfile.thinkingLevel)
+            executeOpenAISync(baseUrl, modelName, apiKey, temperature, userIdea, activeProfile.serviceType, activeProfile.thinkingLevel)
         }
     }
 
@@ -155,6 +155,7 @@ object CharacterProfileGenerator {
         apiKey: String,
         temperature: Float,
         userIdea: String,
+        serviceType: AiServiceType,
         thinkingLevel: String
     ): String {
         val base = baseUrl.removeSuffix("/")
@@ -185,8 +186,19 @@ object CharacterProfileGenerator {
             put("model", modelName)
             put("messages", messagesArray)
             put("temperature", temperature.toDouble())
-            if (thinkingLevel != "off") {
+            if (thinkingLevel == "off") {
+                if (serviceType == AiServiceType.DEEP_SEEK || modelName.contains("deepseek", ignoreCase = true)) {
+                    put("thinking", JSONObject().apply {
+                        put("type", "disabled")
+                    })
+                }
+            } else if (thinkingLevel != "default") {
                 put("reasoning_effort", thinkingLevel)
+                if (serviceType == AiServiceType.DEEP_SEEK || modelName.contains("deepseek", ignoreCase = true)) {
+                    put("thinking", JSONObject().apply {
+                        put("type", "enabled")
+                    })
+                }
             }
         }
 
