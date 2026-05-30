@@ -100,7 +100,7 @@ object ChatEngine {
                 sb.toString()
             }
 
-            val userInputText = recentMerged.lastOrNull { it.senderId == "user" && it.source != MergedMessageSource.DIARY }?.content ?: ""
+            val userInputText = recentMerged.lastOrNull { it.senderId == "user" && it.source.isDirectConversation() }?.content ?: ""
 
             val logRepo = com.moonlib.cosmos.data.settings.AiLogRepository(context)
             logRepo.saveLog(
@@ -399,7 +399,7 @@ object ChatEngine {
         val size = history.size
         while (i < size) {
             val msg = history[i]
-            if (msg.source == MergedMessageSource.DIARY) {
+            if (msg.source.isMemoryContext()) {
                 messagesArray.put(JSONObject().apply {
                     put("role", "user")
                     put("content", "${msg.prefix} ${msg.content}")
@@ -419,7 +419,7 @@ object ChatEngine {
                 // 聚合连续的助手消息气泡到同一个 JSON 中
                 val repliesArray = JSONArray()
                 var j = i
-                while (j < size && history[j].senderId != "user" && history[j].source != MergedMessageSource.DIARY) {
+                while (j < size && history[j].senderId != "user" && history[j].source.isDirectConversation()) {
                     val aMsg = history[j]
                     val formattedTime = try {
                         sdf.format(java.util.Date(aMsg.timestamp))
@@ -532,6 +532,7 @@ object ChatEngine {
     private fun MergedMessage.roleNameForPrompt(): String {
         return when (source) {
             MergedMessageSource.DIARY -> "记忆"
+            MergedMessageSource.TWITTER -> "记忆"
             else -> if (senderId == "user") "用户" else "你"
         }
     }
@@ -539,7 +540,16 @@ object ChatEngine {
     private fun MergedMessage.roleNameForLog(): String {
         return when (source) {
             MergedMessageSource.DIARY -> "Memory"
+            MergedMessageSource.TWITTER -> "Memory"
             else -> if (senderId == "user") "User" else "Assistant"
         }
+    }
+
+    private fun MergedMessageSource.isMemoryContext(): Boolean {
+        return this == MergedMessageSource.DIARY || this == MergedMessageSource.TWITTER
+    }
+
+    private fun MergedMessageSource.isDirectConversation(): Boolean {
+        return this == MergedMessageSource.CHAT || this == MergedMessageSource.INTERACTION
     }
 }
