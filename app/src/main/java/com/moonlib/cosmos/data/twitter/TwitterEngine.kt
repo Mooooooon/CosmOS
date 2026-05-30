@@ -4,6 +4,7 @@ import android.content.Context
 import com.moonlib.cosmos.data.context.ConversationContextBuilder
 import com.moonlib.cosmos.data.profile.CharacterProfileRepository
 import com.moonlib.cosmos.data.settings.AiAuthorizationHeader
+import com.moonlib.cosmos.data.settings.AiChatCompletionResponseParser
 import com.moonlib.cosmos.data.settings.AiConfigRepository
 import com.moonlib.cosmos.data.settings.AiReasoningRequestOptions
 import com.moonlib.cosmos.data.settings.AiServiceType
@@ -73,6 +74,25 @@ object TwitterEngine {
             val replyPart = if (t.replyToUsername != null) " 回复 @${t.replyToUsername}" else ""
             threadTextBuilder.append("- [@${authorHandle} ($authorName)$replyPart]: ${t.content}\n")
         }
+        val directUserReplyTarget = if (targetTweet.authorId == "user") {
+            targetTweet.parentId?.let { twitterRepo.getTweet(it) }
+        } else {
+            null
+        }
+        val isDirectReplyToFollowedCharacter = directUserReplyTarget
+            ?.let { parent -> followedProfiles.any { it.characterId == parent.authorId } }
+            ?: false
+        val replyCountRule = if (isDirectReplyToFollowedCharacter) {
+            "生成 1 到 3 条回复。玩家刚刚主动回复了已关注角色的推文/评论，这属于直接社交互动，必须至少让被回复的角色或相关角色给出一句自然回应，禁止返回空 replies。"
+        } else {
+            "生成 0 到 3 条回复。有些角色性格热情，可能立刻评论；有的角色则可能互怼；如果确实没人合适，也可以返回空 replies。"
+        }
+        val targetInteractionNote = if (isDirectReplyToFollowedCharacter) {
+            val targetAuthor = twitterRepo.getProfile(directUserReplyTarget!!.authorId)
+            "玩家正在回复 @${targetAuthor?.username ?: directUserReplyTarget.authorId}（${targetAuthor?.nickname ?: directUserReplyTarget.authorId}）。优先让被回复者按人设接话，也可以让其他已关注角色插一句。"
+        } else {
+            "当前是普通发推或非直接 NPC 互动，请按拟真刷到概率决定是否有人回复。"
+        }
 
         // 3. 构造候选角色的详细性格作息设定与通用上下文（线上聊天/实体互动/日记/推特合并的全局记忆）
         val charactersInfo = StringBuilder()
@@ -129,9 +149,12 @@ object TwitterEngine {
             -----------------------------------------
             $threadTextBuilder
             -----------------------------------------
+
+            【当前触发场景】：
+            $targetInteractionNote
             
             【盖楼决策与回复要求（极其重要）】：
-            1. **拟真盖楼互动**：根据角色性格、作息以及彼此的关系，生成 0 到 3 条回复。有些角色性格热情，可能立刻评论；有的角色则可能互怼；如果没人合适，也可以返回空回复列表。
+            1. **拟真盖楼互动**：根据角色性格、作息以及彼此的关系，$replyCountRule
             2. **文字规范**：消息内容必须控制在 1 到 2 句话内（30字以内），严禁任何 emoji、颜文字或小括号内的动作描写！指代用户必须用第二人称“你”，绝对禁止使用“他”或“她”！
             3. **层级关系**：回复的 `parent_id` 可以是当前叶子结点推文的 ID （即 `"$tweetId"`），也可以是本组回复中前面那条回复的临时 ID，从而实现“角色互相回复彼此的评论”。
             4. **时间偏移**：每条回复指定一个 `time_offset_seconds`（在 10 到 120 秒之间，逐渐递增），用来代表真实用户刷推特、打字和发送的时间间隔。
@@ -168,10 +191,14 @@ object TwitterEngine {
         val isNativeGenerateContent = activeProfile.serviceType == AiServiceType.VERTEX ||
                 (activeProfile.serviceType == AiServiceType.GEMINI && baseUrl.contains("googleapis.com"))
 
-        val responseText = if (isNativeGenerateContent) {
-            executeGeminiOfficial(baseUrl, modelName, apiKey, temperature, systemPrompt, activeProfile.serviceType, activeProfile.vertexRegion)
-        } else {
-            executeOpenAI(baseUrl, modelName, apiKey, temperature, systemPrompt, activeProfile.serviceType, activeProfile.thinkingLevel)
+        val responseText = try {
+            if (isNativeGenerateContent) {
+                executeGeminiOfficial(baseUrl, modelName, apiKey, temperature, systemPrompt, activeProfile.serviceType, activeProfile.vertexRegion)
+            } else {
+                executeOpenAI(baseUrl, modelName, apiKey, temperature, systemPrompt, activeProfile.serviceType, activeProfile.thinkingLevel)
+            }
+        } catch (e: Exception) {
+            "AI_REQUEST_FAILED: ${e.message.orEmpty()}"
         }
 
         // 保存通讯日志
@@ -189,9 +216,13 @@ object TwitterEngine {
         }
 
         // 7. 解析返回的盖楼评论并保存
-        val cleanJson = cleanJsonResponse(responseText)
-        val jsonObj = JSONObject(cleanJson)
-        val repliesArray = jsonObj.optJSONArray("replies") ?: JSONArray()
+        val repliesArray = try {
+            val cleanJson = cleanJsonResponse(responseText)
+            val jsonObj = JSONObject(cleanJson)
+            jsonObj.optJSONArray("replies") ?: JSONArray()
+        } catch (e: Exception) {
+            JSONArray()
+        }
         
         val savedReplies = mutableListOf<Tweet>()
         val indexToIdMap = mutableMapOf<String, String>() // 用于映射 'reply_index_X' 到真正的 UUID
@@ -537,7 +568,7 @@ object TwitterEngine {
             put("model", modelName)
             put("messages", messagesArray)
             put("temperature", temperature.toDouble())
-            put("max_tokens", 2048)
+            put("max_tokens", 4096)
             AiReasoningRequestOptions.applyTo(this, serviceType, modelName, thinkingLevel)
             
             // 使用 JSON Mode
@@ -553,11 +584,7 @@ object TwitterEngine {
         val responseCode = conn.responseCode
         if (responseCode == 200) {
             val jsonText = conn.inputStream.bufferedReader().use { it.readText() }
-            val json = JSONObject(jsonText)
-            val choices = json.getJSONArray("choices")
-            val firstChoice = choices.getJSONObject(0)
-            val message = firstChoice.getJSONObject("message")
-            return message.getString("content").trim()
+            return AiChatCompletionResponseParser.extractContent(jsonText)
         } else {
             val errorText = try {
                 conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
