@@ -18,8 +18,10 @@ import java.util.UUID
 /**
  * 线下实体互动 AI 回应引擎
  *
- * 职责单一：负责组织包含线上与线下混合的对话上下文，特化线下面对面实体互动 System Prompt，
- * 调用激活的 AI 模型，解析并保存带有括弧动作的拟真回应，并同步推进世界虚拟时间。
+ * 职责单一：负责组织包含线上与线下混合的对话上下文，特化线下面层面实体互动 System Prompt，
+ * 调用激活的 AI 模型并启用底层 JSON 结构化通讯协议，
+ * 解析并保存带有括弧动作的拟真回应，并同步推进世界虚拟时间。
+ * 支持 OpenAI 官方 Structured Outputs (json_schema) / DeepSeek JSON Mode / Gemini Structured Output (responseSchema)。
  */
 object InteractionEngine {
 
@@ -94,13 +96,13 @@ object InteractionEngine {
             $processedPlayerPrompt
             ------------------------------------------------
             
-            【实体互动（线下面对面互动）上下文信息】：
+            【实体互动（线下面面对面互动）上下文信息】：
             1. 你当前正在与用户【$playerRealName】进行【实体线下面对面互动】（而非通过手机聊天软件）。
             2. 用户的真实姓名是【$playerRealName】。
             3. 【当前虚拟世界的时间】是：$currentVirtualTimeStr。
             
             【对话上下文（线上线下记忆融合）合并说明】：
-            我们已经将你与用户的【线上聊天】历史和【线下面对面实体互动】历史按时间顺序合并在下方。
+            我们已经将你与用户的【线上聊天】历史和【线下面面对面实体互动】历史按时间顺序合并在下方。
             - 带有 `[线上聊天]` 前缀的消息表示你们先前在手机软件上的远程聊天。
             - 带有 `[线下互动]` 前缀的消息表示你们在现实线下见面的动作对话，其中包含括弧动作描写。
             - 注意：你现在正在与用户进行【线下面面对面实体互动】。因此你作为角色的下一组回复中，**除了言语对话，还必须夹带丰富的肢体动作、神态、语气、心理或眼神等描写（写在中文小括号 `（动作描写）` 内，例如：`（看向对方，脸上有些疑惑）带了，怎么啦？`）**。
@@ -160,17 +162,23 @@ object InteractionEngine {
         val responseText = if (isGeminiOfficial) {
             executeGeminiOfficial(baseUrl, modelName, apiKey, temperature, systemPrompt, recentMerged)
         } else {
-            executeOpenAI(baseUrl, modelName, apiKey, temperature, systemPrompt, recentMerged)
+            executeOpenAI(baseUrl, modelName, apiKey, temperature, systemPrompt, recentMerged, activeProfile.serviceType, charProfile.name)
         }
 
-        // ── 拦截并记录本次 AI 通讯日志（保存到系统设置的日志查看器中） ──────────
+        // ── 5. 拦截并记录本次 AI 通讯日志（保存到系统设置的日志查看器中，极其重要） ──────────
         try {
             val sbPrompt = StringBuilder()
             sbPrompt.append(systemPrompt).append("\n\n=== 混合上下文记忆流（包含线上/线下） ===\n")
-            for (msg in recentMerged) {
+            for (i in recentMerged.indices) {
+                val msg = recentMerged[i]
                 val roleName = if (msg.senderId == "user") "用户" else "你"
                 val prefix = if (msg.isOnline) "[线上聊天]" else "[线下互动]"
-                sbPrompt.append("$roleName: $prefix ${msg.content}\n")
+                val finalContent = if (i == recentMerged.lastIndex && msg.senderId == "user") {
+                    msg.content + "\n(注意：你必须以指定的 JSON 格式输出回复，不要包含任何 markdown 块或废话)"
+                } else {
+                    msg.content
+                }
+                sbPrompt.append("$roleName: $prefix $finalContent\n")
             }
             sbPrompt.append("请记住你是谁，直接输出你作为角色的下一组线下实体互动 JSON 回复：")
 
@@ -188,7 +196,7 @@ object InteractionEngine {
             e.printStackTrace()
         }
 
-        // 5. 组装、解析并保存 AI 的回复消息列表
+        // 6. 组装、解析并保存 AI 的回复消息列表
         val currentVirtualTime = VirtualTimeManager.getCurrentTimeMillis()
         val aiMessages = parseAiResponseJson(responseText, characterId, currentVirtualTime)
 
@@ -196,7 +204,7 @@ object InteractionEngine {
             interactionRepo.saveMessage(characterId, msg)
         }
 
-        // 6. 推进虚拟时间为最后一条回复的时间
+        // 7. 推进虚拟时间为最后一条回复的时间
         if (aiMessages.isNotEmpty()) {
             val maxTimestamp = aiMessages.maxOf { it.timestamp }
             VirtualTimeManager.updateTime(maxTimestamp)
@@ -355,6 +363,36 @@ object InteractionEngine {
         }
         fullPromptBuilder.append("请记住你是谁，直接输出你作为角色的下一组线下实体互动 JSON 回复：")
 
+        // 构造符合 Gemini 官方标准的 responseSchema 结构
+        val replySchema = JSONObject().apply {
+            put("type", "OBJECT")
+            put("properties", JSONObject().apply {
+                put("type", JSONObject().apply { put("type", "STRING") })
+                put("time", JSONObject().apply { put("type", "STRING") })
+                put("content", JSONObject().apply { put("type", "STRING") })
+            })
+            put("required", JSONArray().apply {
+                put("type")
+                put("time")
+                put("content")
+            })
+        }
+
+        val geminiSchema = JSONObject().apply {
+            put("type", "OBJECT")
+            put("properties", JSONObject().apply {
+                put("sender", JSONObject().apply { put("type", "STRING") })
+                put("replies", JSONObject().apply {
+                    put("type", "ARRAY")
+                    put("items", replySchema)
+                })
+            })
+            put("required", JSONArray().apply {
+                put("sender")
+                put("replies")
+            })
+        }
+
         val requestJson = JSONObject().apply {
             put("contents", JSONArray().put(
                 JSONObject().apply {
@@ -368,7 +406,9 @@ object InteractionEngine {
             put("generationConfig", JSONObject().apply {
                 put("temperature", temperature.toDouble())
                 put("maxOutputTokens", 2048)
+                // 开启 Gemini 官方 Structured Output (JSON Mode)
                 put("responseMimeType", "application/json")
+                put("responseSchema", geminiSchema)
             })
         }
 
@@ -401,7 +441,9 @@ object InteractionEngine {
         apiKey: String,
         temperature: Float,
         systemPrompt: String,
-        history: List<MergedMessage>
+        history: List<MergedMessage>,
+        serviceType: AiServiceType,
+        senderName: String
     ): String {
         val base = baseUrl.removeSuffix("/")
         val urlStr = if (base.endsWith("/chat/completions")) base else "$base/chat/completions"
@@ -422,13 +464,58 @@ object InteractionEngine {
             put("content", systemPrompt)
         })
 
-        for (msg in history) {
-            val role = if (msg.senderId == "user") "user" else "assistant"
-            val prefix = if (msg.isOnline) "[线上聊天]" else "[线下互动]"
-            messagesArray.put(JSONObject().apply {
-                put("role", role)
-                put("content", "$prefix ${msg.content}")
-            })
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
+
+        // 构造 messages 对话上下文历史聚合装填，并在最后一条用户消息内容末尾注入 JSON 强制要求指令，合并连续助手回复防止模仿偏差
+        var i = 0
+        val size = history.size
+        while (i < size) {
+            val msg = history[i]
+            if (msg.senderId == "user") {
+                val prefix = if (msg.isOnline) "[线上聊天]" else "[线下互动]"
+                var content = "$prefix ${msg.content}"
+                if (i == size - 1) {
+                    content += "\n(注意：你必须以指定的 JSON 格式输出回复，不要包含 any markdown 块或废话)"
+                }
+                messagesArray.put(JSONObject().apply {
+                    put("role", "user")
+                    put("content", content)
+                })
+                i++
+            } else {
+                // 聚合连续的助手消息气泡到同一个 JSON 中
+                val repliesArray = JSONArray()
+                var j = i
+                while (j < size && history[j].senderId != "user") {
+                    val aMsg = history[j]
+                    val formattedTime = try {
+                        sdf.format(java.util.Date(aMsg.timestamp))
+                    } catch (e: Exception) {
+                        sdf.format(java.util.Date())
+                    }
+                    
+                    repliesArray.put(JSONObject().apply {
+                        put("type", "text")
+                        put("time", formattedTime)
+                        // 注意：为了避免模型在吐出的最新 JSON 的 content 中强加 [线下互动] / [线上聊天] 前缀，
+                        // 我们必须在此直接装填干净的内容，绝对不加入任何前缀。
+                        put("content", aMsg.content)
+                    })
+                    j++
+                }
+                
+                val assistantJson = JSONObject().apply {
+                    put("sender", senderName)
+                    put("replies", repliesArray)
+                }
+                
+                messagesArray.put(JSONObject().apply {
+                    put("role", "assistant")
+                    put("content", assistantJson.toString())
+                })
+                
+                i = j
+            }
         }
 
         val requestJson = JSONObject().apply {
@@ -436,9 +523,55 @@ object InteractionEngine {
             put("messages", messagesArray)
             put("temperature", temperature.toDouble())
             put("max_tokens", 2048)
-            put("response_format", JSONObject().apply {
-                put("type", "json_object")
-            })
+            
+            // 区分服务商，选择最适合的 JSON 输出配置
+            if (serviceType == AiServiceType.OPEN_AI) {
+                // OpenAI 官方标准 Structured Outputs (strict json_schema)
+                val replySchema = JSONObject().apply {
+                    put("type", "object")
+                    put("properties", JSONObject().apply {
+                        put("type", JSONObject().apply { put("type", "string") })
+                        put("time", JSONObject().apply { put("type", "string") })
+                        put("content", JSONObject().apply { put("type", "string") })
+                    })
+                    put("required", JSONArray().apply {
+                        put("type")
+                        put("time")
+                        put("content")
+                    })
+                    put("additionalProperties", false)
+                }
+
+                val openAiSchema = JSONObject().apply {
+                    put("type", "object")
+                    put("properties", JSONObject().apply {
+                        put("sender", JSONObject().apply { put("type", "string") })
+                        put("replies", JSONObject().apply {
+                            put("type", "array")
+                            put("items", replySchema)
+                        })
+                    })
+                    put("required", JSONArray().apply {
+                        put("sender")
+                        put("replies")
+                    })
+                    put("additionalProperties", false)
+                }
+
+                put("response_format", JSONObject().apply {
+                    put("type", "json_schema")
+                    put("json_schema", JSONObject().apply {
+                        put("name", "ai_chat_response")
+                        put("strict", true)
+                        put("schema", openAiSchema)
+                    })
+                })
+            } else {
+                // DeepSeek / 其他服务商的标准 JSON Mode (json_object)
+                put("response_format", JSONObject().apply {
+                    put("type", "json_object")
+                })
+            }
         }
 
         conn.outputStream.use { os ->
