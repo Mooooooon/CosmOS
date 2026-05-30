@@ -3,12 +3,14 @@ package com.moonlib.cosmos.ui.settings
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -339,65 +341,127 @@ fun AiLogDetailScreen(
                         Toast.makeText(context, "用户输入已复制", Toast.LENGTH_SHORT).show()
                     }
                 ) {
-                    Text(
-                        text = log.userInput,
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = LocalTextStyle.current.copy(lineHeight = 20.sp)
-                    )
+                    SelectionContainer {
+                        Text(
+                            text = log.userInput,
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = LocalTextStyle.current.copy(lineHeight = 20.sp)
+                        )
+                    }
                 }
 
                 // ── 2. AI 返回全部内容 (格式化 JSON) ──────────────────────────
                 val formattedAiResponse = remember(log.aiResponse) {
                     formatJson(log.aiResponse)
                 }
+                var aiResponseSoftWrap by remember { mutableStateOf(true) }
+
                 DetailSectionCard(
                     title = "AI 返回的全部内容",
                     icon = Icons.Default.Terminal,
                     iconBgColor = Color(0xFF10B981),
+                    showWrapToggle = true,
+                    isSoftWrap = aiResponseSoftWrap,
+                    onWrapToggle = { aiResponseSoftWrap = it },
                     onCopyClick = {
                         clipboardManager.setText(AnnotatedString(log.aiResponse))
                         Toast.makeText(context, "AI 响应已复制", Toast.LENGTH_SHORT).show()
                     }
                 ) {
-                    Text(
-                        text = formattedAiResponse,
-                        fontSize = 12.sp,
-                        fontFamily = FontFamily.Monospace,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                color = MaterialTheme.colorScheme.background,
-                                shape = RoundedCornerShape(8.dp)
+                    SelectionContainer {
+                        if (aiResponseSoftWrap) {
+                            Text(
+                                text = formattedAiResponse,
+                                fontSize = 12.sp,
+                                fontFamily = FontFamily.Monospace,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(
+                                        color = MaterialTheme.colorScheme.background,
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .padding(10.dp),
+                                softWrap = true
                             )
-                            .padding(10.dp)
-                    )
+                        } else {
+                            val horizontalScrollState = rememberScrollState()
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(
+                                        color = MaterialTheme.colorScheme.background,
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .horizontalScroll(horizontalScrollState)
+                                    .padding(10.dp)
+                            ) {
+                                Text(
+                                    text = formattedAiResponse,
+                                    fontSize = 12.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    softWrap = false
+                                )
+                            }
+                        }
+                    }
                 }
 
                 // ── 3. 本次发送的全部提示词 ───────────────────────────
+                var promptSoftWrap by remember { mutableStateOf(true) }
+
                 DetailSectionCard(
                     title = "本次发送的全部提示词",
                     icon = Icons.Default.Psychology,
                     iconBgColor = Color(0xFF8B5CF6),
+                    showWrapToggle = true,
+                    isSoftWrap = promptSoftWrap,
+                    onWrapToggle = { promptSoftWrap = it },
                     onCopyClick = {
                         clipboardManager.setText(AnnotatedString(log.prompt))
                         Toast.makeText(context, "提示词已复制", Toast.LENGTH_SHORT).show()
                     }
                 ) {
-                    Text(
-                        text = log.prompt,
-                        fontSize = 12.sp,
-                        fontFamily = FontFamily.Monospace,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                color = MaterialTheme.colorScheme.background,
-                                shape = RoundedCornerShape(8.dp)
+                    SelectionContainer {
+                        if (promptSoftWrap) {
+                            Text(
+                                text = log.prompt,
+                                fontSize = 12.sp,
+                                fontFamily = FontFamily.Monospace,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(
+                                        color = MaterialTheme.colorScheme.background,
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .padding(10.dp),
+                                softWrap = true
                             )
-                            .padding(10.dp)
-                    )
+                        } else {
+                            val horizontalScrollState = rememberScrollState()
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(
+                                        color = MaterialTheme.colorScheme.background,
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .horizontalScroll(horizontalScrollState)
+                                    .padding(10.dp)
+                            ) {
+                                Text(
+                                    text = log.prompt,
+                                    fontSize = 12.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    softWrap = false
+                                )
+                            }
+                        }
+                    }
                 }
                 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -407,7 +471,7 @@ fun AiLogDetailScreen(
 }
 
 /**
- * 详情板块卡片外壳，集成一键复制功能与高规格标题设计
+ * 详情板块卡片外壳，集成一键复制功能与高规格标题设计，支持折行模式切换
  */
 @Composable
 private fun DetailSectionCard(
@@ -415,6 +479,9 @@ private fun DetailSectionCard(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     iconBgColor: Color,
     onCopyClick: () -> Unit,
+    showWrapToggle: Boolean = false,
+    isSoftWrap: Boolean = true,
+    onWrapToggle: ((Boolean) -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Column(
@@ -428,7 +495,10 @@ private fun DetailSectionCard(
                 .fillMaxWidth()
                 .padding(horizontal = 4.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
                 Box(
                     modifier = Modifier
                         .size(24.dp)
@@ -448,19 +518,48 @@ private fun DetailSectionCard(
                     text = title,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
-            IconButton(
-                onClick = onCopyClick,
-                modifier = Modifier.size(32.dp)
+            
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.End
             ) {
-                Icon(
-                    imageVector = Icons.Default.ContentCopy,
-                    contentDescription = "复制内容",
-                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
-                    modifier = Modifier.size(16.dp)
-                )
+                if (showWrapToggle && onWrapToggle != null) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(
+                                if (isSoftWrap) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.05f)
+                            )
+                            .clickable { onWrapToggle(!isSoftWrap) }
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = if (isSoftWrap) "自动换行" else "单行排版",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isSoftWrap) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(6.dp))
+                }
+                
+                IconButton(
+                    onClick = onCopyClick,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ContentCopy,
+                        contentDescription = "复制内容",
+                        tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
             }
         }
 
@@ -479,22 +578,55 @@ private fun DetailSectionCard(
     }
 }
 
-/**
- * 智能格式化 JSON
- */
 private fun formatJson(raw: String): String {
-    return try {
-        val clean = raw.trim()
-        if (clean.startsWith("{")) {
-            JSONObject(clean).toString(4)
-        } else if (clean.startsWith("[")) {
-            org.json.JSONArray(clean).toString(4)
-        } else {
-            raw
+    val trimmed = raw.trim()
+    
+    // 1. 尝试清洗 Markdown 标记
+    var clean = trimmed
+    if (clean.startsWith("```")) {
+        val firstLineEnd = clean.indexOf("\n")
+        if (firstLineEnd != -1) {
+            clean = clean.substring(firstLineEnd + 1)
+        }
+        if (clean.endsWith("```")) {
+            clean = clean.substring(0, clean.length - 3)
+        }
+        clean = clean.trim()
+    }
+    
+    // 2. 尝试整体解析为 JSONObject
+    try {
+        if (clean.startsWith("{") && clean.endsWith("}")) {
+            return JSONObject(clean).toString(4)
         }
     } catch (e: Exception) {
-        raw
+        // 解析失败，继续
     }
+    
+    // 3. 尝试整体解析为 JSONArray
+    try {
+        if (clean.startsWith("[") && clean.endsWith("]")) {
+            return org.json.JSONArray(clean).toString(4)
+        }
+    } catch (e: Exception) {
+        // 解析失败，继续
+    }
+    
+    // 4. 尝试安全地从中间截取首个 JSONObject 块并严格验证解析，杜绝伪数组截断
+    try {
+        val startBrace = clean.indexOf("{")
+        val endBrace = clean.lastIndexOf("}")
+        if (startBrace != -1 && endBrace != -1 && endBrace > startBrace) {
+            val candidate = clean.substring(startBrace, endBrace + 1)
+            // 验证是否为合法 JSONObject
+            return JSONObject(candidate).toString(4)
+        }
+    } catch (e: Exception) {
+        // 尝试提取 JSONObject 失败
+    }
+    
+    // 5. 所有的提取与格式化校验均失败，平滑原汁原味地退化显示原始 raw 文本，绝不进行截断
+    return raw
 }
 
 /**

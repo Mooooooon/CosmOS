@@ -290,16 +290,48 @@ object ChatEngine {
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            // 兜底保障：若 JSON 解析失败，将原回复作为单条普通消息并以默认时间偏置返回
             list.clear()
-            list.add(
-                ChatMessage(
-                    id = UUID.randomUUID().toString(),
-                    senderId = contact.id,
-                    content = jsonStr,
-                    timestamp = defaultTimeMillis + 15000L
+            
+            // 1. 尝试清洗可能混入的 thinking 标签，获取纯文本回复
+            var rawText = jsonStr.trim()
+            if (rawText.contains("</thinking>")) {
+                val parts = rawText.split("</thinking>")
+                rawText = parts.last().trim()
+            } else if (rawText.contains("<thinking>")) {
+                val index = rawText.indexOf("<thinking>")
+                if (index != -1) {
+                    rawText = rawText.substring(0, index).trim()
+                }
+            }
+            
+            // 2. 将纯文本按双换行或单换行切分
+            val rawLines = rawText.split(Regex("\n+"))
+            val cleanLines = rawLines.map { it.trim() }.filter { it.isNotBlank() }
+            
+            if (cleanLines.isNotEmpty()) {
+                var lastTime = defaultTimeMillis
+                for (line in cleanLines) {
+                    val finalTime = lastTime + 15000L
+                    lastTime = finalTime
+                    list.add(
+                        ChatMessage(
+                            id = UUID.randomUUID().toString(),
+                            senderId = contact.id,
+                            content = line,
+                            timestamp = finalTime
+                        )
+                    )
+                }
+            } else {
+                list.add(
+                    ChatMessage(
+                        id = UUID.randomUUID().toString(),
+                        senderId = contact.id,
+                        content = jsonStr,
+                        timestamp = defaultTimeMillis + 15000L
+                    )
                 )
-            )
+            }
         }
         
         // 若数组为空，也提供兜底
@@ -361,6 +393,7 @@ object ChatEngine {
             ))
             put("generationConfig", JSONObject().apply {
                 put("temperature", temperature.toDouble())
+                put("maxOutputTokens", 2048)
                 // 开启 Gemini 官方 Structured Output (JSON Mode)
                 put("responseMimeType", "application/json")
             })
@@ -435,6 +468,7 @@ object ChatEngine {
             put("model", modelName)
             put("messages", messagesArray)
             put("temperature", temperature.toDouble())
+            put("max_tokens", 2048)
             // 开启 OpenAI/DeepSeek 官方 JSON Mode
             put("response_format", JSONObject().apply {
                 put("type", "json_object")

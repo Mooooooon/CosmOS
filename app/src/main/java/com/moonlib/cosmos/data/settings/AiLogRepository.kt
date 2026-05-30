@@ -63,6 +63,8 @@ class AiLogRepository(context: Context) {
         aiResponse: String,
         prompt: String
     ) {
+        android.util.Log.d("CosmOS_AI", "[saveLog] characterName=$characterName, modelName=$modelName, userInput=$userInput")
+        android.util.Log.d("CosmOS_AI", "[saveLog] aiResponse length=${aiResponse.length}, first100=${aiResponse.take(100)}")
         val currentLogs = getLogs().toMutableList()
         val newLog = AiLog(
             id = UUID.randomUUID().toString(),
