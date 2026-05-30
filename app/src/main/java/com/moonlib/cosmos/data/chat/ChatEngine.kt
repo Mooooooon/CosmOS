@@ -192,12 +192,22 @@ object ChatEngine {
                 val finalTime = if (parsedTime > lastTime) parsedTime else lastTime + 5000L
                 lastTime = finalTime
                 
+                val extraVal = if (type == "red_packet") {
+                    replyObj.optString("extra", "恭喜发财，大吉大利")
+                } else if (type == "transfer") {
+                    "sent"
+                } else {
+                    null
+                }
+
                 list.add(
                     ChatMessage(
                         id = UUID.randomUUID().toString(),
                         senderId = contact.id,
                         content = content,
-                        timestamp = finalTime
+                        timestamp = finalTime,
+                        type = type,
+                        extra = extraVal
                     )
                 )
             }

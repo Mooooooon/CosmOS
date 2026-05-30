@@ -146,6 +146,15 @@ class ChatRepository(private val context: Context) {
         }
     }
 
+    fun updateMessage(contactId: String, updatedMsg: ChatMessage) {
+        val current = getMessages(contactId).toMutableList()
+        val index = current.indexOfFirst { it.id == updatedMsg.id }
+        if (index != -1) {
+            current[index] = updatedMsg
+            saveMessagesList(contactId, current)
+        }
+    }
+
     fun deleteMessagesAfter(contactId: String, messageId: String) {
         val current = getMessages(contactId)
         val index = current.indexOfFirst { it.id == messageId }
@@ -227,7 +236,9 @@ class ChatRepository(private val context: Context) {
             senderId = json.getString("senderId"),
             content = json.getString("content"),
             timestamp = json.getLong("timestamp"),
-            isPending = json.optBoolean("isPending", false)
+            isPending = json.optBoolean("isPending", false),
+            type = json.optString("type", "text"),
+            extra = if (json.has("extra") && !json.isNull("extra")) json.getString("extra") else null
         )
     }
 
@@ -238,6 +249,8 @@ class ChatRepository(private val context: Context) {
             put("content", message.content)
             put("timestamp", message.timestamp)
             put("isPending", message.isPending)
+            put("type", message.type)
+            put("extra", message.extra ?: JSONObject.NULL)
         }
     }
 }

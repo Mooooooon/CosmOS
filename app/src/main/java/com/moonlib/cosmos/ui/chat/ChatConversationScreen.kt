@@ -15,6 +15,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -72,11 +74,25 @@ fun ChatConversationScreen(
     val userNickname = remember { chatRepo.getUserNickname() }
     val userAvatar = remember { chatRepo.getUserAvatar() }
 
+    val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+
     // 2. 状态管理：消息列表、输入框、AI输入状态
     var messages by remember { mutableStateOf(chatRepo.getMessages(contactId)) }
     var inputText by remember { mutableStateOf("") }
     var isAiGenerating by remember { mutableStateOf(false) }
     val isImeVisible = rememberImeVisible()
+
+    var showAttachmentPanel by remember { mutableStateOf(false) }
+    var activeAttachmentDialog by remember { mutableStateOf<AttachmentType?>(null) }
+
+    val onToggleAttachmentPanel = {
+        if (showAttachmentPanel) {
+            showAttachmentPanel = false
+        } else {
+            keyboardController?.hide()
+            showAttachmentPanel = true
+        }
+    }
 
     // 自动滑动到底部的核心方法
     val scrollToBottom: (Boolean) -> Unit = { smooth ->
@@ -98,6 +114,7 @@ fun ChatConversationScreen(
 
     LaunchedEffect(isImeVisible) {
         if (isImeVisible) {
+            showAttachmentPanel = false
             delay(250)
             scrollToBottom(false)
         }
@@ -164,6 +181,55 @@ fun ChatConversationScreen(
         }
     }
 
+    // 模拟发送特殊媒体/多媒体交互消息的控制器
+    val handleSendSpecial: (type: String, content: String, extra: String?) -> Unit = { type, content, extra ->
+        if (!isAiGenerating) {
+            val currentVirtualTime = VirtualTimeManager.getCurrentTimeMillis()
+            val userMsg = ChatMessage(
+                id = UUID.randomUUID().toString(),
+                senderId = "user",
+                content = content,
+                timestamp = currentVirtualTime,
+                type = type,
+                extra = extra
+            )
+            chatRepo.saveMessage(contactId, userMsg)
+            
+            // 发送特殊消息也向前微调虚拟时间 15 秒
+            VirtualTimeManager.updateTime(currentVirtualTime + 15000L)
+            messages = chatRepo.getMessages(contactId) // 刷新 UI
+            scrollToBottom(true)
+
+            // 触发 AI 回复
+            isAiGenerating = true
+            coroutineScope.launch {
+                try {
+                    delay(800)
+                    val aiReplies = ChatEngine.getAiResponse(context, contact)
+                    revealAiReplies(
+                        currentMessages = messages,
+                        replies = aiReplies,
+                        onMessagesChanged = { messages = it },
+                        onReplyRevealed = { scrollToBottom(true) }
+                    )
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    val errorMsg = ChatMessage(
+                        id = UUID.randomUUID().toString(),
+                        senderId = "system",
+                        content = "【系统提示】: ${e.localizedMessage ?: "AI 服务暂时开小差啦，请在系统设置中确认 AI 密钥。"}",
+                        timestamp = VirtualTimeManager.getCurrentTimeMillis()
+                    )
+                    chatRepo.saveMessage(contactId, errorMsg)
+                    messages = chatRepo.getMessages(contactId)
+                    scrollToBottom(true)
+                } finally {
+                    isAiGenerating = false
+                }
+            }
+        }
+    }
+
     Scaffold(
         modifier = modifier,
         topBar = {
@@ -204,16 +270,82 @@ fun ChatConversationScreen(
             )
         },
         bottomBar = {
-            ConversationInputBar(
-                inputText = inputText,
-                isAiGenerating = isAiGenerating,
-                placeholder = "聊点什么吧...",
-                onInputChange = { inputText = it },
-                onSend = handleSend
-            )
+            Column {
+                ConversationInputBar(
+                    inputText = inputText,
+                    isAiGenerating = isAiGenerating,
+                    placeholder = "聊点什么吧...",
+                    onInputChange = { inputText = it },
+                    onSend = handleSend,
+                    isAttachmentOpen = showAttachmentPanel,
+                    onToggleAttachment = onToggleAttachmentPanel
+                )
+                if (showAttachmentPanel) {
+                    ChatAttachmentPanel(
+                        onSelect = { type ->
+                            activeAttachmentDialog = type
+                        }
+                    )
+                }
+            }
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
+        
+        // 渲染模拟输入对话框
+        when (activeAttachmentDialog) {
+            AttachmentType.IMAGE -> {
+                ImageAttachmentDialog(
+                    onDismiss = { activeAttachmentDialog = null },
+                    onConfirm = { desc ->
+                        handleSendSpecial("image", desc, null)
+                        activeAttachmentDialog = null
+                        showAttachmentPanel = false
+                    }
+                )
+            }
+            AttachmentType.VIDEO -> {
+                VideoAttachmentDialog(
+                    onDismiss = { activeAttachmentDialog = null },
+                    onConfirm = { desc ->
+                        handleSendSpecial("video", desc, null)
+                        activeAttachmentDialog = null
+                        showAttachmentPanel = false
+                    }
+                )
+            }
+            AttachmentType.RED_PACKET -> {
+                RedPacketAttachmentDialog(
+                    onDismiss = { activeAttachmentDialog = null },
+                    onConfirm = { amount, wish ->
+                        handleSendSpecial("red_packet", amount, wish)
+                        activeAttachmentDialog = null
+                        showAttachmentPanel = false
+                    }
+                )
+            }
+            AttachmentType.TRANSFER -> {
+                TransferAttachmentDialog(
+                    onDismiss = { activeAttachmentDialog = null },
+                    onConfirm = { amount ->
+                        handleSendSpecial("transfer", amount, "sent")
+                        activeAttachmentDialog = null
+                        showAttachmentPanel = false
+                    }
+                )
+            }
+            AttachmentType.LOCATION -> {
+                LocationAttachmentDialog(
+                    onDismiss = { activeAttachmentDialog = null },
+                    onConfirm = { loc ->
+                        handleSendSpecial("location", loc, null)
+                        activeAttachmentDialog = null
+                        showAttachmentPanel = false
+                    }
+                )
+            }
+            null -> {}
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -256,7 +388,7 @@ fun ChatConversationScreen(
                         when (msg.senderId) {
                             "user" -> {
                                 UserMessageRow(
-                                    content = msg.content,
+                                    msg = msg,
                                     userNickname = userNickname,
                                     userAvatar = userAvatar,
                                     onDelete = {
@@ -299,6 +431,10 @@ fun ChatConversationScreen(
                                                 isAiGenerating = false
                                             }
                                         }
+                                    },
+                                    onUpdateMessage = { updated ->
+                                        chatRepo.updateMessage(contactId, updated)
+                                        messages = chatRepo.getMessages(contactId)
                                     }
                                 )
                             }
@@ -314,12 +450,16 @@ fun ChatConversationScreen(
                             }
                             else -> {
                                 ContactMessageRow(
-                                    content = msg.content,
+                                    msg = msg,
                                     contact = contact,
                                     onDelete = {
                                         chatRepo.deleteMessage(contactId, msg.id)
                                         messages = chatRepo.getMessages(contactId)
                                         Toast.makeText(context, "消息已删除", Toast.LENGTH_SHORT).show()
+                                    },
+                                    onUpdateMessage = { updated ->
+                                        chatRepo.updateMessage(contactId, updated)
+                                        messages = chatRepo.getMessages(contactId)
                                     }
                                 )
                             }
@@ -338,6 +478,8 @@ private fun ConversationInputBar(
     placeholder: String,
     onInputChange: (String) -> Unit,
     onSend: () -> Unit,
+    isAttachmentOpen: Boolean,
+    onToggleAttachment: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -369,28 +511,38 @@ private fun ConversationInputBar(
                 shape = RoundedCornerShape(20.dp)
             )
 
-            IconButton(
-                onClick = onSend,
-                enabled = inputText.isNotBlank() && !isAiGenerating,
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(
-                        color = if (inputText.isNotBlank() && !isAiGenerating)
-                            MaterialTheme.colorScheme.primary
-                        else
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                        shape = CircleShape
+            if (inputText.isBlank()) {
+                IconButton(
+                    onClick = onToggleAttachment,
+                    modifier = Modifier
+                        .size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isAttachmentOpen) Icons.Default.Close else Icons.Default.Add,
+                        contentDescription = "附件",
+                        tint = MaterialTheme.colorScheme.primary
                     )
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Send,
-                    contentDescription = "发送",
-                    tint = if (inputText.isNotBlank() && !isAiGenerating)
-                        Color.White
-                    else
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-                    modifier = Modifier.size(18.dp)
-                )
+                }
+            } else {
+                Button(
+                    onClick = onSend,
+                    enabled = !isAiGenerating,
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = Color.White
+                    ),
+                    modifier = Modifier
+                        .height(38.dp)
+                        .padding(start = 2.dp)
+                ) {
+                    Text(
+                        text = "发送",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }
@@ -422,11 +574,12 @@ private fun TimeLabel(
  */
 @Composable
 private fun UserMessageRow(
-    content: String,
+    msg: ChatMessage,
     userNickname: String,
     userAvatar: String,
     onDelete: () -> Unit,
     onResend: () -> Unit,
+    onUpdateMessage: (ChatMessage) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -444,26 +597,42 @@ private fun UserMessageRow(
                 .weight(1f, fill = false)
                 .padding(end = 10.dp)
         ) {
-            Card(
-                shape = RoundedCornerShape(16.dp, 4.dp, 16.dp, 16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                ),
-                modifier = Modifier.pointerInput(Unit) {
-                    detectTapGestures(
-                        onLongPress = {
-                            showMenu = true
-                        }
+            if (msg.type != "text") {
+                SpecialMessageBubble(
+                    msg = msg,
+                    isUser = true,
+                    contactName = "",
+                    onUpdateMessage = onUpdateMessage,
+                    modifier = Modifier.pointerInput(Unit) {
+                        detectTapGestures(
+                            onLongPress = {
+                                showMenu = true
+                            }
+                        )
+                    }
+                )
+            } else {
+                Card(
+                    shape = RoundedCornerShape(16.dp, 4.dp, 16.dp, 16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    ),
+                    modifier = Modifier.pointerInput(Unit) {
+                        detectTapGestures(
+                            onLongPress = {
+                                showMenu = true
+                            }
+                        )
+                    }
+                ) {
+                    Text(
+                        text = msg.content,
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        lineHeight = 22.sp
                     )
                 }
-            ) {
-                Text(
-                    text = content,
-                    color = Color.White,
-                    fontSize = 15.sp,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                    lineHeight = 22.sp
-                )
             }
 
             DropdownMenu(
@@ -502,9 +671,10 @@ private fun UserMessageRow(
  */
 @Composable
 private fun ContactMessageRow(
-    content: String,
+    msg: ChatMessage,
     contact: com.moonlib.cosmos.data.chat.ChatContact,
     onDelete: () -> Unit,
+    onUpdateMessage: (ChatMessage) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -529,26 +699,42 @@ private fun ContactMessageRow(
                 .weight(1f, fill = false)
                 .padding(start = 10.dp)
         ) {
-            Card(
-                shape = RoundedCornerShape(4.dp, 16.dp, 16.dp, 16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                ),
-                modifier = Modifier.pointerInput(Unit) {
-                    detectTapGestures(
-                        onLongPress = {
-                            showMenu = true
-                        }
+            if (msg.type != "text") {
+                SpecialMessageBubble(
+                    msg = msg,
+                    isUser = false,
+                    contactName = contact.nickname,
+                    onUpdateMessage = onUpdateMessage,
+                    modifier = Modifier.pointerInput(Unit) {
+                        detectTapGestures(
+                            onLongPress = {
+                                showMenu = true
+                            }
+                        )
+                    }
+                )
+            } else {
+                Card(
+                    shape = RoundedCornerShape(4.dp, 16.dp, 16.dp, 16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    ),
+                    modifier = Modifier.pointerInput(Unit) {
+                        detectTapGestures(
+                            onLongPress = {
+                                showMenu = true
+                            }
+                        )
+                    }
+                ) {
+                    Text(
+                        text = msg.content,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 15.sp,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        lineHeight = 22.sp
                     )
                 }
-            ) {
-                Text(
-                    text = content,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 15.sp,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                    lineHeight = 22.sp
-                )
             }
 
             DropdownMenu(

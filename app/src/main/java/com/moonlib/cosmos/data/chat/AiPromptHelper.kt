@@ -123,13 +123,38 @@ object AiPromptHelper {
                     - 带有 `[线下互动]` 前缀的消息表示你们在线下实体见面的动作对话，其中包含括弧动作描写。
                     - 注意：你当前正在【线上聊天 APP】中回复用户。你的回复必须符合【线上远程手机聊天】的特征：简洁、轻松、口语化、纯对话文本、**严禁夹带任何括弧内的动作描写（如 `（看向对方）` 等）或表情符号**！你不需要在 JSON 的 `content` 字段中添加 `[线上聊天]` 前缀，直接进行回复即可。
                     
+                    【多媒体与特殊消息交互指引（极其重要）】：
+                    在聊天中，你不仅可以收到对方发送的消息，你还可以像真实社交 APP 用户一样，反向在 JSON 的 `replies` 列表中发送图片、视频、红包、转账和位置分享！
+                    你可以通过在对应回复的 JSON 对象中，将 `"type"` 设为以下几种特定类型并填入相应内容：
+                    1. **常规文本消息**：
+                       - `"type"`: "text"
+                       - `"content"`: "你作为角色的纯聊天文本（严禁夹带表情符号）"
+                    2. **发送图片**：
+                       - `"type"`: "image"
+                       - `"content"`: "你要发送的图片画面描述（例如：『我做的一盘糖醋排骨，看起来不错吧？』）"
+                    3. **发送视频**：
+                       - `"type"`: "video"
+                       - `"content"`: "你要发送的视频画面描述（例如：『我刚才弹的一小段钢琴曲』）"
+                    4. **发红包**：
+                       - `"type"`: "red_packet"
+                       - `"content"`: "红包的金额（必须是数字字符串，最高限额 200.00，例如：『50.00』）"
+                       - 可选填 `"extra"` 字段，写下红包祝福语（例如：『请你喝秋天第一杯奶茶』，如果不提供默认是『恭喜发财，大吉大利』）
+                    5. **发转账**：
+                       - `"type"`: "transfer"
+                       - `"content"`: "转账的金额（必须是数字字符串，例如：『100.00』）"
+                    6. **发位置分享**：
+                       - `"type"`: "location"
+                       - `"content"`: "你当前所在或你想分享的地理位置地名（例如：『北京市朝阳公园』）"
+
+                    在聊天上下文中，如果用户给你【发了红包】或【发了转账】，你应该在回复中用常规文本（`"type": "text"`）表达开心和感谢，甚至开心地收下。同时，你也可以在同一组回复中主动给用户塞一个红包，极大地增加互动趣味！
+
                     【核心对话要求】：
                     1. 请必须百分之百扮演【${charProfile.name}】。绝对不可脱离角色（OOC）。
                     2. 聊天交流应当符合手机聊天的特征：简洁、轻松、口语化。
                     3. 单次回复可以是一条或多条连续消息（建议1到3条消息），每条消息字数应控制在1到3句话之内（建议单条不超过50字）。
-                    4. 绝对不可在回复中出现任何 emoji、颜文字或任何表情符号（如：😊, 😂, (๑•̀ㅂ•́)و✧, O(∩_∩)O 等）。所有消息内容必须完全使用纯文本进行表达和回复。
+                    4. 绝对不可在回复中出现 any emoji、颜文字或任何表情符号（如：😊, 😂, (๑•̀ㅂ•́)و✧, O(∩_∩)O 等）。所有消息内容必须完全使用纯文本进行表达和回复。
                     
-                    【底层通信输出格式】：
+                    【底层通信输出格式与示例】：
                     为了与其他 system 集成，你必须以 JSON 格式输出，不要包含任何 markdown 块或额外的解释文本。你的输出必须能够被直接解析为以下 JSON 格式：
                     {
                       "sender": "$nick",
@@ -137,21 +162,21 @@ object AiPromptHelper {
                         {
                           "type": "text",
                           "time": "yyyy-MM-dd HH:mm:ss",
-                          "content": "第一条纯文本消息内容，不能含有任何 emoji 或表情符号"
+                          "content": "刚发工资啦，请你喝杯奶茶！别客气收下噢~"
                         },
                         {
-                          "type": "text",
+                          "type": "red_packet",
                           "time": "yyyy-MM-dd HH:mm:ss",
-                          "content": "第二条纯文本消息内容，不能含有任何 emoji 或表情符号"
+                          "content": "20.00",
+                          "extra": "请你喝大杯波霸奶茶！"
                         }
                       ]
                     }
                     
                     特别注意：
-                    - `replies` 数组内可以包含 1 到 3 条消息。
-                    - 每一条回复的 `time` 字段必须是符合 `yyyy-MM-dd HH:mm:ss` 格式的虚拟时间，且必须比上一个时间（以及当前虚拟时间：$currentVirtualTimeStr）更晚（建议每条之间间隔 5 秒到 1 分钟，代表思考和打字发送 of 间隔时间）。
-                    - 每一条回复的 `content` 必须是纯文本，严禁夹带任何表情和颜文字。
-                    - 你的最后一条回复的 `time` 将被作为新的虚拟世界时间。请据此来推进虚拟世界的时间！
+                    - `replies` 数组内可以包含 1 到 3 条消息。消息的类型可以混合（比如第一条是文本，第二条是红包，第三条是图片）。
+                    - 每一条回复的 `time` 字段必须是符合 `yyyy-MM-dd HH:mm:ss` 格式的虚拟时间，且必须比上一个时间（以及当前虚拟时间：$currentVirtualTimeStr）更晚（建议每条之间间隔 5 秒到 1 分钟，代表打字和发送的操作间隔）。
+                    - 对于 `type` 是 "text" 之外的多媒体消息，其 `content` 应该严格填写多媒体的描述文字或金额数字，不要混杂普通聊天废话。
                     - 必须只返回纯 JSON，不能包裹在 ```json ... ``` 块中，也不要说任何废话。
                 """.trimIndent()
             }
@@ -222,11 +247,24 @@ object AiPromptHelper {
         // 4. 融合并合并双渠道历史记忆（线上聊天 + 线下面面对面实体互动）
         val contact = chatRepo.getContacts().firstOrNull { it.characterId == charProfile.id }
         val onlineMsgs = if (contact != null) chatRepo.getMessages(contact.id) else emptyList()
+        
+        // 智能转译多媒体特殊类型消息，使用自然语言包装喂给 AI 历史，实现拟真剧情回应
+        val formattedOnlineMsgs = onlineMsgs.map { msg ->
+            val formattedContent = when (msg.type) {
+                "image" -> "[发送了图片：${msg.content}]"
+                "video" -> "[发送了视频：${msg.content}]"
+                "red_packet" -> "[发送了红包：${msg.content}元，留言：${msg.extra ?: "恭喜发财，大吉大利"}]"
+                "transfer" -> "[发送了转账：${msg.content}元]"
+                "location" -> "[发送了位置：${msg.content}]"
+                else -> msg.content
+            }
+            msg.copy(content = formattedContent)
+        }
         val offlineMsgs = interactionRepo.getMessages(charProfile.id)
 
         // 合并为 MergedMessage 结构并按时间戳升序排序
         val mergedHistory = (
-            onlineMsgs.map { MergedMessage(it.senderId, it.content, it.timestamp, isOnline = true) } +
+            formattedOnlineMsgs.map { MergedMessage(it.senderId, it.content, it.timestamp, isOnline = true) } +
             offlineMsgs.map { MergedMessage(it.senderId, it.content, it.timestamp, isOnline = false) }
         ).sortedBy { it.timestamp }
 

@@ -10,5 +10,7 @@ data class ChatMessage(
     val senderId: String,     // 发送方 ID ("user" 表示用户，或者 contactId/characterId 表示联系人)
     val content: String,      // 消息内容
     val timestamp: Long,      // 发送时间戳
-    val isPending: Boolean = false // 是否正在发送中
+    val isPending: Boolean = false, // 是否正在发送中
+    val type: String = "text", // 消息类型: text, image, video, red_packet, transfer, location
+    val extra: String? = null // 附加字段（如红包/转账状态，红包留言等）
 )
