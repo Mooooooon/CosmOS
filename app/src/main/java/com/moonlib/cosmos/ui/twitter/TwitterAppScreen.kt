@@ -75,8 +75,12 @@ fun TwitterAppScreen(
             )
         } else if (editingProfile != null) {
             // 2. 独立资料编辑二级页面
+            val profileForEdit = editingProfile!!
             TwitterProfileEditScreen(
-                profile = editingProfile!!,
+                profile = profileForEdit,
+                characterProfile = systemProfiles.firstOrNull {
+                    if (profileForEdit.characterId == "user") it.isPlayer else it.id == profileForEdit.characterId
+                },
                 repository = repository,
                 onBackClick = {
                     editingProfile = null

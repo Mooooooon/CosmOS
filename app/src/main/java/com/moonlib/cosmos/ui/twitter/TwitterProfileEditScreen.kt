@@ -26,6 +26,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.moonlib.cosmos.data.profile.CharacterProfile
 import com.moonlib.cosmos.data.twitter.TwitterProfile
 import com.moonlib.cosmos.data.twitter.TwitterRepository
 import com.moonlib.cosmos.ui.chat.AvatarView
@@ -39,6 +40,7 @@ import com.moonlib.cosmos.ui.chat.AvatarView
 @Composable
 fun TwitterProfileEditScreen(
     profile: TwitterProfile,
+    characterProfile: CharacterProfile?,
     repository: TwitterRepository,
     onBackClick: () -> Unit,
     onSaveClick: (TwitterProfile) -> Unit,
@@ -116,6 +118,16 @@ fun TwitterProfileEditScreen(
                             tint = MaterialTheme.colorScheme.onBackground
                         )
                     }
+                },
+                actions = {
+                    TwitterProfileAiGenerateAction(
+                        characterProfile = characterProfile,
+                        onGenerated = { generatedNickname, generatedUsername, generatedBio ->
+                            nickname = generatedNickname
+                            username = generatedUsername
+                            bio = generatedBio
+                        }
+                    )
                 },
                 windowInsets = WindowInsets(0.dp),
                 colors = TopAppBarDefaults.topAppBarColors(

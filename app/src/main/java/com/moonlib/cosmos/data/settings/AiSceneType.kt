@@ -43,5 +43,10 @@ enum class AiSceneType {
     /**
      * 聊天联系人展示资料生成场景
      */
-    CONTACT_PROFILE_GENERATION
+    CONTACT_PROFILE_GENERATION,
+
+    /**
+     * 推特博主主页资料生成场景
+     */
+    TWITTER_PROFILE_GENERATION
 }

@@ -113,6 +113,20 @@ object AiJsonSchemaFactory {
         }
     }
 
+    fun twitterProfileMetadataSchema(schemaName: String = "cosmos_twitter_profile_metadata"): JSONObject {
+        return JSONObject().apply {
+            put("type", "object")
+            put("additionalProperties", true)
+            put("properties", JSONObject().apply {
+                put("nickname", JSONObject().apply { put("type", "string") })
+                put("username", JSONObject().apply { put("type", "string") })
+                put("bio", JSONObject().apply { put("type", "string") })
+            })
+            put("required", JSONArray().put("nickname").put("username").put("bio"))
+            put("_schema_name", schemaName)
+        }
+    }
+
     private fun socialPostSchema(): JSONObject {
         return JSONObject().apply {
             put("type", "object")
