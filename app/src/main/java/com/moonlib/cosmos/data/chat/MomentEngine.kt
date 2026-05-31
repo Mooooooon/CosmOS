@@ -86,16 +86,22 @@ object MomentEngine {
         val isDirectReplyToNpc = directUserReplyTarget
             ?.let { parent -> profiles.any { it.characterId == parent.authorId } }
             ?: false
+        val activeProfiles = if (isDirectReplyToNpc) {
+            profiles.filter { it.characterId == directUserReplyTarget!!.authorId }
+        } else {
+            profiles
+        }
+        val allowedReplyCharacterIds = activeProfiles.map { it.characterId }.toSet()
 
         val replyCountRule = if (isDirectReplyToNpc) {
-            "生成 1 到 3 条回复。玩家刚刚主动回复了联系人的朋友圈动态/评论，这是熟人间的直接社交互动，必须至少让被回复的角色或相关联系人给出一句自然的回应，禁止返回空 replies。"
+            "只生成 1 条回复。玩家刚刚主动回复了某个联系人的朋友圈动态/评论，这是点名互动，只能由被回复的角色本人接话，禁止其他联系人插话，禁止返回空 replies。"
         } else {
-            "生成 0 to 3 条回复。联系人之间关系亲密或各有性格，会刷到这条朋友圈并决定是否盖楼互动。如果都不合适，也可以返回空 replies。"
+            "生成 0 到 3 条回复。联系人之间关系亲密或各有性格，会刷到这条朋友圈并决定是否盖楼互动。如果都不合适，也可以返回空 replies。"
         }
 
         val targetInteractionNote = if (isDirectReplyToNpc) {
             val targetAuthor = momentRepo.getProfile(directUserReplyTarget!!.authorId)
-            "玩家正在回复 ${targetAuthor?.nickname ?: directUserReplyTarget.authorId}。优先让被回复者以熟人口吻接话，也可以让其他联系人插话。"
+            "玩家正在回复 ${targetAuthor?.nickname ?: directUserReplyTarget.authorId}。本次只模拟这一个被回复者的自然接话，不要安排其他联系人参与。"
         } else {
             "当前是玩家普通发朋友圈动态或非直接 NPC 互动，请按拟真刷到概率决定是否有人评论。"
         }
@@ -105,7 +111,7 @@ object MomentEngine {
         val maxContextSize = AiSettingsRepository(context).getMaxContextSize()
         val candidateProfiles = mutableListOf<com.moonlib.cosmos.data.profile.CharacterProfile>()
 
-        for (prof in profiles) {
+        for (prof in activeProfiles) {
             val systemProf = systemProfiles.firstOrNull { it.id == prof.characterId } ?: continue
             candidateProfiles.add(systemProf)
             val promptProcessed = systemProf.prompt
@@ -198,6 +204,7 @@ object MomentEngine {
             val offsetSec = repObj.optInt("time_offset_seconds", 20)
 
             if (charId.isBlank() || content.isBlank()) continue
+            if (charId !in allowedReplyCharacterIds) continue
 
             // 查找是否是联系人
             val authorProf = momentRepo.getProfile(charId) ?: continue

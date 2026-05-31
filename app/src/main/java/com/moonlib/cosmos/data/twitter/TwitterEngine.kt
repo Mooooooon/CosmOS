@@ -86,14 +86,20 @@ object TwitterEngine {
         val isDirectReplyToFollowedCharacter = directUserReplyTarget
             ?.let { parent -> followedProfiles.any { it.characterId == parent.authorId } }
             ?: false
+        val activeProfiles = if (isDirectReplyToFollowedCharacter) {
+            followedProfiles.filter { it.characterId == directUserReplyTarget!!.authorId }
+        } else {
+            followedProfiles
+        }
+        val allowedReplyCharacterIds = activeProfiles.map { it.characterId }.toSet()
         val replyCountRule = if (isDirectReplyToFollowedCharacter) {
-            "生成 1 到 3 条回复。玩家刚刚主动回复了已关注角色的推文/评论，这属于直接社交互动，必须至少让被回复的角色或相关角色给出一句自然回应，禁止返回空 replies。"
+            "只生成 1 条回复。玩家刚刚主动回复了某个已关注角色的推文/评论，这属于点名互动，只能由被回复的角色本人接话，禁止其他已关注角色插话，禁止返回空 replies。"
         } else {
             "生成 0 到 3 条回复。有些角色性格热情，可能立刻评论；有的角色则可能互怼；如果确实没人合适，也可以返回空 replies。"
         }
         val targetInteractionNote = if (isDirectReplyToFollowedCharacter) {
             val targetAuthor = twitterRepo.getProfile(directUserReplyTarget!!.authorId)
-            "玩家正在回复 @${targetAuthor?.username ?: directUserReplyTarget.authorId}（${targetAuthor?.nickname ?: directUserReplyTarget.authorId}）。优先让被回复者按人设接话，也可以让其他已关注角色插一句。"
+            "玩家正在回复 @${targetAuthor?.username ?: directUserReplyTarget.authorId}（${targetAuthor?.nickname ?: directUserReplyTarget.authorId}）。本次只模拟这一个被回复者的自然接话，不要安排其他已关注角色参与。"
         } else {
             "当前是普通发推或非直接 NPC 互动，请按拟真刷到概率决定是否有人回复。"
         }
@@ -103,7 +109,7 @@ object TwitterEngine {
         val maxContextSize = AiSettingsRepository(context).getMaxContextSize()
         val candidateProfiles = mutableListOf<com.moonlib.cosmos.data.profile.CharacterProfile>()
         
-        for (fProf in followedProfiles) {
+        for (fProf in activeProfiles) {
             val systemProf = systemProfiles.firstOrNull { it.id == fProf.characterId } ?: continue
             candidateProfiles.add(systemProf)
             val promptProcessed = systemProf.prompt
@@ -197,6 +203,7 @@ object TwitterEngine {
             val offsetSec = repObj.optInt("time_offset_seconds", 15)
 
             if (charId.isBlank() || content.isBlank()) continue
+            if (charId !in allowedReplyCharacterIds) continue
 
             // 查找是否是已关注的角色
             val authorProf = twitterRepo.getProfile(charId) ?: continue
