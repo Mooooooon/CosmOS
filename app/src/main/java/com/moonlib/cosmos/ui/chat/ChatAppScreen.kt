@@ -33,6 +33,9 @@ fun ChatAppScreen(
     // 页面路由栈，初始状态为“主页（消息与联系人）”
     var navStack by remember { mutableStateOf(listOf<ChatNavigation>(ChatNavigation.Main)) }
 
+    // 将主页的 activeTab 状态提升到根容器中管理，防止从动态二级页面返回时 Tab 状态重置为 0
+    var activeTab by remember { mutableStateOf(0) }
+
     val currentScreen = navStack.last()
 
     // 统一下步跳转
@@ -66,6 +69,8 @@ fun ChatAppScreen(
         when (screen) {
             is ChatNavigation.Main -> {
                 ChatMainScreen(
+                    activeTab = activeTab,
+                    onActiveTabChange = { activeTab = it },
                     onNavigateTo = navigateTo,
                     onExitApp = onGoBack,
                     modifier = Modifier.fillMaxSize()

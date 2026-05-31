@@ -25,8 +25,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -48,10 +51,16 @@ import kotlinx.coroutines.launch
 @Composable
 fun ChatMomentTab(
     onNavigateTo: (ChatNavigation) -> Unit,
+    onGoBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val repository = remember { MomentRepository(context) }
+
+    // 拦截物理/虚拟返回键，退回“消息”页签
+    androidx.activity.compose.BackHandler(enabled = true) {
+        onGoBack()
+    }
 
     // ── 状态管理 ───────────────────────────────────────────────
     var momentList by remember { mutableStateOf(repository.getMoments()) }
@@ -75,6 +84,28 @@ fun ChatMomentTab(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
+        // 顶部返回导航栏
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onGoBack) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "返回",
+                    tint = MaterialTheme.colorScheme.onBackground
+                )
+            }
+            Text(
+                text = "好友动态",
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+        }
+
         // 顶部发布面板与动态列表
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -132,6 +163,7 @@ fun ChatMomentTab(
                     MomentCard(
                         moment = moment,
                         repository = repository,
+                        momentList = momentList,
                         onClick = { onNavigateTo(ChatNavigation.MomentThread(moment.id)) },
                         onDeleteMoment = { toDelete ->
                             repository.deleteMoment(toDelete.id)
@@ -263,69 +295,47 @@ fun MomentPublishCard(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                // 渲染已选择的模拟图片缩略卡
-                simulatedPhotoDesc?.let { desc ->
+                // 渲染已选择的待发送附件 (九宫格正方形布局，一行三个)
+                if (simulatedPhotoDesc != null || simulatedVideoDesc != null) {
                     Spacer(modifier = Modifier.height(10.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(80.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(
-                                Brush.linearGradient(
-                                    colors = listOf(Color(0xFF0F172A), Color(0xFF1E293B))
-                                )
-                            )
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        contentAlignment = Alignment.CenterStart
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Image, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("照片附件", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                Text(desc, color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp, fontStyle = FontStyle.Italic, maxLines = 1)
-                            }
-                            IconButton(
-                                onClick = { simulatedPhotoDesc = null },
-                                enabled = !isPublishing
-                            ) {
-                                Icon(Icons.Default.Close, contentDescription = "删除", tint = Color.White.copy(alpha = 0.5f))
+                        // 1. 照片附件位置
+                        Box(modifier = Modifier.weight(1f)) {
+                            simulatedPhotoDesc?.let { desc ->
+                                AttachmentSquareCard(
+                                    title = "照片",
+                                    desc = desc,
+                                    colorBg = Brush.linearGradient(
+                                        colors = listOf(Color(0xFF0F172A), Color(0xFF1E293B))
+                                    ),
+                                    icon = Icons.Default.Image,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    onDelete = { simulatedPhotoDesc = null }
+                                )
                             }
                         }
-                    }
-                }
 
-                // 渲染已选择的模拟视频缩略卡
-                simulatedVideoDesc?.let { desc ->
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(80.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(
-                                Brush.linearGradient(
-                                    colors = listOf(Color(0xFF1E1B4B), Color(0xFF312E81))
+                        // 2. 视频附件位置
+                        Box(modifier = Modifier.weight(1f)) {
+                            simulatedVideoDesc?.let { desc ->
+                                AttachmentSquareCard(
+                                    title = "视频",
+                                    desc = desc,
+                                    colorBg = Brush.linearGradient(
+                                        colors = listOf(Color(0xFF1E1B4B), Color(0xFF312E81))
+                                    ),
+                                    icon = Icons.Default.PlayCircle,
+                                    tint = MaterialTheme.colorScheme.secondary,
+                                    onDelete = { simulatedVideoDesc = null }
                                 )
-                            )
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.PlayCircle, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(24.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("视频附件", color = MaterialTheme.colorScheme.secondary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                Text(desc, color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp, fontStyle = FontStyle.Italic, maxLines = 1)
-                            }
-                            IconButton(
-                                onClick = { simulatedVideoDesc = null },
-                                enabled = !isPublishing
-                            ) {
-                                Icon(Icons.Default.Close, contentDescription = "删除", tint = Color.White.copy(alpha = 0.5f))
                             }
                         }
+
+                        // 3. 空白位置 (保证等宽三格九宫格效果)
+                        Spacer(modifier = Modifier.weight(1f))
                     }
                 }
 
@@ -342,12 +352,7 @@ fun MomentPublishCard(
                         TextButton(
                             onClick = { showPhotoDialog = true },
                             enabled = !isPublishing,
-                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.background(
-                                if (isPublishing) MaterialTheme.colorScheme.primary.copy(alpha = 0.03f)
-                                else MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
-                            )
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)
                         ) {
                             Icon(Icons.Default.Image, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
@@ -357,12 +362,7 @@ fun MomentPublishCard(
                         TextButton(
                             onClick = { showVideoDialog = true },
                             enabled = !isPublishing,
-                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.secondary),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.background(
-                                if (isPublishing) MaterialTheme.colorScheme.secondary.copy(alpha = 0.03f)
-                                else MaterialTheme.colorScheme.secondary.copy(alpha = 0.08f)
-                            )
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.secondary)
                         ) {
                             Icon(Icons.Default.PlayCircle, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
@@ -438,8 +438,6 @@ fun MomentPublishCard(
                                         color = Color.White,
                                         strokeWidth = 2.dp
                                     )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("发送中...", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                 } else {
                                     Text("发布", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                 }
@@ -542,6 +540,7 @@ fun AttachmentDialog(
 fun MomentCard(
     moment: Moment,
     repository: MomentRepository,
+    momentList: List<Moment>,
     onClick: () -> Unit,
     onDeleteMoment: (Moment) -> Unit,
     modifier: Modifier = Modifier
@@ -552,7 +551,8 @@ fun MomentCard(
     val authorUsername = author?.username ?: moment.authorId
     val avatarPath = author?.avatar ?: ""
 
-    val repliesCount = remember(moment.id, repository) { repository.getRepliesTo(moment.id).size }
+    val replies = remember(moment.id, repository, momentList) { repository.getRepliesTo(moment.id) }
+    val repliesCount = remember(replies) { replies.size }
     val formattedTime = remember(moment.timestamp) {
         val sdf = SimpleDateFormat("MM月dd日 HH:mm", Locale.CHINESE)
         sdf.format(Date(moment.timestamp))
@@ -589,74 +589,73 @@ fun MomentCard(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.06f))
         ) {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.Top
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                AvatarView(avatarPath = avatarPath, name = authorName, size = 44.dp)
-
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                // 第一行：头像 + 姓名和时间 + 更多操作 (水平排列)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // 第一行：姓名 + 时间 + 操作点
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column {
-                            Text(
-                                text = authorName,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = formattedTime,
-                                fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                            )
-                        }
-                        IconButton(onClick = { showMenu = true }, modifier = Modifier.size(24.dp)) {
-                            Icon(
-                                imageVector = Icons.Default.MoreHoriz,
-                                contentDescription = "操作",
-                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                            )
-                        }
-                    }
-
-                    // 正文内容
-                    if (moment.content.isNotBlank()) {
+                    AvatarView(avatarPath = avatarPath, name = authorName, size = 44.dp)
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = moment.content,
-                            fontSize = 13.sp,
-                            lineHeight = 18.sp,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.padding(vertical = 2.dp)
+                            text = authorName,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = formattedTime,
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                         )
                     }
-
-                    // 附件渲染
-                    if (moment.imagePath != null || moment.videoPath != null) {
-                        MomentAttachmentView(
-                            imagePath = moment.imagePath,
-                            videoPath = moment.videoPath,
-                            timestamp = moment.timestamp
+                    IconButton(onClick = { showMenu = true }, modifier = Modifier.size(24.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.MoreHoriz,
+                            contentDescription = "操作",
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                         )
                     }
+                }
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                // 正文内容 (向左贴边对齐，即和头像在同一水平起点对齐)
+                if (moment.content.isNotBlank()) {
+                    Text(
+                        text = moment.content,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 2.dp)
+                    )
+                }
 
+                // 附件渲染 (同样和头像在同一水平起点对齐)
+                if (moment.imagePath != null || moment.videoPath != null) {
+                    MomentAttachmentView(
+                        imagePath = moment.imagePath,
+                        videoPath = moment.videoPath,
+                        timestamp = moment.timestamp
+                    )
+                }
+
+                // 4. 互动区与评论区整合 Column，使其内部间距更为紧凑，摆脱大 Column spacedBy(10.dp) 的过大拉扯
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
                     // 底部互动条：赞与评论
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.End
+                        horizontalArrangement = Arrangement.Start
                     ) {
                         // 1. 点赞按钮
                         Row(
@@ -709,6 +708,60 @@ fun MomentCard(
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                             )
+                        }
+                    }
+
+                    // 评论列表展示区（如果存在评论，显示在这里）
+                    if (replies.isNotEmpty()) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            replies.forEach { reply ->
+                                val replyAuthor = remember(reply.authorId) { repository.getProfile(reply.authorId) }
+                                val replyAuthorName = replyAuthor?.nickname ?: "联系人"
+                                
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { onClick() }
+                                ) {
+                                    val annotatedText = buildAnnotatedString {
+                                        withStyle(style = SpanStyle(
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontSize = 12.sp
+                                        )) {
+                                            append(replyAuthorName)
+                                        }
+                                        
+                                        withStyle(style = SpanStyle(
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                            fontSize = 12.sp
+                                        )) {
+                                            append(": ")
+                                        }
+                                        
+                                        withStyle(style = SpanStyle(
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            fontSize = 12.sp
+                                        )) {
+                                            append(reply.content)
+                                        }
+                                    }
+                                    
+                                    Text(
+                                        text = annotatedText,
+                                        lineHeight = 16.sp
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -844,6 +897,94 @@ fun MomentAttachmentView(
 
                 Text(fileName, color = Color.White.copy(alpha = 0.25f), fontSize = 9.sp, fontWeight = FontWeight.Bold)
             }
+        }
+    }
+}
+
+/**
+ * 待发布多媒体附件的九宫格正方形微型卡片
+ */
+@Composable
+fun AttachmentSquareCard(
+    title: String,
+    desc: String,
+    colorBg: Brush,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    tint: Color,
+    onDelete: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(12.dp))
+            .background(colorBg)
+            .padding(8.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.SpaceBetween,
+            horizontalAlignment = Alignment.Start
+        ) {
+            // 顶行：图标 + 标题
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = tint,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = title,
+                    color = tint,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
+                )
+            }
+
+            // 中间：描述文字 (包裹在居中 Box 中，实现完美的水平垂直双重居中)
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = desc,
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontStyle = FontStyle.Italic,
+                    fontSize = 11.sp,
+                    lineHeight = 14.sp,
+                    maxLines = 3,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            // 底部安全防重叠高度占位
+            Spacer(modifier = Modifier.height(2.dp))
+        }
+
+        // 右上角：绝对定位的磨砂圆框删除小按钮
+        IconButton(
+            onClick = onDelete,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .size(20.dp)
+                .background(Color.Black.copy(alpha = 0.3f), CircleShape)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "删除",
+                tint = Color.White.copy(alpha = 0.8f),
+                modifier = Modifier.size(12.dp)
+            )
         }
     }
 }

@@ -226,7 +226,7 @@ fun ChatMomentThreadScreen(
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.Bottom,
+                        verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         // 文本评论输入框
@@ -414,7 +414,7 @@ fun ThreadRootCard(
             }
 
             Text(
-                text = "发布于虚拟时间: $formattedTime",
+                text = "发布于: $formattedTime",
                 fontSize = 10.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
             )
@@ -517,8 +517,8 @@ fun ThreadReplyItem(
                     )
                 }
 
-                // 针对特定人回复的批注
-                if (reply.replyToUsername != null) {
+                // 针对特定人回复的批注 (只有二级及以上评论 depth > 0 才显示)
+                if (depth > 0 && reply.replyToUsername != null) {
                     Text(
                         text = "回复了 ${reply.replyToUsername}",
                         fontSize = 10.sp,
@@ -535,16 +535,7 @@ fun ThreadReplyItem(
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
-                // 盖楼层级提示
-                if (repliesCount > 0) {
-                    Text(
-                        text = "↙ 叠楼 $repliesCount 层 (点击可回复)",
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
-                }
+
             }
 
             DropdownMenu(

@@ -35,6 +35,8 @@ import com.moonlib.cosmos.data.chat.ChatRepository
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatMainScreen(
+    activeTab: Int,
+    onActiveTabChange: (Int) -> Unit,
     onNavigateTo: (ChatNavigation) -> Unit,
     onExitApp: () -> Unit,
     modifier: Modifier = Modifier
@@ -46,7 +48,6 @@ fun ChatMainScreen(
     var userNickname by remember { mutableStateOf(chatRepo.getUserNickname()) }
     var userAvatar by remember { mutableStateOf(chatRepo.getUserAvatar()) }
 
-    var activeTab by remember { mutableStateOf(0) } // 0: 消息, 1: 联系人, 2: 动态
     var showEditProfileDialog by remember { mutableStateOf(false) }
 
     Surface(
@@ -130,14 +131,16 @@ fun ChatMainScreen(
                 } else {
                     ChatMomentTab(
                         onNavigateTo = onNavigateTo,
+                        onGoBack = { onActiveTabChange(0) },
                         modifier = Modifier.fillMaxSize()
                     )
                 }
             }
 
             // ─── 3. 底部 Tab 导航栏 (小字 + Icon) ─────────────────────────
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
+            if (activeTab != 2) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
                 tonalElevation = 8.dp,
                 color = MaterialTheme.colorScheme.surfaceVariant
             ) {
@@ -149,7 +152,7 @@ fun ChatMainScreen(
                 ) {
                     NavigationBarItem(
                         selected = activeTab == 0,
-                        onClick = { activeTab = 0 },
+                        onClick = { onActiveTabChange(0) },
                         icon = {
                             Icon(
                                 imageVector = Icons.Default.Forum,
@@ -173,7 +176,7 @@ fun ChatMainScreen(
                     )
                     NavigationBarItem(
                         selected = activeTab == 1,
-                        onClick = { activeTab = 1 },
+                        onClick = { onActiveTabChange(1) },
                         icon = {
                             Icon(
                                 imageVector = Icons.Default.Group,
@@ -197,7 +200,7 @@ fun ChatMainScreen(
                     )
                     NavigationBarItem(
                         selected = activeTab == 2,
-                        onClick = { activeTab = 2 },
+                        onClick = { onActiveTabChange(2) },
                         icon = {
                             Icon(
                                 imageVector = Icons.Default.PhotoCamera,
@@ -222,6 +225,7 @@ fun ChatMainScreen(
                 }
             }
         }
+    }
     }
 
     // ─── 4. 修改个人资料 Dialog ─────────────────────────────────────
