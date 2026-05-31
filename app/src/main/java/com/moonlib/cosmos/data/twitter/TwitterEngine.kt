@@ -1,6 +1,7 @@
 package com.moonlib.cosmos.data.twitter
 
 import android.content.Context
+import com.moonlib.cosmos.data.ai.AiHistoryFormatter
 import com.moonlib.cosmos.data.ai.AiJsonSchemaFactory
 import com.moonlib.cosmos.data.ai.AiRequestClient
 import com.moonlib.cosmos.data.ai.AiResponseCleaner
@@ -24,9 +25,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import java.util.UUID
 
 /**
@@ -75,14 +73,17 @@ object TwitterEngine {
             current = current.parentId?.let { twitterRepo.getTweet(it) }
         }
 
-        val threadTextBuilder = StringBuilder()
-        for (t in threadHistory) {
+        val threadTextBuilder = AiHistoryFormatter.formatTimeline(
+            items = threadHistory,
+            timestampOf = { it.timestamp },
+            bodyOf = { t ->
             val authorProf = twitterRepo.getProfile(t.authorId)
             val authorName = authorProf?.nickname ?: t.authorId
             val authorHandle = authorProf?.username ?: t.authorId
             val replyPart = if (t.replyToUsername != null) " 回复 @${t.replyToUsername}" else ""
-            threadTextBuilder.append("- [@${authorHandle} ($authorName)$replyPart]: ${t.content}\n")
-        }
+                "[@${authorHandle} ($authorName)$replyPart]: ${t.content}"
+            }
+        )
         val directUserReplyTarget = if (targetTweet.authorId == "user") {
             targetTweet.parentId?.let { twitterRepo.getTweet(it) }
         } else {
@@ -105,7 +106,6 @@ object TwitterEngine {
 
         // 3. 构造候选角色的详细性格作息设定与通用上下文（线上聊天/实体互动/日记/推特合并的全局记忆）
         val charactersInfo = StringBuilder()
-        val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.CHINESE)
         val maxContextSize = com.moonlib.cosmos.data.settings.AiSettingsRepository(context).getMaxContextSize().coerceAtMost(30)
         
         for (fProf in followedProfiles) {
@@ -119,10 +119,14 @@ object TwitterEngine {
             val unifiedMemoryText = if (recentMerged.isEmpty()) {
                 "（当前暂无与玩家的共同记忆与沟通历史）"
             } else {
-                recentMerged.joinToString("\n") { msg ->
+                AiHistoryFormatter.formatTimeline(
+                    items = recentMerged,
+                    timestampOf = { it.timestamp },
+                    bodyOf = { msg ->
                     val senderName = if (msg.senderId == "user") "玩家" else fProf.nickname
-                    "- [时间: ${sdf.format(Date(msg.timestamp))}] $senderName 的${msg.prefix}: ${msg.content}"
-                }
+                        "$senderName 的${msg.prefix}: ${msg.content}"
+                    }
+                )
             }
 
             charactersInfo.append("角色 ID (character_id): ${fProf.characterId}\n")

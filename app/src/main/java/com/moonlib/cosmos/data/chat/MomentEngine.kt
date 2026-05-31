@@ -1,6 +1,7 @@
 package com.moonlib.cosmos.data.chat
 
 import android.content.Context
+import com.moonlib.cosmos.data.ai.AiHistoryFormatter
 import com.moonlib.cosmos.data.ai.AiJsonSchemaFactory
 import com.moonlib.cosmos.data.ai.AiRequestClient
 import com.moonlib.cosmos.data.ai.AiResponseCleaner
@@ -24,9 +25,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import java.util.UUID
 
 /**
@@ -75,13 +73,16 @@ object MomentEngine {
             current = current.parentId?.let { momentRepo.getMoment(it) }
         }
 
-        val threadTextBuilder = StringBuilder()
-        for (m in threadHistory) {
+        val threadTextBuilder = AiHistoryFormatter.formatTimeline(
+            items = threadHistory,
+            timestampOf = { it.timestamp },
+            bodyOf = { m ->
             val authorProf = momentRepo.getProfile(m.authorId)
             val authorNickname = authorProf?.nickname ?: m.authorId
             val replyPart = if (m.replyToUsername != null) " 回复了 ${m.replyToUsername}" else ""
-            threadTextBuilder.append("- [$authorNickname$replyPart]: ${m.content}\n")
-        }
+                "[$authorNickname$replyPart]: ${m.content}"
+            }
+        )
 
         val directUserReplyTarget = if (targetMoment.authorId == "user") {
             targetMoment.parentId?.let { momentRepo.getMoment(it) }
@@ -107,7 +108,6 @@ object MomentEngine {
 
         // 3. 构造候选联系人的详细性格设定与全局融合上下文
         val charactersInfo = StringBuilder()
-        val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.CHINESE)
         val maxContextSize = com.moonlib.cosmos.data.settings.AiSettingsRepository(context).getMaxContextSize().coerceAtMost(30)
 
         for (prof in profiles) {
@@ -121,10 +121,14 @@ object MomentEngine {
             val unifiedMemoryText = if (recentMerged.isEmpty()) {
                 "（当前暂无与玩家的共同记忆与沟通历史）"
             } else {
-                recentMerged.joinToString("\n") { msg ->
+                AiHistoryFormatter.formatTimeline(
+                    items = recentMerged,
+                    timestampOf = { it.timestamp },
+                    bodyOf = { msg ->
                     val senderName = if (msg.senderId == "user") "玩家" else prof.nickname
-                    "- [时间: ${sdf.format(Date(msg.timestamp))}] $senderName 的${msg.prefix}: ${msg.content}"
-                }
+                        "$senderName 的${msg.prefix}: ${msg.content}"
+                    }
+                )
             }
 
             charactersInfo.append("联系人 ID (character_id): ${prof.characterId}\n")

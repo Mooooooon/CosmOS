@@ -1,6 +1,7 @@
 package com.moonlib.cosmos.data.interaction
 
 import android.content.Context
+import com.moonlib.cosmos.data.ai.AiHistoryFormatter
 import com.moonlib.cosmos.data.ai.AiJsonSchemaFactory
 import com.moonlib.cosmos.data.ai.AiRequestClient
 import com.moonlib.cosmos.data.ai.AiResponseCleaner
@@ -75,9 +76,7 @@ object InteractionEngine {
             sceneType = AiSceneType.INTERACTION
         )
 
-        val historyText = recentMerged.joinToString("\n") { msg ->
-            "${msg.roleNameForPrompt()}: ${msg.prefix} ${msg.content}"
-        }
+        val historyText = AiHistoryFormatter.formatMergedMessages(recentMerged)
         val userInputText = recentMerged.lastOrNull { it.senderId == "user" && it.source.isDirectConversation() }?.content ?: ""
         val result = AiRequestClient.execute(
             context = context,
@@ -227,18 +226,6 @@ object InteractionEngine {
     /**
      * 过滤状态部分的值，彻底去除中英文括号。
      */
-    private fun MergedMessage.roleNameForPrompt(): String {
-        return when (source) {
-            MergedMessageSource.DIARY -> "记忆"
-            MergedMessageSource.TWITTER -> "记忆"
-            else -> if (senderId == "user") "用户" else "你"
-        }
-    }
-
-    private fun MergedMessageSource.isMemoryContext(): Boolean {
-        return this == MergedMessageSource.DIARY || this == MergedMessageSource.TWITTER
-    }
-
     private fun MergedMessageSource.isDirectConversation(): Boolean {
         return this == MergedMessageSource.CHAT || this == MergedMessageSource.INTERACTION
     }

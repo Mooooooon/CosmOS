@@ -1,6 +1,7 @@
 package com.moonlib.cosmos.data.diary
 
 import android.content.Context
+import com.moonlib.cosmos.data.ai.AiHistoryFormatter
 import com.moonlib.cosmos.data.ai.AiJsonSchemaFactory
 import com.moonlib.cosmos.data.ai.AiRequestClient
 import com.moonlib.cosmos.data.ai.AiResponseCleaner
@@ -199,9 +200,11 @@ object DiaryEngine {
         val recentHistorySlice = finalMergedHistory.takeLast(80)
 
         val diariesHistoryPrompt = if (recentHistorySlice.isNotEmpty()) {
-            val historyStr = recentHistorySlice.joinToString("\n") { msg ->
-                "${msg.sender}: ${msg.content}"
-            }
+            val historyStr = AiHistoryFormatter.formatTimeline(
+                items = recentHistorySlice,
+                timestampOf = { it.timestamp },
+                bodyOf = { "${it.sender}: ${it.content}" }
+            )
             """
             
             【全局时序混合上下文记忆流（包含线上聊天、线下互动与过往剧情场景，极其重要）】:
@@ -262,9 +265,11 @@ object DiaryEngine {
         """.trimIndent()
 
         // 5. 调用统一 AI 管线获取响应
-        val historyText = recentHistorySlice.joinToString("\n") { msg ->
-            "${msg.sender}: ${msg.content}"
-        }
+        val historyText = AiHistoryFormatter.formatTimeline(
+            items = recentHistorySlice,
+            timestampOf = { it.timestamp },
+            bodyOf = { "${it.sender}: ${it.content}" }
+        )
         val result = AiRequestClient.execute(
             context = context,
             request = AiSceneRequest(

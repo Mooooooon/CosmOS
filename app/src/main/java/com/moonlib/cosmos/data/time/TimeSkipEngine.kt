@@ -1,6 +1,7 @@
 package com.moonlib.cosmos.data.time
 
 import android.content.Context
+import com.moonlib.cosmos.data.ai.AiHistoryFormatter
 import com.moonlib.cosmos.data.ai.AiJsonSchemaFactory
 import com.moonlib.cosmos.data.ai.AiRequestClient
 import com.moonlib.cosmos.data.ai.AiResponseCleaner
@@ -95,9 +96,11 @@ object TimeSkipEngine {
                 val memoryText = if (recentMerged.isEmpty()) {
                     "（暂无共同历史）"
                 } else {
-                    recentMerged.joinToString("\n") { msg ->
-                        "- [${sdf.format(Date(msg.timestamp))}] ${msg.senderId}: ${msg.prefix} ${msg.content}"
-                    }
+                    AiHistoryFormatter.formatTimeline(
+                        items = recentMerged,
+                        timestampOf = { it.timestamp },
+                        bodyOf = { msg -> "${msg.senderId}: ${msg.prefix} ${msg.content}" }
+                    )
                 }
                 """
                 角色 ID: ${candidate.characterId}

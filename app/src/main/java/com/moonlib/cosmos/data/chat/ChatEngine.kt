@@ -1,6 +1,7 @@
 package com.moonlib.cosmos.data.chat
 
 import android.content.Context
+import com.moonlib.cosmos.data.ai.AiHistoryFormatter
 import com.moonlib.cosmos.data.ai.AiJsonSchemaFactory
 import com.moonlib.cosmos.data.ai.AiRequestClient
 import com.moonlib.cosmos.data.ai.AiResponseCleaner
@@ -10,7 +11,6 @@ import com.moonlib.cosmos.data.settings.AiConfigRepository
 import com.moonlib.cosmos.data.settings.AiSceneType
 import com.moonlib.cosmos.data.settings.SystemPromptRepository
 import com.moonlib.cosmos.data.time.VirtualTimeManager
-import com.moonlib.cosmos.data.interaction.MergedMessage
 import com.moonlib.cosmos.data.interaction.MergedMessageSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -66,9 +66,7 @@ object ChatEngine {
         )
 
         // Gemini 与 Vertex 都走原生 generateContent，而不是 OpenAI 兼容接口。
-        val historyText = recentMerged.joinToString("\n") { msg ->
-            "${msg.roleNameForPrompt()}: ${msg.prefix} ${msg.content}"
-        }
+        val historyText = AiHistoryFormatter.formatMergedMessages(recentMerged)
         val userInputText = recentMerged.lastOrNull { it.senderId == "user" && it.source.isDirectConversation() }?.content ?: ""
         val result = AiRequestClient.execute(
             context = context,
@@ -221,14 +219,6 @@ object ChatEngine {
         }
         
         return list
-    }
-
-    private fun MergedMessage.roleNameForPrompt(): String {
-        return when (source) {
-            MergedMessageSource.DIARY -> "记忆"
-            MergedMessageSource.TWITTER -> "记忆"
-            else -> if (senderId == "user") "用户" else "你"
-        }
     }
 
     private fun MergedMessageSource.isDirectConversation(): Boolean {
