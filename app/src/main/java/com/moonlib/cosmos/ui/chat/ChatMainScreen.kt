@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.moonlib.cosmos.data.chat.ChatRepository
+import com.moonlib.cosmos.ui.theme.LocalThemeConfig
 
 /**
  * 聊天 APP 主界面（消息、联系人 Tab 页）
@@ -50,9 +51,16 @@ fun ChatMainScreen(
 
     var showEditProfileDialog by remember { mutableStateOf(false) }
 
+    val isDark = LocalThemeConfig.current.isDark
+    val surfaceColor = if (activeTab == 0 || activeTab == 1) {
+        if (isDark) Color.Black else Color.White
+    } else {
+        MaterialTheme.colorScheme.background.copy(alpha = 0.95f)
+    }
+
     Surface(
         modifier = modifier,
-        color = MaterialTheme.colorScheme.background.copy(alpha = 0.95f)
+        color = surfaceColor
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             
@@ -139,17 +147,22 @@ fun ChatMainScreen(
 
             // ─── 3. 底部 Tab 导航栏 (小字 + Icon) ─────────────────────────
             if (activeTab != 2) {
+                val navBarContainerColor = if (isDark) Color.Black else Color.White
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                tonalElevation = 8.dp,
-                color = MaterialTheme.colorScheme.surfaceVariant
-            ) {
-                NavigationBar(
-                    containerColor = Color.Transparent,
-                    modifier = Modifier
-                        .navigationBarsPadding()
-                        .height(64.dp)
+                    tonalElevation = 0.dp,
+                    color = navBarContainerColor
                 ) {
+                    Column {
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                        )
+                        NavigationBar(
+                            containerColor = Color.Transparent,
+                            modifier = Modifier
+                                .navigationBarsPadding()
+                                .height(64.dp)
+                        ) {
                     NavigationBarItem(
                         selected = activeTab == 0,
                         onClick = { onActiveTabChange(0) },
@@ -227,6 +240,8 @@ fun ChatMainScreen(
         }
     }
     }
+    }
+
 
     // ─── 4. 修改个人资料 Dialog ─────────────────────────────────────
     if (showEditProfileDialog) {

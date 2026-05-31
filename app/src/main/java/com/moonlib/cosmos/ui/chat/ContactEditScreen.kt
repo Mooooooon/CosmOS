@@ -28,6 +28,7 @@ import com.moonlib.cosmos.data.chat.ChatContact
 import com.moonlib.cosmos.data.chat.ChatRepository
 import com.moonlib.cosmos.data.profile.CharacterProfile
 import com.moonlib.cosmos.data.profile.CharacterProfileRepository
+import com.moonlib.cosmos.ui.theme.LocalThemeConfig
 import java.util.UUID
 
 /**
@@ -42,6 +43,9 @@ fun ContactEditScreen(
     onGoBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isDark = LocalThemeConfig.current.isDark
+    val backgroundColor = if (isDark) Color.Black else Color.White
+
     val context = LocalContext.current
     val chatRepo = remember { ChatRepository(context) }
     val profileRepo = remember { CharacterProfileRepository(context) }
@@ -101,11 +105,11 @@ fun ContactEditScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    containerColor = backgroundColor
                 )
             )
         },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = backgroundColor
     ) { innerPadding ->
         Column(
             modifier = Modifier

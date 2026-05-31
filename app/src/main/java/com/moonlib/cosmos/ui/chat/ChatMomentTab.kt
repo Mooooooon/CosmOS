@@ -352,7 +352,7 @@ fun MomentPublishCard(
                         TextButton(
                             onClick = { showPhotoDialog = true },
                             enabled = !isPublishing,
-                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)
                         ) {
                             Icon(Icons.Default.Image, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
@@ -362,7 +362,7 @@ fun MomentPublishCard(
                         TextButton(
                             onClick = { showVideoDialog = true },
                             enabled = !isPublishing,
-                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.secondary)
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)
                         ) {
                             Icon(Icons.Default.PlayCircle, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
@@ -628,8 +628,8 @@ fun MomentCard(
                 if (moment.content.isNotBlank()) {
                     Text(
                         text = moment.content,
-                        fontSize = 13.sp,
-                        lineHeight = 18.sp,
+                        fontSize = 15.sp,
+                        lineHeight = 21.sp,
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -717,7 +717,9 @@ fun MomentCard(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .background(
-                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(
+                                        alpha = if (androidx.compose.foundation.isSystemInDarkTheme()) 0.25f else 0.45f
+                                    ),
                                     shape = RoundedCornerShape(8.dp)
                                 )
                                 .padding(horizontal = 10.dp, vertical = 8.dp),
@@ -736,21 +738,21 @@ fun MomentCard(
                                         withStyle(style = SpanStyle(
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.primary,
-                                            fontSize = 12.sp
+                                            fontSize = 13.sp
                                         )) {
                                             append(replyAuthorName)
                                         }
                                         
                                         withStyle(style = SpanStyle(
                                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                                            fontSize = 12.sp
+                                            fontSize = 13.sp
                                         )) {
                                             append(": ")
                                         }
                                         
                                         withStyle(style = SpanStyle(
                                             color = MaterialTheme.colorScheme.onSurface,
-                                            fontSize = 12.sp
+                                            fontSize = 13.sp
                                         )) {
                                             append(reply.content)
                                         }
@@ -758,7 +760,7 @@ fun MomentCard(
                                     
                                     Text(
                                         text = annotatedText,
-                                        lineHeight = 16.sp
+                                        lineHeight = 18.sp
                                     )
                                 }
                             }

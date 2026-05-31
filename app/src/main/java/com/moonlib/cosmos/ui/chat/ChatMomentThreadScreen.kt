@@ -397,8 +397,8 @@ fun ThreadRootCard(
             if (moment.content.isNotBlank()) {
                 Text(
                     text = moment.content,
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp,
+                    fontSize = 15.sp,
+                    lineHeight = 22.sp,
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
@@ -480,11 +480,9 @@ fun ThreadReplyItem(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(
-                        if (reply.authorId == "user") {
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.04f)
-                        } else {
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
-                        },
+                        MaterialTheme.colorScheme.surfaceVariant.copy(
+                            alpha = if (androidx.compose.foundation.isSystemInDarkTheme()) 0.2f else 0.45f
+                        ),
                         RoundedCornerShape(12.dp)
                     )
                     .pointerInput(Unit) {
@@ -505,7 +503,7 @@ fun ThreadReplyItem(
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
                             text = authorName,
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -521,7 +519,7 @@ fun ThreadReplyItem(
                 if (depth > 0 && reply.replyToUsername != null) {
                     Text(
                         text = "回复了 ${reply.replyToUsername}",
-                        fontSize = 10.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
                     )
@@ -530,8 +528,8 @@ fun ThreadReplyItem(
                 // 回复评论内容
                 Text(
                     text = reply.content,
-                    fontSize = 12.sp,
-                    lineHeight = 16.sp,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
                     color = MaterialTheme.colorScheme.onSurface
                 )
 

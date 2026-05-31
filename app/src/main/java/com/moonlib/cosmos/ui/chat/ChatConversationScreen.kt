@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import com.moonlib.cosmos.data.chat.ChatEngine
 import com.moonlib.cosmos.data.chat.ChatMessage
 import com.moonlib.cosmos.data.chat.ChatRepository
+import com.moonlib.cosmos.ui.theme.LocalThemeConfig
 import com.moonlib.cosmos.data.time.VirtualTimeManager
 import com.moonlib.cosmos.ui.common.conversationContentImeResize
 import com.moonlib.cosmos.ui.common.conversationInputInsets
@@ -53,6 +54,9 @@ fun ChatConversationScreen(
     onGoBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isDark = LocalThemeConfig.current.isDark
+    val backgroundColor = if (isDark) Color.Black else Color.White
+
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val listState = rememberLazyListState()
@@ -241,7 +245,7 @@ fun ChatConversationScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    containerColor = backgroundColor
                 )
             )
         },
@@ -266,7 +270,7 @@ fun ChatConversationScreen(
                 }
             }
         },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = backgroundColor
     ) { innerPadding ->
         
         // 渲染模拟输入对话框
