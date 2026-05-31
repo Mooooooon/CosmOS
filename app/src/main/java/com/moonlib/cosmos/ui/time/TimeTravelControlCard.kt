@@ -19,6 +19,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -55,6 +57,7 @@ fun TimeTravelControlCard(
     val canSimulate = targetTimeMillis > currentTimeMillis
 
     var shouldSimulate by remember { mutableStateOf(false) }
+    var userActivity by remember { mutableStateOf("") }
     var isRunning by remember { mutableStateOf(false) }
     var resultText by remember { mutableStateOf<String?>(null) }
     var resultIsError by remember { mutableStateOf(false) }
@@ -62,6 +65,7 @@ fun TimeTravelControlCard(
     LaunchedEffect(canSimulate) {
         if (!canSimulate) {
             shouldSimulate = false
+            userActivity = ""
         }
     }
 
@@ -129,8 +133,42 @@ fun TimeTravelControlCard(
 
                     Switch(
                         checked = shouldSimulate,
-                        onCheckedChange = { shouldSimulate = it },
+                        onCheckedChange = { 
+                            shouldSimulate = it 
+                            if (!it) userActivity = ""
+                        },
                         enabled = canSimulate && !isRunning
+                    )
+                }
+
+                if (shouldSimulate) {
+                    OutlinedTextField(
+                        value = userActivity,
+                        onValueChange = { userActivity = it },
+                        placeholder = {
+                            Text(
+                                text = "写下你在这段时间内的行动描述...",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                            )
+                        },
+                        label = {
+                            Text(
+                                text = "行动备注",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        minLines = 2,
+                        maxLines = 4,
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f),
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.1f),
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.1f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
 
@@ -154,7 +192,7 @@ fun TimeTravelControlCard(
                                 context = context,
                                 startTimeMillis = currentTimeMillis,
                                 endTimeMillis = targetTimeMillis,
-                                userActivity = ""
+                                userActivity = userActivity
                             )
                             isRunning = false
                             resultIsError = !result.success
