@@ -1,5 +1,6 @@
 package com.moonlib.cosmos.ui.settings
 
+import kotlin.math.roundToInt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState

@@ -178,7 +178,7 @@ fun ImageAttachmentDialog(
         text = {
             Column {
                 Text(
-                    "模拟发送一张图片。请输入图片的描述文字（例如：可爱的小猫、今天的晚餐）：",
+                    "发送一张图片。请输入图片的描述文字（例如：可爱的小猫、今天的晚餐）：",
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 8.dp)
@@ -225,7 +225,7 @@ fun VideoAttachmentDialog(
         text = {
             Column {
                 Text(
-                    "模拟发送一段视频。请输入视频的描述文字（例如：海边日落、猫咪打滚）：",
+                    "发送一段视频。请输入视频的描述文字（例如：海边日落、猫咪打滚）：",
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 8.dp)
@@ -275,7 +275,7 @@ fun RedPacketAttachmentDialog(
         text = {
             Column {
                 Text(
-                    "请输入红包的金额和留言（模拟交互）：",
+                    "请输入红包的金额和留言：",
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 12.dp)
@@ -359,7 +359,7 @@ fun TransferAttachmentDialog(
         text = {
             Column {
                 Text(
-                    "请输入转账金额（模拟交易）：",
+                    "请输入转账金额：",
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 12.dp)
@@ -426,7 +426,7 @@ fun LocationAttachmentDialog(
         text = {
             Column {
                 Text(
-                    "模拟发送你的当前地理位置。请输入位置的名称（例如：北京市天安门广场、猫咪咖啡馆）：",
+                    "发送你的当前地理位置。请输入位置的名称（例如：猫咪咖啡馆、市中心图书馆）：",
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 8.dp)
@@ -434,7 +434,7 @@ fun LocationAttachmentDialog(
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
-                    placeholder = { Text("例如：北京市天安门广场") },
+                    placeholder = { Text("例如：猫咪咖啡馆") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)

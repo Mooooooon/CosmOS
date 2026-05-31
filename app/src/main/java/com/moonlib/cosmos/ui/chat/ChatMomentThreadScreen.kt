@@ -408,6 +408,7 @@ fun ThreadRootCard(
                 MomentAttachmentView(
                     imagePath = moment.imagePath,
                     videoPath = moment.videoPath,
+                    timestamp = moment.timestamp,
                     modifier = Modifier.padding(vertical = 4.dp)
                 )
             }

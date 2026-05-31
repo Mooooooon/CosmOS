@@ -188,7 +188,10 @@ fun TweetCard(
 
                 // 渲染配图
                 if (tweet.imagePath != null) {
-                    TweetImage(imagePath = tweet.imagePath)
+                    TweetImage(
+                        imagePath = tweet.imagePath,
+                        timestamp = tweet.timestamp
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -239,10 +242,15 @@ fun TweetCard(
 @Composable
 fun TweetImage(
     imagePath: String,
+    timestamp: Long = 0L,
     modifier: Modifier = Modifier
 ) {
     if (imagePath.startsWith("simulated_image:")) {
         val desc = imagePath.removePrefix("simulated_image:")
+        val fileName = remember(timestamp) {
+            val sdf = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)
+            "IMG_${sdf.format(Date(if (timestamp > 0) timestamp else System.currentTimeMillis()))}.jpg"
+        }
         // 渲染高保真、美轮美奂的 AI 模拟图卡
         Box(
             modifier = modifier
@@ -274,7 +282,7 @@ fun TweetImage(
                         modifier = Modifier.size(16.dp)
                     )
                     Text(
-                        text = "AI 拟真画面描述",
+                        text = "图片",
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
                         fontWeight = FontWeight.Bold
@@ -291,7 +299,7 @@ fun TweetImage(
                 )
 
                 Text(
-                    text = "CosmOS Graphics Simulation",
+                    text = fileName,
                     fontSize = 9.sp,
                     color = Color.White.copy(alpha = 0.3f),
                     fontWeight = FontWeight.Bold

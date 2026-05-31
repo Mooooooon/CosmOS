@@ -279,7 +279,7 @@ fun MomentPublishCard(
                             Icon(Icons.Default.Image, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("模拟照片附件", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                Text("照片附件", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                 Text(desc, color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp, fontStyle = FontStyle.Italic, maxLines = 1)
                             }
                             IconButton(onClick = { simulatedPhotoDesc = null }) {
@@ -309,7 +309,7 @@ fun MomentPublishCard(
                             Icon(Icons.Default.PlayCircle, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(24.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("模拟视频附件", color = MaterialTheme.colorScheme.secondary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                Text("视频附件", color = MaterialTheme.colorScheme.secondary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                 Text(desc, color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp, fontStyle = FontStyle.Italic, maxLines = 1)
                             }
                             IconButton(onClick = { simulatedVideoDesc = null }) {
@@ -411,7 +411,7 @@ fun MomentPublishCard(
     if (showPhotoDialog) {
         AttachmentDialog(
             title = "添加照片",
-            label = "模拟选择一张照片。请输入画面描述：",
+            label = "选择一张照片。请输入画面描述：",
             placeholder = "例如：天台拍摄的星空与霓虹灯交错",
             onDismiss = { showPhotoDialog = false },
             onConfirm = { desc ->
@@ -424,7 +424,7 @@ fun MomentPublishCard(
     if (showVideoDialog) {
         AttachmentDialog(
             title = "添加视频",
-            label = "模拟选择一段短视频。请输入画面描述：",
+            label = "选择一段短视频。请输入画面描述：",
             placeholder = "例如：猫咪在地毯上追着光点扑腾的可爱特写",
             onDismiss = { showVideoDialog = false },
             onConfirm = { desc ->
@@ -601,7 +601,8 @@ fun MomentCard(
                     if (moment.imagePath != null || moment.videoPath != null) {
                         MomentAttachmentView(
                             imagePath = moment.imagePath,
-                            videoPath = moment.videoPath
+                            videoPath = moment.videoPath,
+                            timestamp = moment.timestamp
                         )
                     }
 
@@ -704,10 +705,15 @@ fun MomentCard(
 fun MomentAttachmentView(
     imagePath: String?,
     videoPath: String?,
+    timestamp: Long = 0L,
     modifier: Modifier = Modifier
 ) {
     if (imagePath != null && imagePath.startsWith("simulated_image:")) {
         val desc = imagePath.removePrefix("simulated_image:")
+        val fileName = remember(timestamp) {
+            val sdf = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)
+            "IMG_${sdf.format(Date(if (timestamp > 0) timestamp else System.currentTimeMillis()))}.jpg"
+        }
         // 渲染极其精美科技感的照片描述卡
         Box(
             modifier = modifier
@@ -727,7 +733,7 @@ fun MomentAttachmentView(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Icon(Icons.Default.Image, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                    Text("AI 拟真画面描述", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text("图片", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
 
                 Text(
@@ -738,11 +744,15 @@ fun MomentAttachmentView(
                     lineHeight = 16.sp
                 )
 
-                Text("CosmOS Graphics Simulation", color = Color.White.copy(alpha = 0.25f), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                Text(fileName, color = Color.White.copy(alpha = 0.25f), fontSize = 9.sp, fontWeight = FontWeight.Bold)
             }
         }
     } else if (videoPath != null && videoPath.startsWith("simulated_video:")) {
         val desc = videoPath.removePrefix("simulated_video:")
+        val fileName = remember(timestamp) {
+            val sdf = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)
+            "VID_${sdf.format(Date(if (timestamp > 0) timestamp else System.currentTimeMillis()))}.mp4"
+        }
         // 渲染带有磨砂黑播放标志的短视频描述卡
         Box(
             modifier = modifier
@@ -762,7 +772,7 @@ fun MomentAttachmentView(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Icon(Icons.Default.Videocam, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(16.dp))
-                    Text("AI 拟真短视频描述", color = MaterialTheme.colorScheme.secondary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text("视频", color = MaterialTheme.colorScheme.secondary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
 
                 Row(
@@ -788,7 +798,7 @@ fun MomentAttachmentView(
                     )
                 }
 
-                Text("CosmOS Video Simulation", color = Color.White.copy(alpha = 0.25f), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                Text(fileName, color = Color.White.copy(alpha = 0.25f), fontSize = 9.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
