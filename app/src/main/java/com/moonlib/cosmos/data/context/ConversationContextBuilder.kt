@@ -3,13 +3,16 @@ package com.moonlib.cosmos.data.context
 import android.content.Context
 import com.moonlib.cosmos.data.ai.AiHistoryItem
 import com.moonlib.cosmos.data.ai.AiHistorySource
+import com.moonlib.cosmos.data.chat.ChatMessage
+import com.moonlib.cosmos.data.chat.Moment
+import com.moonlib.cosmos.data.chat.MomentRepository
 import com.moonlib.cosmos.data.chat.ChatRepository
 import com.moonlib.cosmos.data.diary.DiaryEntry
 import com.moonlib.cosmos.data.diary.DiaryRepository
 import com.moonlib.cosmos.data.interaction.InteractionRepository
-import com.moonlib.cosmos.data.interaction.MergedMessage
-import com.moonlib.cosmos.data.interaction.MergedMessageSource
 import com.moonlib.cosmos.data.profile.CharacterProfile
+import com.moonlib.cosmos.data.twitter.Tweet
+import com.moonlib.cosmos.data.twitter.TwitterRepository
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -20,197 +23,177 @@ import java.util.Locale
  */
 object ConversationContextBuilder {
 
-    fun buildWideHistoryForCharacter(
+    fun buildWideHistoryForCharacters(
         context: Context,
-        charProfile: CharacterProfile,
+        charProfiles: List<CharacterProfile>,
         maxContextSize: Int,
-        senderNameResolver: (String) -> String = { it }
+        playerName: String,
+        diariesOverride: List<DiaryEntry>? = null
     ): List<AiHistoryItem> {
-        return buildForCharacter(context, charProfile, maxContextSize).map { msg ->
-            AiHistoryItem(
-                senderId = msg.senderId,
-                senderName = senderNameResolver(msg.senderId),
-                content = msg.content,
-                timestamp = msg.timestamp,
-                source = when (msg.source) {
-                    MergedMessageSource.CHAT -> AiHistorySource.CHAT
-                    MergedMessageSource.INTERACTION -> AiHistorySource.INTERACTION
-                    MergedMessageSource.DIARY -> AiHistorySource.DIARY
-                    MergedMessageSource.TWITTER -> AiHistorySource.TWITTER
-                    MergedMessageSource.MOMENT -> AiHistorySource.MOMENT
-                }
-            )
-        }
-    }
-
-    fun buildForCharacter(
-        context: Context,
-        charProfile: CharacterProfile,
-        maxContextSize: Int
-    ): List<MergedMessage> {
+        val involvedCharacterIds = charProfiles.map { it.id }.toSet()
+        val characterNameById = charProfiles.associate { it.id to it.name }
         val chatRepo = ChatRepository(context)
         val interactionRepo = InteractionRepository(context)
         val diaryRepo = DiaryRepository(context)
+        val twitterRepo = TwitterRepository(context)
+        val momentRepo = MomentRepository(context)
 
-        val contact = chatRepo.getContacts().firstOrNull { it.characterId == charProfile.id }
-        val onlineMsgs = if (contact != null) chatRepo.getMessages(contact.id) else emptyList()
-        val formattedOnlineMsgs = onlineMsgs.map { msg ->
-            val formattedContent = when (msg.type) {
-                "image" -> "[发送了图片：${msg.content}]"
-                "video" -> "[发送了视频：${msg.content}]"
-                "red_packet" -> "[发送了红包：${msg.content}元，留言：${msg.extra ?: "恭喜发财，大吉大利"}]"
-                "transfer" -> "[发送了转账：${msg.content}元]"
-                "location" -> "[发送了位置：${msg.content}]"
-                else -> msg.content
+        val contactsByCharacterId = chatRepo.getContacts()
+            .filter { it.characterId in involvedCharacterIds }
+            .associateBy { it.characterId }
+        val characterIdByContactId = contactsByCharacterId.values.associate { it.id to it.characterId }
+
+        val chatItems = contactsByCharacterId.values.flatMap { contact ->
+            chatRepo.getMessages(contact.id).map { message ->
+                val senderCharacterId = characterIdByContactId[message.senderId] ?: contact.characterId
+                AiHistoryItem(
+                    senderId = message.senderId,
+                    senderName = if (message.senderId == "user") playerName else characterNameById[senderCharacterId] ?: contact.nickname,
+                    content = message.formatForHistory(),
+                    timestamp = message.timestamp,
+                    source = AiHistorySource.CHAT
+                )
             }
-            ContextCandidate(
-                message = MergedMessage(
-                    senderId = msg.senderId,
-                    content = formattedContent,
-                    timestamp = msg.timestamp,
-                    isOnline = true,
-                    source = MergedMessageSource.CHAT
-                )
-            )
         }
 
-        val offlineMsgs = interactionRepo.getMessages(charProfile.id).map { msg ->
-            ContextCandidate(
-                message = MergedMessage(
-                    senderId = msg.senderId,
-                    content = msg.content,
-                    timestamp = msg.timestamp,
-                    isOnline = false,
-                    source = MergedMessageSource.INTERACTION
+        val interactionItems = involvedCharacterIds.flatMap { characterId ->
+            interactionRepo.getMessages(characterId).map { message ->
+                AiHistoryItem(
+                    senderId = message.senderId,
+                    senderName = if (message.senderId == "user") playerName else characterNameById[characterId].orEmpty().ifBlank { "角色" },
+                    content = message.content,
+                    timestamp = message.timestamp,
+                    source = AiHistorySource.INTERACTION
                 )
-            )
+            }
         }
 
-        val diaryMsgs = diaryRepo.getDiaries()
-            .filter { it.involvedCharacterIds.contains(charProfile.id) }
+        val diaryItems = (diariesOverride ?: diaryRepo.getDiaries())
+            .filter { diary -> diary.involvedCharacterIds.any { it in involvedCharacterIds } }
             .map { diary ->
-                ContextCandidate(
-                    message = MergedMessage(
+                HistoryCandidate(
+                    item = AiHistoryItem(
                         senderId = "diary",
+                        senderName = "剧情日记",
                         content = diary.summary,
                         timestamp = diary.contextTimestamp(),
-                        isOnline = false,
-                        source = MergedMessageSource.DIARY
+                        source = AiHistorySource.DIARY
                     ),
                     fullDiaryContent = diary.content
                 )
             }
 
-        // 获取公共推特动态与回复，并合入全局历史记忆
-        val twitterRepo = com.moonlib.cosmos.data.twitter.TwitterRepository(context)
-        val twitterMsgs = twitterRepo.getTweets().map { tweet ->
-            val authorProfile = twitterRepo.getProfile(tweet.authorId)
-            val authorUsername = authorProfile?.username ?: tweet.authorId
-            val parentTweet = tweet.parentId?.let { twitterRepo.getTweet(it) }
-            val parentProfile = parentTweet?.let { twitterRepo.getProfile(it.authorId) }
-            val parentUsername = parentProfile?.username
-            
-            val formattedContent = buildString {
-                if (tweet.imagePath != null) {
-                    append("[发布了图文] ")
-                }
-                if (parentUsername != null) {
-                    append("回复 @$parentUsername: ")
-                }
-                append(tweet.content)
-            }
-            ContextCandidate(
-                message = MergedMessage(
+        val tweets = twitterRepo.getTweets()
+        val tweetById = tweets.associateBy { it.id }
+        val twitterItems = tweets
+            .filter { tweet -> tweet.isRelevantTo(involvedCharacterIds, tweetById) }
+            .map { tweet ->
+                val profile = twitterRepo.getProfile(tweet.authorId)
+                AiHistoryItem(
                     senderId = tweet.authorId,
-                    content = "@$authorUsername: $formattedContent",
+                    senderName = if (tweet.authorId == "user") playerName else characterNameById[tweet.authorId] ?: profile?.nickname ?: tweet.authorId,
+                    content = tweet.formatForHistory(twitterRepo, tweetById),
                     timestamp = tweet.timestamp,
-                    isOnline = false,
-                    source = MergedMessageSource.TWITTER
+                    source = AiHistorySource.TWITTER
                 )
-            )
-        }
-
-        // 获取朋友圈动态与评论，并合入全局历史记忆
-        val momentRepo = com.moonlib.cosmos.data.chat.MomentRepository(context)
-        val momentMsgs = momentRepo.getMoments().map { moment ->
-            val authorProfile = momentRepo.getProfile(moment.authorId)
-            val authorNickname = authorProfile?.nickname ?: moment.authorId
-            val parentMoment = moment.parentId?.let { momentRepo.getMoment(it) }
-            val parentProfile = parentMoment?.let { momentRepo.getProfile(it.authorId) }
-            val parentNickname = parentProfile?.nickname
-            
-            val formattedContent = buildString {
-                if (moment.imagePath != null) {
-                    val desc = moment.imagePath.removePrefix("simulated_image:")
-                    append("[发布了照片动态：“$desc”] ")
-                }
-                if (moment.videoPath != null) {
-                    val desc = moment.videoPath.removePrefix("simulated_video:")
-                    append("[发布了视频动态：“$desc”] ")
-                }
-                if (parentNickname != null) {
-                    append("回复了 $parentNickname 的动态评论: ")
-                }
-                append(moment.content)
             }
-            ContextCandidate(
-                message = MergedMessage(
+
+        val moments = momentRepo.getMoments()
+        val momentById = moments.associateBy { it.id }
+        val momentItems = moments
+            .filter { moment -> moment.isRelevantTo(involvedCharacterIds, momentById) }
+            .map { moment ->
+                val profile = momentRepo.getProfile(moment.authorId)
+                AiHistoryItem(
                     senderId = moment.authorId,
-                    content = "$authorNickname: $formattedContent",
+                    senderName = if (moment.authorId == "user") playerName else characterNameById[moment.authorId] ?: profile?.nickname ?: moment.authorId,
+                    content = moment.formatForHistory(momentRepo, momentById),
                     timestamp = moment.timestamp,
-                    isOnline = false,
-                    source = MergedMessageSource.MOMENT
+                    source = AiHistorySource.MOMENT
                 )
-            )
-        }
-
-        val sortedCandidates = (formattedOnlineMsgs + offlineMsgs + diaryMsgs + twitterMsgs + momentMsgs).sortedBy { it.message.timestamp }
-        val anchoredCandidates = sortedCandidates.keepOnlyContextBeforeCurrentUserInput()
-        val fullDiaryIndex = anchoredCandidates.indexOfDiaryToExpandForCurrentReply()
-        val mergedMessages = anchoredCandidates.mapIndexed { index, candidate ->
-            if (index == fullDiaryIndex) {
-                candidate.message.copy(content = candidate.fullDiaryContent ?: candidate.message.content)
-            } else {
-                candidate.message
             }
-        }
-        return mergedMessages.takeLast(maxContextSize)
+
+        val candidates = (
+            chatItems.map { HistoryCandidate(it) } +
+                interactionItems.map { HistoryCandidate(it) } +
+                diaryItems +
+                twitterItems.map { HistoryCandidate(it) } +
+                momentItems.map { HistoryCandidate(it) }
+            ).sortedBy { it.item.timestamp }
+
+        val fullDiaryIndex = candidates.indexOfLast { it.item.source == AiHistorySource.DIARY }
+            .takeIf { it == candidates.lastIndex }
+            ?: -1
+
+        return candidates.mapIndexed { index, candidate ->
+            if (index == fullDiaryIndex) {
+                candidate.item.copy(content = candidate.fullDiaryContent ?: candidate.item.content)
+            } else {
+                candidate.item
+            }
+        }.takeLast(maxContextSize)
     }
 
-    private data class ContextCandidate(
-        val message: MergedMessage,
+    private data class HistoryCandidate(
+        val item: AiHistoryItem,
         val fullDiaryContent: String? = null
     )
-
-    private fun List<ContextCandidate>.keepOnlyContextBeforeCurrentUserInput(): List<ContextCandidate> {
-        val currentUserInputIndex = indexOfLast { it.message.isCurrentUserInput() }
-        if (currentUserInputIndex < 0) return this
-
-        val currentUserInput = this[currentUserInputIndex]
-        val historyBeforeInput = filterIndexed { index, candidate ->
-            index != currentUserInputIndex && candidate.message.timestamp <= currentUserInput.message.timestamp
-        }
-        return historyBeforeInput + currentUserInput
-    }
-
-    private fun List<ContextCandidate>.indexOfDiaryToExpandForCurrentReply(): Int {
-        if (isEmpty()) return -1
-
-        val currentUserInputIndex = indexOfLast { it.message.isCurrentUserInput() }
-        val candidateIndex = if (currentUserInputIndex >= 0) currentUserInputIndex - 1 else lastIndex
-        if (candidateIndex < 0) return -1
-        return if (this[candidateIndex].message.source == MergedMessageSource.DIARY) candidateIndex else -1
-    }
-
-    private fun MergedMessage.isCurrentUserInput(): Boolean {
-        return senderId == "user" && (source == MergedMessageSource.CHAT || source == MergedMessageSource.INTERACTION)
-    }
 
     private fun DiaryEntry.contextTimestamp(): Long {
         return try {
             SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).parse(virtualTime)?.time ?: timestamp
         } catch (e: Exception) {
             timestamp
+        }
+    }
+
+    private fun ChatMessage.formatForHistory(): String {
+        return when (type) {
+            "image" -> "[发送了图片：$content]"
+            "video" -> "[发送了视频：$content]"
+            "red_packet" -> "[发送了红包：$content 元，留言：${extra ?: "恭喜发财，大吉大利"}]"
+            "transfer" -> "[发送了转账：$content 元]"
+            "location" -> "[发送了位置：$content]"
+            else -> content
+        }
+    }
+
+    private fun Tweet.isRelevantTo(involvedCharacterIds: Set<String>, tweetById: Map<String, Tweet>): Boolean {
+        if (authorId in involvedCharacterIds) return true
+        val parent = parentId?.let { tweetById[it] }
+        return parent?.authorId in involvedCharacterIds
+    }
+
+    private fun Tweet.formatForHistory(
+        twitterRepo: TwitterRepository,
+        tweetById: Map<String, Tweet>
+    ): String {
+        val parent = parentId?.let { tweetById[it] }
+        val parentProfile = parent?.let { twitterRepo.getProfile(it.authorId) }
+        return buildString {
+            if (imagePath != null) append("[发布了图文] ")
+            if (parentProfile != null) append("回复 @${parentProfile.username}: ")
+            append(content)
+        }
+    }
+
+    private fun Moment.isRelevantTo(involvedCharacterIds: Set<String>, momentById: Map<String, Moment>): Boolean {
+        if (authorId in involvedCharacterIds) return true
+        val parent = parentId?.let { momentById[it] }
+        return parent?.authorId in involvedCharacterIds
+    }
+
+    private fun Moment.formatForHistory(
+        momentRepo: MomentRepository,
+        momentById: Map<String, Moment>
+    ): String {
+        val parent = parentId?.let { momentById[it] }
+        val parentProfile = parent?.let { momentRepo.getProfile(it.authorId) }
+        return buildString {
+            imagePath?.removePrefix("simulated_image:")?.let { append("[发布了照片动态：“$it”] ") }
+            videoPath?.removePrefix("simulated_video:")?.let { append("[发布了视频动态：“$it”] ") }
+            if (parentProfile != null) append("回复了 ${parentProfile.nickname} 的动态评论: ")
+            append(content)
         }
     }
 }

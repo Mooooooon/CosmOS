@@ -2,29 +2,25 @@ package com.moonlib.cosmos.data.interaction
 
 import android.content.Context
 import com.moonlib.cosmos.data.ai.AiHistoryFormatter
+import com.moonlib.cosmos.data.ai.AiHistoryItem
+import com.moonlib.cosmos.data.ai.AiHistorySource
 import com.moonlib.cosmos.data.ai.AiJsonSchemaFactory
 import com.moonlib.cosmos.data.ai.AiRequestClient
 import com.moonlib.cosmos.data.ai.AiResponseCleaner
 import com.moonlib.cosmos.data.ai.AiSceneRequest
 import com.moonlib.cosmos.data.ai.AiStatusUpdater
+import com.moonlib.cosmos.data.chat.ChatRepository
+import com.moonlib.cosmos.data.context.ConversationContextBuilder
 import com.moonlib.cosmos.data.profile.CharacterProfile
 import com.moonlib.cosmos.data.profile.CharacterProfileRepository
-import com.moonlib.cosmos.data.settings.AiAuthorizationHeader
 import com.moonlib.cosmos.data.settings.AiConfigRepository
-import com.moonlib.cosmos.data.settings.AiReasoningRequestOptions
-import com.moonlib.cosmos.data.settings.AiServiceType
+import com.moonlib.cosmos.data.settings.AiSettingsRepository
 import com.moonlib.cosmos.data.settings.AiSceneType
-import com.moonlib.cosmos.data.settings.AiVertexConfig
-import com.moonlib.cosmos.data.chat.AiPromptHelper
-import com.moonlib.cosmos.data.interaction.MergedMessageSource
 import com.moonlib.cosmos.data.settings.SystemPromptRepository
 import com.moonlib.cosmos.data.time.VirtualTimeManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
 import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
 import java.util.UUID
 
 /**
@@ -48,7 +44,6 @@ object InteractionEngine {
         characterId: String
     ): List<InteractionMessage> = withContext(Dispatchers.IO) {
         val interactionRepo = InteractionRepository(context)
-        val chatRepo = com.moonlib.cosmos.data.chat.ChatRepository(context)
         val profileRepo = CharacterProfileRepository(context)
 
         // 1. 获取对应角色人设
@@ -69,24 +64,24 @@ object InteractionEngine {
             throw Exception("激活的 AI 配置文件不完整，请前往【系统设置】检查。")
         }
 
-        // 3. Build system prompt and merge history via AiPromptHelper
-        val (systemPrompt, recentMerged) = AiPromptHelper.buildPromptAndHistory(
+        val promptData = buildInteractionPromptData(
             context = context,
-            charProfile = charProfile,
-            sceneType = AiSceneType.INTERACTION
+            charProfile = charProfile
         )
+        val recentMerged = promptData.recentMergedHistory
 
-        val historyText = AiHistoryFormatter.formatMergedMessages(recentMerged)
+        val historyText = AiHistoryFormatter.formatHistoryItems(recentMerged)
         val userInputText = recentMerged.lastOrNull { it.senderId == "user" && it.source.isDirectConversation() }?.content ?: ""
         val result = AiRequestClient.execute(
             context = context,
             request = AiSceneRequest(
                 sceneType = AiSceneType.INTERACTION,
-                systemPrompt = SystemPromptRepository(context).getMainPromptContent(),
-                personaPrompt = systemPrompt.removePrefix(SystemPromptRepository(context).getMainPromptContent()).trim(),
-                outputRequirement = "你当前正在与用户进行线下面对面实体互动。每条回复必须包含中文括号动作描写，严禁 emoji 和颜文字；如果状态卡发生改变，按需输出 status。",
-                jsonStructure = """{"sender":"${charProfile.name}","replies":[{"type":"text","time":"yyyy-MM-dd HH:mm:ss","content":"（动作描写）回复内容"}],"status":{"词条名称":"更新值"}}""",
+                systemPrompt = promptData.systemPrompt,
+                personaPrompt = promptData.personaPrompt,
+                outputRequirement = promptData.outputRequirement,
+                jsonStructure = promptData.jsonStructure,
                 historyText = historyText,
+                statusCard = promptData.statusPrompt,
                 userInput = userInputText,
                 logCharacterName = charProfile.name,
                 logUserInput = userInputText,
@@ -226,7 +221,113 @@ object InteractionEngine {
     /**
      * 过滤状态部分的值，彻底去除中英文括号。
      */
-    private fun MergedMessageSource.isDirectConversation(): Boolean {
-        return this == MergedMessageSource.CHAT || this == MergedMessageSource.INTERACTION
+    private fun AiHistorySource.isDirectConversation(): Boolean {
+        return this == AiHistorySource.CHAT || this == AiHistorySource.INTERACTION
+    }
+
+    private data class InteractionPromptData(
+        val systemPrompt: String,
+        val personaPrompt: String,
+        val outputRequirement: String,
+        val jsonStructure: String,
+        val statusPrompt: String,
+        val recentMergedHistory: List<AiHistoryItem>
+    )
+
+    private fun buildInteractionPromptData(
+        context: Context,
+        charProfile: CharacterProfile
+    ): InteractionPromptData {
+        val chatRepo = ChatRepository(context)
+        val profileRepo = CharacterProfileRepository(context)
+        val userNickname = chatRepo.getUserNickname()
+        val playerProfile = profileRepo.getProfiles().firstOrNull { it.isPlayer }
+        val playerRealName = playerProfile?.name ?: userNickname
+        val currentVirtualTime = VirtualTimeManager.formatTime("yyyy-MM-dd HH:mm:ss")
+        val currentVirtualTimeWithWeekday = VirtualTimeManager.formatTime("yyyy-MM-dd HH:mm:ss EEEE")
+        val processedCharPrompt = charProfile.prompt
+            .replace("{{char}}", charProfile.name)
+            .replace("{{user}}", playerRealName)
+        val processedPlayerPrompt = (playerProfile?.prompt ?: "普通用户，无更多公开身份设定。")
+            .replace("{{char}}", charProfile.name)
+            .replace("{{user}}", playerRealName)
+        val statusPrompt = buildInteractionStatusPrompt(context, charProfile)
+
+        return InteractionPromptData(
+            systemPrompt = SystemPromptRepository(context).getMainPromptContent(),
+            personaPrompt = """
+                你现在正在扮演角色【${charProfile.name}】。
+                
+                【角色人设】
+                $processedCharPrompt
+                
+                【用户人设】
+                用户昵称：$userNickname
+                用户真实姓名：$playerRealName
+                $processedPlayerPrompt
+            """.trimIndent(),
+            outputRequirement = """
+                当前场景：线下面对面实体互动。
+                你正在与用户【$playerRealName】进行实体互动，而不是手机聊天。
+                当前虚拟世界时间：$currentVirtualTimeWithWeekday。
+                
+                回复要求：
+                1. 必须百分之百扮演【${charProfile.name}】，不可 OOC。
+                2. 每条回复必须包含中文小括号动作描写，例如“（看向你，轻声说）我在听。”。
+                3. 动作、神态、语气、心理和姿势应具体写实，符合人设。
+                4. 指代用户/玩家必须使用第二人称“你”，禁止使用“他/她”代指用户。
+                5. 严禁 emoji、颜文字和表情符号。
+                6. 单次回复 1 到 3 条，每条 1 到 3 句话，建议单条不超过 60 字。
+                7. 如果状态卡发生改变，按“状态卡”段落要求在 JSON 外层输出 status。
+            """.trimIndent(),
+            jsonStructure = """
+                {
+                  "sender": "${charProfile.name}",
+                  "replies": [
+                    {
+                      "type": "text",
+                      "time": "yyyy-MM-dd HH:mm:ss",
+                      "content": "（动作描写）回复内容"
+                    }
+                  ]${if (statusPrompt.isNotBlank()) ",\n                  \"status\": {\n                    \"词条名称\": \"仅当该词条状态发生改变时更新的值，未改变的词条不输出或设为 null\"\n                  }" else ""}
+                }
+                
+                约束：
+                - replies 数组包含 1 到 3 条消息。
+                - time 必须晚于当前虚拟时间 $currentVirtualTime，并符合 yyyy-MM-dd HH:mm:ss。
+                - content 必须带中文小括号动作描写。
+                - status 值不能包含中文或英文小括号。
+                - 只返回纯 JSON，不要 markdown 代码块或解释文本。
+            """.trimIndent(),
+            statusPrompt = statusPrompt,
+            recentMergedHistory = ConversationContextBuilder.buildWideHistoryForCharacters(
+                context = context,
+                charProfiles = listOf(charProfile),
+                maxContextSize = AiSettingsRepository(context).getMaxContextSize(),
+                playerName = playerRealName
+            )
+        )
+    }
+
+    private fun buildInteractionStatusPrompt(context: Context, charProfile: CharacterProfile): String {
+        val repo = InteractionSettingsRepository(context)
+        val statusKeys = repo.getStatusKeys()
+        if (!repo.isStatusCardEnabled() || statusKeys.isEmpty()) return ""
+
+        val currentStatus = repo.getCharacterStatus(charProfile.id)
+        val statusBulletPoints = statusKeys.joinToString("\n") { key ->
+            val currentVal = currentStatus[key.name] ?: "未知"
+            "- 「${key.name}」（含义解释：${key.description}）：当前状态值是「$currentVal」"
+        }
+        return """
+            当前互动角色状态卡已开启，请维护以下状态词条：
+            $statusBulletPoints
+            
+            状态更新要求：
+            1. 只有身体姿势、动作、神态、物理位置、服装衣着等发生改变时才输出 status。
+            2. 未改变的词条不要输出，或设为 null。
+            3. 状态值必须是纯描述，不能包含中文小括号或英文小括号。
+            4. 状态值中指代用户必须使用第二人称“你”。
+        """.trimIndent()
     }
 }

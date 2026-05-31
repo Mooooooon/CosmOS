@@ -82,6 +82,14 @@ object TimeSkipEngine {
             val endTimeStr = sdf.format(Date(endTimeMillis))
             val maxMessages = aiSettingsRepo.getTimeSkipMaxMessages()
             val maxContextSize = aiSettingsRepo.getMaxContextSize().coerceAtMost(30)
+            val candidateProfiles = candidates.map { it.profile }.distinctBy { it.id }
+            val recentMergedHistory = ConversationContextBuilder.buildWideHistoryForCharacters(
+                context = context,
+                charProfiles = candidateProfiles,
+                maxContextSize = maxContextSize,
+                playerName = playerRealName
+            )
+            val mergedHistoryText = AiHistoryFormatter.formatHistoryItems(recentMergedHistory)
 
             val personaPrompt = candidates.joinToString("\n\n") { candidate ->
                 val processedPrompt = candidate.profile.prompt
@@ -92,16 +100,6 @@ object TimeSkipEngine {
                     if (candidate.canPostMoment) add("朋友圈动态")
                     if (candidate.canPostTweet) add("推特动态")
                 }.joinToString("、")
-                val recentMerged = ConversationContextBuilder.buildForCharacter(context, candidate.profile, maxContextSize)
-                val memoryText = if (recentMerged.isEmpty()) {
-                    "（暂无共同历史）"
-                } else {
-                    AiHistoryFormatter.formatTimeline(
-                        items = recentMerged,
-                        timestampOf = { it.timestamp },
-                        bodyOf = { msg -> "${msg.senderId}: ${msg.prefix} ${msg.content}" }
-                    )
-                }
                 """
                 角色 ID: ${candidate.characterId}
                 角色名字: ${candidate.profile.name}
@@ -111,8 +109,6 @@ object TimeSkipEngine {
                 推特昵称/用户名: ${candidate.twitterNickname ?: "未开通"}${candidate.twitterUsername?.let { " / @$it" } ?: ""}
                 【人设与作息】
                 $processedPrompt
-                【该角色宽历史记忆】
-                $memoryText
                 """.trimIndent()
             }
 
@@ -153,7 +149,10 @@ object TimeSkipEngine {
                     personaPrompt = personaPrompt,
                     outputRequirement = outputRequirement,
                     jsonStructure = jsonStructure,
-                    historyText = "候选角色的宽历史已分别写在人设提示词中；请结合全部线上/线下/日记/推特/朋友圈历史进行判断。",
+                    historyText = """
+                        【候选角色统一宽历史】
+                        $mergedHistoryText
+                    """.trimIndent(),
                     userInput = userInput,
                     logCharacterName = "时间跳过线上行为模拟器",
                     logUserInput = "跳过区间: $startTimeStr -> $endTimeStr, 用户活动: ${if (userActivity.isBlank()) "无" else userActivity}",

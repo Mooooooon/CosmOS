@@ -2,16 +2,19 @@ package com.moonlib.cosmos.data.chat
 
 import android.content.Context
 import com.moonlib.cosmos.data.ai.AiHistoryFormatter
+import com.moonlib.cosmos.data.ai.AiHistoryItem
+import com.moonlib.cosmos.data.ai.AiHistorySource
 import com.moonlib.cosmos.data.ai.AiJsonSchemaFactory
 import com.moonlib.cosmos.data.ai.AiRequestClient
 import com.moonlib.cosmos.data.ai.AiResponseCleaner
 import com.moonlib.cosmos.data.ai.AiSceneRequest
+import com.moonlib.cosmos.data.context.ConversationContextBuilder
 import com.moonlib.cosmos.data.profile.CharacterProfileRepository
 import com.moonlib.cosmos.data.settings.AiConfigRepository
+import com.moonlib.cosmos.data.settings.AiSettingsRepository
 import com.moonlib.cosmos.data.settings.AiSceneType
 import com.moonlib.cosmos.data.settings.SystemPromptRepository
 import com.moonlib.cosmos.data.time.VirtualTimeManager
-import com.moonlib.cosmos.data.interaction.MergedMessageSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -56,26 +59,24 @@ object ChatEngine {
             throw Exception("激活的 AI 配置文件不完整，请前往【系统设置】检查。")
         }
 
-                // 3. Build system prompt and merge history via AiPromptHelper
-        val (systemPrompt, recentMerged) = AiPromptHelper.buildPromptAndHistory(
+        val promptData = buildChatPromptData(
             context = context,
-            charProfile = charProfile,
-            sceneType = AiSceneType.CHAT,
+            contact = contact,
             chatNickname = contact.nickname,
             chatSignature = contact.signature
         )
+        val recentMerged = promptData.recentMergedHistory
 
-        // Gemini 与 Vertex 都走原生 generateContent，而不是 OpenAI 兼容接口。
-        val historyText = AiHistoryFormatter.formatMergedMessages(recentMerged)
+        val historyText = AiHistoryFormatter.formatHistoryItems(recentMerged)
         val userInputText = recentMerged.lastOrNull { it.senderId == "user" && it.source.isDirectConversation() }?.content ?: ""
         val result = AiRequestClient.execute(
             context = context,
             request = AiSceneRequest(
                 sceneType = AiSceneType.CHAT,
-                systemPrompt = SystemPromptRepository(context).getMainPromptContent(),
-                personaPrompt = systemPrompt.removePrefix(SystemPromptRepository(context).getMainPromptContent()).trim(),
-                outputRequirement = "你当前正在聊天 App 内回复用户。回复必须符合线上远程手机聊天特征：简洁、轻松、口语化，严禁动作括号、emoji、颜文字。",
-                jsonStructure = """{"sender":"${contact.nickname}","replies":[{"type":"text","time":"yyyy-MM-dd HH:mm:ss","content":"回复内容"}]}""",
+                systemPrompt = promptData.systemPrompt,
+                personaPrompt = promptData.personaPrompt,
+                outputRequirement = promptData.outputRequirement,
+                jsonStructure = promptData.jsonStructure,
                 historyText = historyText,
                 userInput = userInputText,
                 logCharacterName = charProfile.name,
@@ -221,7 +222,93 @@ object ChatEngine {
         return list
     }
 
-    private fun MergedMessageSource.isDirectConversation(): Boolean {
-        return this == MergedMessageSource.CHAT || this == MergedMessageSource.INTERACTION
+    private fun AiHistorySource.isDirectConversation(): Boolean {
+        return this == AiHistorySource.CHAT || this == AiHistorySource.INTERACTION
+    }
+
+    private data class ChatPromptData(
+        val systemPrompt: String,
+        val personaPrompt: String,
+        val outputRequirement: String,
+        val jsonStructure: String,
+        val recentMergedHistory: List<AiHistoryItem>
+    )
+
+    private fun buildChatPromptData(
+        context: Context,
+        contact: ChatContact,
+        chatNickname: String,
+        chatSignature: String
+    ): ChatPromptData {
+        val chatRepo = ChatRepository(context)
+        val profileRepo = CharacterProfileRepository(context)
+        val charProfile = profileRepo.getProfiles().firstOrNull { it.id == contact.characterId }
+            ?: throw Exception("关联的角色档案不存在，请检查或重新编辑该联系人资料。")
+        val playerProfile = profileRepo.getProfiles().firstOrNull { it.isPlayer }
+        val userNickname = chatRepo.getUserNickname()
+        val playerRealName = playerProfile?.name ?: userNickname
+        val currentVirtualTime = VirtualTimeManager.formatTime("yyyy-MM-dd HH:mm:ss")
+        val currentVirtualTimeWithWeekday = VirtualTimeManager.formatTime("yyyy-MM-dd HH:mm:ss EEEE")
+        val processedCharPrompt = charProfile.prompt
+            .replace("{{char}}", charProfile.name)
+            .replace("{{user}}", playerRealName)
+        val processedPlayerPrompt = (playerProfile?.prompt ?: "普通用户，无更多公开身份设定。")
+            .replace("{{char}}", charProfile.name)
+            .replace("{{user}}", playerRealName)
+
+        return ChatPromptData(
+            systemPrompt = SystemPromptRepository(context).getMainPromptContent(),
+            personaPrompt = """
+                你现在正在扮演角色【${charProfile.name}】。
+                
+                【角色人设】
+                $processedCharPrompt
+                
+                【用户人设】
+                用户昵称：$userNickname
+                用户真实姓名：$playerRealName
+                $processedPlayerPrompt
+            """.trimIndent(),
+            outputRequirement = """
+                当前场景：线上手机聊天。
+                你正在通过 CosmOS 虚拟手机聊天软件与用户【$userNickname】远程聊天。
+                你的聊天昵称是【$chatNickname】，个性签名是【$chatSignature】。
+                当前虚拟世界时间：$currentVirtualTimeWithWeekday。
+                
+                回复要求：
+                1. 必须百分之百扮演【${charProfile.name}】，不可 OOC。
+                2. 回复应符合手机聊天特征：简洁、轻松、口语化。
+                3. 单次回复 1 到 3 条消息，每条 1 到 3 句话，建议单条不超过 50 字。
+                4. 指代用户/玩家必须使用第二人称“你”，禁止使用“他/她”代指用户。
+                5. 严禁 emoji、颜文字、表情符号和小括号动作描写。
+                6. 可以按情境发送 text、image、video、red_packet、transfer、location 类型消息。
+                7. 不要在 content 中添加 [线上聊天] 等历史前缀。
+            """.trimIndent(),
+            jsonStructure = """
+                {
+                  "sender": "$chatNickname",
+                  "replies": [
+                    {
+                      "type": "text",
+                      "time": "yyyy-MM-dd HH:mm:ss",
+                      "content": "纯聊天文本"
+                    }
+                  ]
+                }
+                
+                约束：
+                - replies 数组包含 1 到 3 条消息。
+                - time 必须晚于当前虚拟时间 $currentVirtualTime，并符合 yyyy-MM-dd HH:mm:ss。
+                - red_packet 的 content 填金额，extra 可填祝福语；transfer 的 content 填金额。
+                - image/video/location 的 content 填画面描述、视频描述或地名。
+                - 只返回纯 JSON，不要 markdown 代码块或解释文本。
+            """.trimIndent(),
+            recentMergedHistory = ConversationContextBuilder.buildWideHistoryForCharacters(
+                context = context,
+                charProfiles = listOf(charProfile),
+                maxContextSize = AiSettingsRepository(context).getMaxContextSize(),
+                playerName = playerRealName
+            )
+        )
     }
 }

@@ -8,13 +8,8 @@ import com.moonlib.cosmos.data.ai.AiResponseCleaner
 import com.moonlib.cosmos.data.ai.AiSceneRequest
 import com.moonlib.cosmos.data.context.ConversationContextBuilder
 import com.moonlib.cosmos.data.profile.CharacterProfileRepository
-import com.moonlib.cosmos.data.settings.AiAuthorizationHeader
-import com.moonlib.cosmos.data.settings.AiChatCompletionResponseParser
 import com.moonlib.cosmos.data.settings.AiConfigRepository
-import com.moonlib.cosmos.data.settings.AiReasoningRequestOptions
-import com.moonlib.cosmos.data.settings.AiServiceType
 import com.moonlib.cosmos.data.settings.AiSceneType
-import com.moonlib.cosmos.data.settings.AiVertexConfig
 import com.moonlib.cosmos.data.settings.SystemPromptRepository
 import com.moonlib.cosmos.data.time.VirtualTimeManager
 import kotlinx.coroutines.CoroutineScope
@@ -23,8 +18,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
 import java.util.UUID
 
 /**
@@ -104,90 +97,37 @@ object TwitterEngine {
             "当前是普通发推或非直接 NPC 互动，请按拟真刷到概率决定是否有人回复。"
         }
 
-        // 3. 构造候选角色的详细性格作息设定与通用上下文（线上聊天/实体互动/日记/推特合并的全局记忆）
+        // 3. 构造候选角色的详细性格作息设定；历史统一放入 historyText
         val charactersInfo = StringBuilder()
         val maxContextSize = com.moonlib.cosmos.data.settings.AiSettingsRepository(context).getMaxContextSize().coerceAtMost(30)
+        val candidateProfiles = mutableListOf<com.moonlib.cosmos.data.profile.CharacterProfile>()
         
         for (fProf in followedProfiles) {
             val systemProf = systemProfiles.firstOrNull { it.id == fProf.characterId } ?: continue
+            candidateProfiles.add(systemProf)
             val promptProcessed = systemProf.prompt
                 .replace("{{char}}", fProf.nickname)
                 .replace("{{user}}", "玩家")
-                
-            // 获取该 NPC 的全局合并通用上下文记忆
-            val recentMerged = ConversationContextBuilder.buildForCharacter(context, systemProf, maxContextSize)
-            val unifiedMemoryText = if (recentMerged.isEmpty()) {
-                "（当前暂无与玩家的共同记忆与沟通历史）"
-            } else {
-                AiHistoryFormatter.formatTimeline(
-                    items = recentMerged,
-                    timestampOf = { it.timestamp },
-                    bodyOf = { msg ->
-                    val senderName = if (msg.senderId == "user") "玩家" else fProf.nickname
-                        "$senderName 的${msg.prefix}: ${msg.content}"
-                    }
-                )
-            }
 
             charactersInfo.append("角色 ID (character_id): ${fProf.characterId}\n")
             charactersInfo.append("推特名字: ${fProf.nickname}\n")
             charactersInfo.append("推特用户名: @${fProf.username}\n")
             charactersInfo.append("个人简介: ${fProf.bio}\n")
             charactersInfo.append("【人设性格作息提示词】：\n$promptProcessed\n")
-            charactersInfo.append("【该角色拥有的最新通用融合记忆（含线上私聊、线下互动、日记及推特动态）】：\n$unifiedMemoryText\n")
             charactersInfo.append("=========================================\n\n")
         }
+        val recentMergedHistory = ConversationContextBuilder.buildWideHistoryForCharacters(
+            context = context,
+            charProfiles = candidateProfiles,
+            maxContextSize = maxContextSize,
+            playerName = "玩家"
+        )
+        val mergedHistoryText = AiHistoryFormatter.formatHistoryItems(recentMergedHistory)
 
         // 4. 获取全局系统提示词基底与 AI 设置
         val systemPromptRepo = SystemPromptRepository(context)
         val mainPrompt = systemPromptRepo.getMainPromptContent()
-        val currentVirtualTimeStr = VirtualTimeManager.formatTime("yyyy-MM-dd HH:mm:ss EEEE")
-
-        // 5. 组装专为推特互动的 System Prompt
-        val systemPrompt = """
-            $mainPrompt
-            
-            【CosmOS 虚拟手机推特（Twitter）盖楼评论系统】
-            你现在正扮演 CosmOS 系统的“推特 AI 仿真互动引擎”。
-            当玩家发送新推文，或者在已有评论区中发表回复后，你需要根据被关注角色的性格特征、彼此关系以及当时的时间，判定哪些人会刷到这条推文并会回复它。她们不仅可以回复原推文，还可能针对彼此的回复进行有趣的“盖楼套娃式互动”。
-            
-            【当前虚拟世界的时间】：$currentVirtualTimeStr
-            
-            【已关注的候选角色列表及其人设设定】：
-            -----------------------------------------
-            $charactersInfo
-            -----------------------------------------
-            
-            【当前推文对话树历史（升序）】：
-            -----------------------------------------
-            $threadTextBuilder
-            -----------------------------------------
-
-            【当前触发场景】：
-            $targetInteractionNote
-            
-            【盖楼决策与回复要求（极其重要）】：
-            1. **拟真盖楼互动**：根据角色性格、作息以及彼此的关系，$replyCountRule
-            2. **文字规范**：消息内容必须控制在 1 到 2 句话内（30字以内），严禁任何 emoji、颜文字或小括号内的动作描写！指代用户必须用第二人称“你”，绝对禁止使用“他”或“她”！
-            3. **层级关系**：回复的 `parent_id` 可以是当前叶子结点推文的 ID （即 `"$tweetId"`），也可以是本组回复中前面那条回复的临时 ID，从而实现“角色互相回复彼此的评论”。
-            4. **时间偏移**：每条回复指定一个 `time_offset_seconds`（在 10 到 120 秒之间，逐渐递增），用来代表真实用户刷推特、打字和发送的时间间隔。
-            
-            【底层通信输出格式】：
-            为了与其他系统集成，你必须以 JSON 格式输出，不要包含任何 markdown 块或额外的解释文本。你的输出必须能够被直接解析为以下 JSON 格式：
-            {
-              "replies": [
-                {
-                  "character_id": "回复角色的 character_id",
-                  "reply_to_username": "正在回复的那个人的推特用户名（不含@，例如 alice_wonderland）",
-                  "content": "这景色真美，我也想去！",
-                  "parent_id": "直接被回复的推文ID（原贴填 $tweetId，如果回复本组里另一个角色的评论，可填其在 replies 中的 index，例如: 'reply_index_0'）",
-                  "time_offset_seconds": 15
-                }
-              ]
-            }
-        """.trimIndent()
-
-        // 6. 发起 AI 请求并获取回复
+        // 5. 发起 AI 请求并获取回复
         val configRepo = AiConfigRepository(context)
         val activeProfile = configRepo.getActiveProfile()
             ?: throw Exception("未检测到激活的 AI 模型。请在【设置】中配置。")
@@ -213,7 +153,16 @@ object TwitterEngine {
                         $replyCountRule 正文必须控制在 1 到 2 句话内，严禁 emoji、颜文字和动作描写，指代用户必须用“你”。
                     """.trimIndent(),
                     jsonStructure = """{"replies":[{"character_id":"回复角色ID","reply_to_username":"被回复用户名","content":"评论内容","parent_id":"$tweetId 或 reply_index_0","time_offset_seconds":15}]}""",
-                    historyText = "【当前推文对话树历史】\n$threadTextBuilder\n\n【当前触发场景】\n$targetInteractionNote",
+                    historyText = """
+                        【候选角色统一宽历史】
+                        $mergedHistoryText
+                        
+                        【当前推文对话树历史】
+                        $threadTextBuilder
+                        
+                        【当前触发场景】
+                        $targetInteractionNote
+                    """.trimIndent(),
                     userInput = "目标推文: ${targetTweet.content}",
                     logCharacterName = "推特AI评论引擎",
                     logUserInput = "目标推文: ${targetTweet.content}",

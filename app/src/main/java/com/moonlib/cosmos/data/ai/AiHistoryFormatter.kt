@@ -27,6 +27,18 @@ object AiHistoryFormatter {
         )
     }
 
+    fun formatHistoryItems(
+        items: List<AiHistoryItem>,
+        timeGroupWindowMillis: Long = DEFAULT_TIME_GROUP_WINDOW_MILLIS
+    ): String {
+        return formatTimeline(
+            items = items,
+            timestampOf = { it.timestamp },
+            bodyOf = { "${it.senderName}: [${it.source.label}] ${it.content}" },
+            timeGroupWindowMillis = timeGroupWindowMillis
+        )
+    }
+
     fun <T> formatTimeline(
         items: List<T>,
         timestampOf: (T) -> Long,
