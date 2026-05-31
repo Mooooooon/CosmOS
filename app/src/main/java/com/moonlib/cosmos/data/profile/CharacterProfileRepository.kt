@@ -141,12 +141,19 @@ class CharacterProfileRepository(private val context: Context) {
     }
 
     private fun parseProfile(json: JSONObject): CharacterProfile {
+        val keywordsArray = json.optJSONArray("keywords")
+        val keywords = if (keywordsArray != null) {
+            (0 until keywordsArray.length()).map { keywordsArray.getString(it) }.filter { it.isNotBlank() }
+        } else {
+            emptyList()
+        }
         return CharacterProfile(
             id = json.getString("id"),
             name = json.getString("name"),
             prompt = json.getString("prompt"),
             isPlayer = json.optBoolean("isPlayer", false),
-            avatar = json.optString("avatar", "")
+            avatar = json.optString("avatar", ""),
+            keywords = keywords
         )
     }
 
@@ -157,6 +164,9 @@ class CharacterProfileRepository(private val context: Context) {
             put("prompt", profile.prompt)
             put("isPlayer", profile.isPlayer)
             put("avatar", profile.avatar)
+            val keywordsArray = JSONArray()
+            profile.keywords.forEach { keywordsArray.put(it) }
+            put("keywords", keywordsArray)
         }
     }
 }

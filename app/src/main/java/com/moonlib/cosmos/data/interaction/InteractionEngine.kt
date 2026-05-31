@@ -13,6 +13,7 @@ import com.moonlib.cosmos.data.chat.ChatRepository
 import com.moonlib.cosmos.data.context.ConversationContextBuilder
 import com.moonlib.cosmos.data.profile.CharacterProfile
 import com.moonlib.cosmos.data.profile.CharacterProfileRepository
+import com.moonlib.cosmos.data.profile.KeywordProfileMatcher
 import com.moonlib.cosmos.data.settings.AiConfigRepository
 import com.moonlib.cosmos.data.settings.AiSettingsRepository
 import com.moonlib.cosmos.data.settings.AiSceneType
@@ -253,6 +254,40 @@ object InteractionEngine {
             .replace("{{user}}", playerRealName)
         val statusPrompt = buildInteractionStatusPrompt(context, charProfile)
 
+        // ── 提前构建 wide history，供关键词匹配和后续 Prompt 组装共用 ──
+        val recentMergedHistory = ConversationContextBuilder.buildWideHistoryForCharacters(
+            context = context,
+            charProfiles = listOf(charProfile),
+            maxContextSize = AiSettingsRepository(context).getMaxContextSize(),
+            playerName = playerRealName
+        )
+
+        // ── 关键词匹配：从最近 5 条用户输入中检测是否提及其他角色 ──
+        val interactionRepo = InteractionRepository(context)
+        // 从互动履历读取最近用户输入（已入库的消息）
+        val savedUserInputs = interactionRepo.getMessages(charProfile.id)
+            .filter { it.senderId == "user" }
+            .takeLast(5)
+            .map { it.content }
+        // 同时将 wide history 里最近的用户输入并入，确保当次传入的新消息也能被检测到
+        val latestUserInputFromHistory = recentMergedHistory
+            .lastOrNull { it.senderId == "user" && it.source.isDirectConversation() }
+            ?.content
+        val recentUserInputs = (savedUserInputs + listOfNotNull(latestUserInputFromHistory)).distinct()
+        val allProfiles = profileRepo.getProfiles()
+        // 候选池：排除当前主角和 player，不再对 keywords 是否为空做限制（由 match 内部统一判断）
+        val candidateProfiles = allProfiles.filter { p ->
+            p.id != charProfile.id && !p.isPlayer
+        }
+        val mentionedProfiles = KeywordProfileMatcher.match(
+            recentUserInputs = recentUserInputs,
+            candidateProfiles = candidateProfiles
+        )
+        val mentionedPersonaAppend = KeywordProfileMatcher.buildAppendedPersonaText(
+            matchedProfiles = mentionedProfiles,
+            playerRealName = playerRealName
+        )
+
         return InteractionPromptData(
             systemPrompt = SystemPromptRepository(context).getMainPromptContent(),
             personaPrompt = """
@@ -265,7 +300,7 @@ object InteractionEngine {
                 用户昵称：$userNickname
                 用户真实姓名：$playerRealName
                 $processedPlayerPrompt
-            """.trimIndent(),
+            """.trimIndent() + mentionedPersonaAppend,
             outputRequirement = """
                 当前场景：线下面对面实体互动。
                 你正在与用户【$playerRealName】进行实体互动，而不是手机聊天。
@@ -300,12 +335,7 @@ object InteractionEngine {
                 - 只返回纯 JSON，不要 markdown 代码块或解释文本。
             """.trimIndent(),
             statusPrompt = statusPrompt,
-            recentMergedHistory = ConversationContextBuilder.buildWideHistoryForCharacters(
-                context = context,
-                charProfiles = listOf(charProfile),
-                maxContextSize = AiSettingsRepository(context).getMaxContextSize(),
-                playerName = playerRealName
-            )
+            recentMergedHistory = recentMergedHistory
         )
     }
 

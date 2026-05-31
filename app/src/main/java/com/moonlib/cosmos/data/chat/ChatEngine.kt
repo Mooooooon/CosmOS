@@ -10,6 +10,7 @@ import com.moonlib.cosmos.data.ai.AiResponseCleaner
 import com.moonlib.cosmos.data.ai.AiSceneRequest
 import com.moonlib.cosmos.data.context.ConversationContextBuilder
 import com.moonlib.cosmos.data.profile.CharacterProfileRepository
+import com.moonlib.cosmos.data.profile.KeywordProfileMatcher
 import com.moonlib.cosmos.data.settings.AiConfigRepository
 import com.moonlib.cosmos.data.settings.AiSettingsRepository
 import com.moonlib.cosmos.data.settings.AiSceneType
@@ -256,6 +257,34 @@ object ChatEngine {
             .replace("{{char}}", charProfile.name)
             .replace("{{user}}", playerRealName)
 
+        // ── 提前构建 wide history，供关键词匹配和后续 Prompt 组装共用 ──
+        val recentMergedHistory = ConversationContextBuilder.buildWideHistoryForCharacters(
+            context = context,
+            charProfiles = listOf(charProfile),
+            maxContextSize = AiSettingsRepository(context).getMaxContextSize(),
+            playerName = playerRealName
+        )
+
+        // ── 关键词匹配：从最近用户输入中检测是否提及其他角色 ──
+        val savedChatUserInputs = chatRepo.getMessages(contact.id)
+            .filter { it.senderId == "user" }
+            .takeLast(5)
+            .map { it.content }
+        val latestUserInputFromHistory = recentMergedHistory
+            .lastOrNull { it.senderId == "user" && it.source.isDirectConversation() }
+            ?.content
+        val recentUserInputsForKeyword = (savedChatUserInputs + listOfNotNull(latestUserInputFromHistory)).distinct()
+        val candidateProfilesForKeyword = profileRepo.getProfiles().filter { p ->
+            p.id != charProfile.id && !p.isPlayer
+        }
+        val mentionedPersonaAppend = KeywordProfileMatcher.buildAppendedPersonaText(
+            matchedProfiles = KeywordProfileMatcher.match(
+                recentUserInputs = recentUserInputsForKeyword,
+                candidateProfiles = candidateProfilesForKeyword
+            ),
+            playerRealName = playerRealName
+        )
+
         return ChatPromptData(
             systemPrompt = SystemPromptRepository(context).getMainPromptContent(),
             personaPrompt = """
@@ -268,7 +297,7 @@ object ChatEngine {
                 用户昵称：$userNickname
                 用户真实姓名：$playerRealName
                 $processedPlayerPrompt
-            """.trimIndent(),
+            """.trimIndent() + mentionedPersonaAppend,
             outputRequirement = """
                 当前场景：线上手机聊天。
                 你正在通过 CosmOS 虚拟手机聊天软件与用户【$userNickname】远程聊天。
@@ -303,12 +332,7 @@ object ChatEngine {
                 - image/video/location 的 content 填画面描述、视频描述或地名。
                 - 只返回纯 JSON，不要 markdown 代码块或解释文本。
             """.trimIndent(),
-            recentMergedHistory = ConversationContextBuilder.buildWideHistoryForCharacters(
-                context = context,
-                charProfiles = listOf(charProfile),
-                maxContextSize = AiSettingsRepository(context).getMaxContextSize(),
-                playerName = playerRealName
-            )
+            recentMergedHistory = recentMergedHistory
         )
     }
 }

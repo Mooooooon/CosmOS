@@ -59,10 +59,12 @@ fun ProfileEditScreen(
     val repository = remember { CharacterProfileRepository(context) }
     val targetProfileId = remember { initialProfile?.id ?: UUID.randomUUID().toString() }
 
-    // ── 核心输入状态 ──────────────────────────────────────────
+    // ── 核心输入状态 ──────────────────────────────────────────────
     var name by remember { mutableStateOf(initialProfile?.name ?: "") }
     var prompt by remember { mutableStateOf(initialProfile?.prompt ?: "") }
     var avatarPath by remember { mutableStateOf(initialProfile?.avatar ?: "") }
+    // 关键词列表以逗号分隔的字符串形式展示，保存时拆分为列表
+    var keywordsText by remember { mutableStateOf(initialProfile?.keywords?.joinToString(", ") ?: "") }
 
     // ── 对话框显示状态 ────────────────────────────────────────
     var showDiscardDialog by remember { mutableStateOf(false) }
@@ -82,11 +84,12 @@ fun ProfileEditScreen(
     }
 
     // ── 检查是否有未保存的改动 ────────────────────────────────
-    val hasChanges = remember(name, prompt, avatarPath, initialProfile) {
+    val hasChanges = remember(name, prompt, avatarPath, keywordsText, initialProfile) {
         val originalName = initialProfile?.name ?: ""
         val originalPrompt = initialProfile?.prompt ?: ""
         val originalAvatar = initialProfile?.avatar ?: ""
-        name != originalName || prompt != originalPrompt || avatarPath != originalAvatar
+        val originalKeywords = initialProfile?.keywords?.joinToString(", ") ?: ""
+        name != originalName || prompt != originalPrompt || avatarPath != originalAvatar || keywordsText != originalKeywords
     }
 
     // 物理返回键安全拦截
@@ -288,6 +291,39 @@ fun ProfileEditScreen(
                             )
                         }
                     }
+
+                    // ── 关键词输入（仅非玩家角色显示） ──────────────────
+                    if (!isPlayer) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                text = "关键词",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                                modifier = Modifier.padding(bottom = 6.dp)
+                            )
+                            OutlinedTextField(
+                                value = keywordsText,
+                                onValueChange = { keywordsText = it },
+                                label = { Text("称呼 / 外号（逗号分隔）") },
+                                placeholder = { Text("如：小美, meimei, 美美姐，多个用逗号分隔") },
+                                singleLine = true,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                                    focusedLabelColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Text(
+                                text = "当用户在互动/日记中提到这些关键词时，该角色人设会被自动提供给 AI。",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                    }
                 }
             }
 
@@ -295,12 +331,17 @@ fun ProfileEditScreen(
             Button(
                 onClick = {
                     if (isFormValid) {
+                        val keywords = keywordsText
+                            .split(",", "，")
+                            .map { it.trim() }
+                            .filter { it.isNotBlank() }
                         val finalProfile = CharacterProfile(
                             id = targetProfileId,
                             name = name.trim(),
                             prompt = prompt.trim(),
                             isPlayer = isPlayer,
-                            avatar = avatarPath
+                            avatar = avatarPath,
+                            keywords = keywords
                         )
                         onSaveClick(finalProfile)
                     }

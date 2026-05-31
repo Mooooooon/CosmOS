@@ -10,6 +10,7 @@ import com.moonlib.cosmos.data.ai.AiStatusUpdater
 import com.moonlib.cosmos.data.context.ConversationContextBuilder
 import com.moonlib.cosmos.data.chat.ChatRepository
 import com.moonlib.cosmos.data.profile.CharacterProfileRepository
+import com.moonlib.cosmos.data.profile.KeywordProfileMatcher
 import com.moonlib.cosmos.data.settings.AiSettingsRepository
 import com.moonlib.cosmos.data.settings.AiConfigRepository
 import com.moonlib.cosmos.data.settings.AiSceneType
@@ -102,6 +103,21 @@ object DiaryEngine {
             .replace("{{char}}", characterProfiles.firstOrNull()?.name ?: "角色")
             .replace("{{user}}", playerRealName)
 
+        // ── 关键词匹配：检测当次 playerInput 是否提及未参与的其他角色 ──
+        val involvedSet = involvedCharacterIds.toSet()
+        val keywordCandidates = profileRepo.getProfiles().filter { p ->
+            p.id !in involvedSet && !p.isPlayer
+        }
+        val mentionedProfiles = KeywordProfileMatcher.match(
+            recentUserInputs = listOf(playerInput),
+            candidateProfiles = keywordCandidates,
+            recentCount = 1
+        )
+        val mentionedPersonaAppend = KeywordProfileMatcher.buildAppendedPersonaText(
+            matchedProfiles = mentionedProfiles,
+            playerRealName = playerRealName
+        )
+
         // 状态卡组装（共用词条与角色实时状态）
         val diaryStatusCardEnabled = interactionSettingsRepo.isDiaryStatusCardEnabled()
         val statusKeys = interactionSettingsRepo.getStatusKeys()
@@ -161,7 +177,7 @@ object DiaryEngine {
                     
                     【当前虚拟世界的时间】
                     $currentVirtualTimeStr
-                """.trimIndent(),
+                """.trimIndent() + mentionedPersonaAppend,
                 outputRequirement = """
                     你现在是一位负责推进剧情的叙事大师，掌控这个虚拟世界中参演角色的行动与感受。
                     玩家给出了一个剧情引子，你需要将其扩展为一段正在发生的线下场景剧情，而不是事后回顾或日记总结。
