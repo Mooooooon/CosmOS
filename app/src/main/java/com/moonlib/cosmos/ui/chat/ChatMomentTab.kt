@@ -38,6 +38,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
+import kotlinx.coroutines.launch
 
 /**
  * 聊天 App 内朋友圈动态 Tab 页面
@@ -158,8 +159,10 @@ fun MomentPublishCard(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var isExpanded by remember { mutableStateOf(false) }
     var textInput by remember { mutableStateOf("") }
+    var isPublishing by remember { mutableStateOf(false) }
 
     // 模拟附件状态
     var simulatedPhotoDesc by remember { mutableStateOf<String?>(null) }
@@ -239,6 +242,7 @@ fun MomentPublishCard(
                 OutlinedTextField(
                     value = textInput,
                     onValueChange = { textInput = it },
+                    enabled = !isPublishing,
                     placeholder = {
                         Text(
                             text = "今天有什么好玩的？发条动态吧...",
@@ -282,7 +286,10 @@ fun MomentPublishCard(
                                 Text("照片附件", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                 Text(desc, color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp, fontStyle = FontStyle.Italic, maxLines = 1)
                             }
-                            IconButton(onClick = { simulatedPhotoDesc = null }) {
+                            IconButton(
+                                onClick = { simulatedPhotoDesc = null },
+                                enabled = !isPublishing
+                            ) {
                                 Icon(Icons.Default.Close, contentDescription = "删除", tint = Color.White.copy(alpha = 0.5f))
                             }
                         }
@@ -312,7 +319,10 @@ fun MomentPublishCard(
                                 Text("视频附件", color = MaterialTheme.colorScheme.secondary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                 Text(desc, color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp, fontStyle = FontStyle.Italic, maxLines = 1)
                             }
-                            IconButton(onClick = { simulatedVideoDesc = null }) {
+                            IconButton(
+                                onClick = { simulatedVideoDesc = null },
+                                enabled = !isPublishing
+                            ) {
                                 Icon(Icons.Default.Close, contentDescription = "删除", tint = Color.White.copy(alpha = 0.5f))
                             }
                         }
@@ -331,9 +341,13 @@ fun MomentPublishCard(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         TextButton(
                             onClick = { showPhotoDialog = true },
+                            enabled = !isPublishing,
                             colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary),
                             shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+                            modifier = Modifier.background(
+                                if (isPublishing) MaterialTheme.colorScheme.primary.copy(alpha = 0.03f)
+                                else MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+                            )
                         ) {
                             Icon(Icons.Default.Image, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
@@ -342,9 +356,13 @@ fun MomentPublishCard(
 
                         TextButton(
                             onClick = { showVideoDialog = true },
+                            enabled = !isPublishing,
                             colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.secondary),
                             shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.08f))
+                            modifier = Modifier.background(
+                                if (isPublishing) MaterialTheme.colorScheme.secondary.copy(alpha = 0.03f)
+                                else MaterialTheme.colorScheme.secondary.copy(alpha = 0.08f)
+                            )
                         ) {
                             Icon(Icons.Default.PlayCircle, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
@@ -354,52 +372,78 @@ fun MomentPublishCard(
 
                     // 右侧：取消 + 发布
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        TextButton(onClick = {
-                            isExpanded = false
-                            textInput = ""
-                            simulatedPhotoDesc = null
-                            simulatedVideoDesc = null
-                        }) {
+                        TextButton(
+                            onClick = {
+                                isExpanded = false
+                                textInput = ""
+                                simulatedPhotoDesc = null
+                                simulatedVideoDesc = null
+                            },
+                            enabled = !isPublishing
+                        ) {
                             Text("取消", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), fontSize = 12.sp)
                         }
 
                         val canPublish = textInput.trim().isNotBlank() || simulatedPhotoDesc != null || simulatedVideoDesc != null
                         Button(
                             onClick = {
-                                val currentVirtualTime = VirtualTimeManager.getCurrentTimeMillis()
-                                val momentId = UUID.randomUUID().toString()
+                                scope.launch {
+                                    isPublishing = true
+                                    try {
+                                        val currentVirtualTime = VirtualTimeManager.getCurrentTimeMillis()
+                                        val momentId = UUID.randomUUID().toString()
 
-                                val photoVal = simulatedPhotoDesc?.let { "simulated_image:$it" }
-                                val videoVal = simulatedVideoDesc?.let { "simulated_video:$it" }
+                                        val photoVal = simulatedPhotoDesc?.let { "simulated_image:$it" }
+                                        val videoVal = simulatedVideoDesc?.let { "simulated_video:$it" }
 
-                                val moment = Moment(
-                                    id = momentId,
-                                    authorId = "user",
-                                    content = textInput.trim(),
-                                    imagePath = photoVal,
-                                    videoPath = videoVal,
-                                    timestamp = currentVirtualTime,
-                                    parentId = null
-                                )
+                                        val moment = Moment(
+                                            id = momentId,
+                                            authorId = "user",
+                                            content = textInput.trim(),
+                                            imagePath = photoVal,
+                                            videoPath = videoVal,
+                                            timestamp = currentVirtualTime,
+                                            parentId = null
+                                        )
 
-                                repository.saveMoment(moment)
+                                        repository.saveMoment(moment)
 
-                                // 异步触发 NPC 脑洞大开地自动盖楼回复
-                                MomentEngine.triggerNpcRepliesAsync(context, momentId)
+                                        // 同步触发 NPC 脑洞大开地自动盖楼回复，等待生成完毕
+                                        MomentEngine.checkAndGenerateNpcReplies(context, momentId)
 
-                                // 重置状态
-                                textInput = ""
-                                simulatedPhotoDesc = null
-                                simulatedVideoDesc = null
-                                isExpanded = false
-
-                                onPublishSuccess()
+                                        // 重置状态
+                                        textInput = ""
+                                        simulatedPhotoDesc = null
+                                        simulatedVideoDesc = null
+                                        isExpanded = false
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
+                                    } finally {
+                                        isPublishing = false
+                                        onPublishSuccess()
+                                    }
+                                }
                             },
-                            enabled = canPublish,
+                            enabled = canPublish && !isPublishing,
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                         ) {
-                            Text("发布", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                if (isPublishing) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(14.dp),
+                                        color = Color.White,
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("发送中...", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                } else {
+                                    Text("发布", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
                         }
                     }
                 }

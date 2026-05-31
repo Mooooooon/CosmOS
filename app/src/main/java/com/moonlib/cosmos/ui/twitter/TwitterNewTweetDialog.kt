@@ -30,6 +30,7 @@ import com.moonlib.cosmos.data.twitter.TwitterEngine
 import com.moonlib.cosmos.data.twitter.TwitterRepository
 import java.io.File
 import java.util.UUID
+import kotlinx.coroutines.launch
 
 /**
  * 悬浮写推特弹窗组件
@@ -45,6 +46,7 @@ fun TwitterNewTweetDialog(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var textInput by remember { mutableStateOf("") }
     var selectedImagePath by remember { mutableStateOf<String?>(null) }
     var isPublishing by remember { mutableStateOf(false) }
@@ -67,7 +69,7 @@ fun TwitterNewTweetDialog(
     }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isPublishing) onDismiss() },
         title = {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -80,7 +82,11 @@ fun TwitterNewTweetDialog(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) {
+                IconButton(
+                    onClick = { if (!isPublishing) onDismiss() },
+                    enabled = !isPublishing,
+                    modifier = Modifier.size(24.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "关闭",
@@ -98,6 +104,7 @@ fun TwitterNewTweetDialog(
                 OutlinedTextField(
                     value = textInput,
                     onValueChange = { if (it.length <= characterLimit) textInput = it },
+                    enabled = !isPublishing,
                     placeholder = {
                         Text(
                             text = "今天有什么好玩的？发条推特吧...",
@@ -126,10 +133,12 @@ fun TwitterNewTweetDialog(
                     // 添加图片动作按钮
                     IconButton(
                         onClick = { imagePickerLauncher.launch("image/*") },
+                        enabled = !isPublishing,
                         modifier = Modifier
                             .size(36.dp)
                             .background(
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                                if (isPublishing) MaterialTheme.colorScheme.primary.copy(alpha = 0.02f)
+                                else MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
                                 RoundedCornerShape(8.dp)
                             )
                     ) {
@@ -184,6 +193,7 @@ fun TwitterNewTweetDialog(
                             )
                             IconButton(
                                 onClick = { selectedImagePath = null },
+                                enabled = !isPublishing,
                                 modifier = Modifier
                                     .padding(6.dp)
                                     .size(24.dp)
@@ -207,26 +217,32 @@ fun TwitterNewTweetDialog(
                     val contentText = textInput.trim()
                     if (contentText.isBlank()) return@Button
 
-                    isPublishing = true
-                    val currentVirtualTime = VirtualTimeManager.getCurrentTimeMillis()
-                    val newTweetUuid = UUID.randomUUID().toString()
+                    scope.launch {
+                        isPublishing = true
+                        try {
+                            val currentVirtualTime = VirtualTimeManager.getCurrentTimeMillis()
+                            val newTweetUuid = UUID.randomUUID().toString()
 
-                    val tweet = Tweet(
-                        id = newTweetUuid,
-                        authorId = "user",
-                        content = contentText,
-                        imagePath = selectedImagePath,
-                        timestamp = currentVirtualTime,
-                        parentId = null
-                    )
-                    
-                    repository.saveTweet(tweet)
+                            val tweet = Tweet(
+                                id = newTweetUuid,
+                                authorId = "user",
+                                content = contentText,
+                                imagePath = selectedImagePath,
+                                timestamp = currentVirtualTime,
+                                parentId = null
+                            )
+                            
+                            repository.saveTweet(tweet)
 
-                    // 异步触发已关注 NPC 盖楼讨论
-                    TwitterEngine.triggerNpcRepliesAsync(context, newTweetUuid)
-
-                    isPublishing = false
-                    onPublishSuccess()
+                            // 同步触发已关注 NPC 盖楼讨论，等待生成完毕
+                            TwitterEngine.checkAndGenerateNpcReplies(context, newTweetUuid)
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        } finally {
+                            isPublishing = false
+                            onPublishSuccess()
+                        }
+                    }
                 },
                 enabled = textInput.trim().isNotBlank() && !isPublishing,
                 shape = RoundedCornerShape(10.dp),
@@ -234,14 +250,21 @@ fun TwitterNewTweetDialog(
                     containerColor = MaterialTheme.colorScheme.primary
                 )
             ) {
-                if (isPublishing) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp,
-                        color = Color.White
-                    )
-                } else {
-                    Text("发布推特", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    if (isPublishing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(14.dp),
+                            strokeWidth = 2.dp,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("发送中...", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    } else {
+                        Text("发布推特", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         },
