@@ -179,8 +179,23 @@ object ConversationContextBuilder {
 
     private fun Moment.isRelevantTo(involvedCharacterIds: Set<String>, momentById: Map<String, Moment>): Boolean {
         if (authorId in involvedCharacterIds) return true
-        val parent = parentId?.let { momentById[it] }
-        return parent?.authorId in involvedCharacterIds
+        return hasAncestorByAuthor(involvedCharacterIds, momentById)
+    }
+
+    private fun Moment.hasAncestorByAuthor(
+        authorIds: Set<String>,
+        momentById: Map<String, Moment>
+    ): Boolean {
+        val visited = mutableSetOf<String>()
+        var currentParentId = parentId
+
+        while (currentParentId != null && visited.add(currentParentId)) {
+            val parent = momentById[currentParentId] ?: return false
+            if (parent.authorId in authorIds) return true
+            currentParentId = parent.parentId
+        }
+
+        return false
     }
 
     private fun Moment.formatForHistory(
