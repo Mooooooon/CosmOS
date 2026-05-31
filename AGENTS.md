@@ -30,15 +30,22 @@ E:\Android\CosmOS
 │       │   ├── java\com\moonlib\cosmos
 │       │   │   ├── MainActivity.kt
 │       │   │   ├── data
-│       │   │   │   ├── context
-│       │   │   │   │   └── ConversationContextBuilder.kt
 │       │   │   │   ├── chat
 │       │   │   │   │   ├── AiChatResponse.kt
 │       │   │   │   │   ├── AiPromptHelper.kt
 │       │   │   │   │   ├── ChatContact.kt
 │       │   │   │   │   ├── ChatEngine.kt
 │       │   │   │   │   ├── ChatMessage.kt
-│       │   │   │   │   └── ChatRepository.kt
+│       │   │   │   │   ├── ChatRepository.kt
+│       │   │   │   │   ├── Moment.kt
+│       │   │   │   │   ├── MomentEngine.kt
+│       │   │   │   │   └── MomentRepository.kt
+│       │   │   │   ├── context
+│       │   │   │   │   └── ConversationContextBuilder.kt
+│       │   │   │   ├── diary
+│       │   │   │   │   ├── DiaryEngine.kt
+│       │   │   │   │   ├── DiaryEntry.kt
+│       │   │   │   │   └── DiaryRepository.kt
 │       │   │   │   ├── interaction
 │       │   │   │   │   ├── InteractionEngine.kt
 │       │   │   │   │   ├── InteractionMessage.kt
@@ -51,10 +58,11 @@ E:\Android\CosmOS
 │       │   │   │   │   └── CharacterProfileRepository.kt
 │       │   │   │   ├── settings
 │       │   │   │   │   ├── AiAuthorizationHeader.kt
-│       │   │   │   │   ├── AiReasoningRequestOptions.kt
+│       │   │   │   │   ├── AiChatCompletionResponseParser.kt
 │       │   │   │   │   ├── AiConfigRepository.kt
 │       │   │   │   │   ├── AiLogRepository.kt
 │       │   │   │   │   ├── AiProfile.kt
+│       │   │   │   │   ├── AiReasoningRequestOptions.kt
 │       │   │   │   │   ├── AiSceneType.kt
 │       │   │   │   │   ├── AiSettingsRepository.kt
 │       │   │   │   │   ├── AiThinkingLevel.kt
@@ -64,17 +72,24 @@ E:\Android\CosmOS
 │       │   │   │   │   ├── SystemPromptRepository.kt
 │       │   │   │   │   └── ThemeSettingsRepository.kt
 │       │   │   │   ├── time
+│       │   │   │   │   ├── TimeSkipEngine.kt
 │       │   │   │   │   └── VirtualTimeManager.kt
-│       │   │   │   └── diary
-│       │   │   │       ├── DiaryEngine.kt
-│       │   │   │       ├── DiaryEntry.kt
-│       │   │   │       └── DiaryRepository.kt
+│       │   │   │   └── twitter
+│       │   │   │       ├── Tweet.kt
+│       │   │   │       ├── TwitterEngine.kt
+│       │   │   │       ├── TwitterProfile.kt
+│       │   │   │       └── TwitterRepository.kt
 │       │   │   ├── ui
 │       │   │   │   ├── chat
 │       │   │   │   │   ├── AvatarComponents.kt
 │       │   │   │   │   ├── ChatAppScreen.kt
+│       │   │   │   │   ├── ChatAttachmentPanel.kt
 │       │   │   │   │   ├── ChatConversationScreen.kt
 │       │   │   │   │   ├── ChatMainScreen.kt
+│       │   │   │   │   ├── ChatMomentTab.kt
+│       │   │   │   │   ├── ChatMomentThreadScreen.kt
+│       │   │   │   │   ├── ChatReplyRevealAnimator.kt
+│       │   │   │   │   ├── ChatSpecialMessageBubbles.kt
 │       │   │   │   │   ├── ContactEditScreen.kt
 │       │   │   │   │   ├── ContactInfoCardScreen.kt
 │       │   │   │   │   ├── ContactListTab.kt
@@ -88,6 +103,8 @@ E:\Android\CosmOS
 │       │   │   │   │   ├── DesktopClock.kt
 │       │   │   │   │   ├── DesktopScreen.kt
 │       │   │   │   │   └── VirtualStatusBar.kt
+│       │   │   │   ├── diary
+│       │   │   │   │   └── DiaryAppScreen.kt
 │       │   │   │   ├── interaction
 │       │   │   │   │   ├── InteractionAppScreen.kt
 │       │   │   │   │   ├── InteractionConversationScreen.kt
@@ -111,16 +128,21 @@ E:\Android\CosmOS
 │       │   │   │   │   ├── SettingsMainScreen.kt
 │       │   │   │   │   ├── SystemPromptEditScreen.kt
 │       │   │   │   │   ├── SystemPromptListScreen.kt
-│       │   │   │   │   ├── ThinkingLevelSelector.kt
-│       │   │   │   │   └── ThemeSettingsScreen.kt
+│       │   │   │   │   ├── ThemeSettingsScreen.kt
+│       │   │   │   │   └── ThinkingLevelSelector.kt
 │       │   │   │   ├── theme
 │       │   │   │   │   ├── Color.kt
 │       │   │   │   │   ├── Theme.kt
 │       │   │   │   │   └── Type.kt
 │       │   │   │   ├── time
 │       │   │   │   │   └── TimeAppScreen.kt
-│       │   │   │   └── diary
-│       │   │   │       └── DiaryAppScreen.kt
+│       │   │   │   └── twitter
+│       │   │   │       ├── TwitterAppScreen.kt
+│       │   │   │       ├── TwitterDiscoverTab.kt
+│       │   │   │       ├── TwitterNewTweetDialog.kt
+│       │   │   │       ├── TwitterProfileEditScreen.kt
+│       │   │   │       ├── TwitterThreadScreen.kt
+│       │   │   │       └── TwitterTimelineTab.kt
 │       │   │   └── utils
 │       │   │       └── ImageUtils.kt
 │       │   └── res
@@ -146,27 +168,45 @@ E:\Android\CosmOS
 ## 结构说明
 
 - `app/src/main/java/com/moonlib/cosmos/MainActivity.kt`：应用入口 Activity，全局主题注入处。
-- `app/src/main/java/com/moonlib/cosmos/data/chat`：聊天联系人、消息模型、AI 回复解析、提示词辅助与聊天引擎 / 仓库。
-- `app/src/main/java/com/moonlib/cosmos/data/context`：跨聊天、互动、日记的融合上下文构建与裁剪逻辑。
-- `app/src/main/java/com/moonlib/cosmos/data/interaction`：互动消息、消息合并、互动配置、互动仓库与互动引擎。
+- `app/src/main/java/com/moonlib/cosmos/data/chat`：聊天联系人、消息模型、AI 回复解析、聊天提示词辅助、聊天引擎 / 仓库，以及朋友圈动态模型、生成引擎与持久化仓库。
+- `app/src/main/java/com/moonlib/cosmos/data/context`：跨聊天、互动、日记等场景的融合上下文构建与裁剪逻辑。
+- `app/src/main/java/com/moonlib/cosmos/data/interaction`：互动消息、消息合并、互动配置、互动仓库与互动生成引擎。
 - `app/src/main/java/com/moonlib/cosmos/data/profile`：角色档案模型、AI 档案生成与档案持久化仓库。
-- `app/src/main/java/com/moonlib/cosmos/data/settings`：AI 服务配置、模型参数、Vertex 认证与端点解析、思考等级请求参数转换、模型列表缓存、日志、存档、系统提示词与主题配置持久化仓库。
-- `app/src/main/java/com/moonlib/cosmos/data/time`：虚拟时间状态与推进逻辑。
+- `app/src/main/java/com/moonlib/cosmos/data/settings`：AI 服务配置、模型参数、响应解析、授权头、Vertex 认证与端点解析、思考等级请求参数转换、模型列表缓存、日志、存档、系统提示词与主题配置持久化仓库。
+- `app/src/main/java/com/moonlib/cosmos/data/time`：虚拟时间状态、推进逻辑与基于时间跳过的内容生成编排。
 - `app/src/main/java/com/moonlib/cosmos/data/diary`：日记数据模型、多槽存档隔离日记仓库与日记 AI 生成引擎。
-- `app/src/main/java/com/moonlib/cosmos/ui/chat`：聊天应用入口、会话页、联系人列表、消息列表、联系人编辑与头像组件。
+- `app/src/main/java/com/moonlib/cosmos/data/twitter`：推特式动态的数据模型、用户资料、持久化仓库与 AI 生成引擎。
+- `app/src/main/java/com/moonlib/cosmos/ui/chat`：聊天应用入口、主列表、会话页、附件面板、朋友圈列表 / 详情、特殊消息气泡、联系人编辑、联系人信息卡、头像组件与回复揭示动效。
 - `app/src/main/java/com/moonlib/cosmos/ui/common`：跨界面复用的通用 UI / Insets 工具。
-- `app/src/main/java/com/moonlib/cosmos/ui/desktop`：桌面主界面相关 UI 组件与自适应壁纸。
+- `app/src/main/java/com/moonlib/cosmos/ui/desktop`：桌面主界面、应用网格、应用图标、桌面时钟、虚拟状态栏与自适应壁纸。
 - `app/src/main/java/com/moonlib/cosmos/ui/interaction`：互动应用入口、互动列表、互动会话与互动设置界面。
 - `app/src/main/java/com/moonlib/cosmos/ui/profile`：角色档案应用入口、档案列表、档案编辑、AI 灵感输入与档案界面状态。
 - `app/src/main/java/com/moonlib/cosmos/ui/settings`：设置入口、AI 聊天设置、模型服务配置、服务商选择、模型选择、思考等级选择、日志、存档、系统提示词与主题配置界面。
 - `app/src/main/java/com/moonlib/cosmos/ui/theme`：Compose 主题、配色集（深浅双色板）与 CompositionLocal 定义。
 - `app/src/main/java/com/moonlib/cosmos/ui/time`：虚拟时间应用界面。
 - `app/src/main/java/com/moonlib/cosmos/ui/diary`：日记应用入口、信纸流卡片、参与人 @ 多选与独立状态卡渲染界面。
+- `app/src/main/java/com/moonlib/cosmos/ui/twitter`：推特式动态应用入口、时间线、发现页、发帖弹窗、资料编辑与帖子详情线程界面。
 - `app/src/main/java/com/moonlib/cosmos/utils`：跨层级复用的工具函数。
 - `app/src/main/res`：Android 资源文件。
 - `app/src/test`：本地单元测试。
 - `app/src/androidTest`：Android 仪器测试。
 - `gradle`：Gradle Wrapper 与版本目录配置。
+
+## 拆分评估
+
+当前文件拆分总体已经比“单文件堆叠”健康，但存在若干后续维护风险。以下文件体量较大，新增功能前应优先评估职责边界，避免继续追加新逻辑：
+
+- `app/src/main/java/com/moonlib/cosmos/ui/diary/DiaryAppScreen.kt`：约 780 行，建议按日记列表、输入 / 参与人选择、日记卡片、状态提示与弹窗拆成同包 UI 组件文件。
+- `app/src/main/java/com/moonlib/cosmos/ui/chat/ChatConversationScreen.kt`：约 764 行，建议拆出消息输入区、消息列表容器、顶部栏、发送状态与会话副作用处理。
+- `app/src/main/java/com/moonlib/cosmos/ui/interaction/InteractionConversationScreen.kt`：约 762 行，建议拆出互动消息列表、输入区、角色选择 / 状态区与生成流程 UI。
+- `app/src/main/java/com/moonlib/cosmos/ui/chat/ChatMomentTab.kt`：约 746 行，建议拆出动态列表项、发布入口、互动操作区与加载 / 空状态。
+- `app/src/main/java/com/moonlib/cosmos/ui/settings/AiLogsScreen.kt`：约 638 行，建议拆出日志列表、筛选 / 操作区、详情弹窗与格式化展示。
+- `app/src/main/java/com/moonlib/cosmos/ui/chat/ChatSpecialMessageBubbles.kt`：约 632 行，建议按特殊消息类型拆分气泡组件，保留统一入口负责分发。
+- `app/src/main/java/com/moonlib/cosmos/ui/time/TimeAppScreen.kt`：约 594 行，建议拆出时间显示、推进控制、结果展示与历史状态区域。
+- `app/src/main/java/com/moonlib/cosmos/data/interaction/InteractionEngine.kt`、`app/src/main/java/com/moonlib/cosmos/data/twitter/TwitterEngine.kt`、`app/src/main/java/com/moonlib/cosmos/data/diary/DiaryEngine.kt`、`app/src/main/java/com/moonlib/cosmos/data/chat/ChatEngine.kt`：均超过 500 行或接近该规模，后续新增生成逻辑时应优先拆出请求构建、上下文组装、响应解析与结果落库协调。
+- `app/src/main/java/com/moonlib/cosmos/data/time/TimeSkipEngine.kt`：约 457 行但承担跨聊天、互动、日记、朋友圈 / 推特等编排职责，建议后续按目标场景拆出独立生成器或协调器。
+
+拆分时不建议机械按行数切分。优先按“可命名的职责”拆分：可复用 UI 组件、页面状态、弹窗、列表项、AI 请求构建、响应解析、仓库写入编排分别形成清晰边界；只服务于单个页面的少量私有小 Composable 可以继续留在同一文件内。
 
 ## 维护约定
 
@@ -187,7 +227,6 @@ E:\Android\CosmOS
    - 使用 `LocalThemeConfig.current` 获取当前全局的主题上下文：
      - `val isDark = LocalThemeConfig.current.isDark`：读取当前是否为深色模式。
      - `LocalThemeConfig.current.setDarkTheme(isDark = false)`：在任何应用内调用该函数即可触发全局瞬间应用浅色 / 深色主题，并由底层持久化存储。
-
 
 3. **桌面组件及对比度自适应：**
    - 凡是直接渲染在桌面壁纸之上的文本或微粒（如时钟、App 标签字、壁纸微粒、状态栏图标）：
