@@ -588,14 +588,23 @@ fun DiaryCard(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // 顶栏：虚拟时间 + 删除
+            // 顶栏：虚拟时间（含时间跳转展示）+ 菜单
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // 时间展示：若有跳转目标时间则显示 "开始 → 结束"，否则只显示开始时间
+                val timeDisplay = if (diary.nextVirtualTime.isNotBlank()) {
+                    // 只取日期+时分，去掉秒
+                    val startShort = diary.virtualTime.substringBeforeLast(":")
+                        .let { if (it.length > 16) it.take(16) else it }
+                    "$startShort  →  ${diary.nextVirtualTime}"
+                } else {
+                    diary.virtualTime
+                }
                 Text(
-                    text = diary.virtualTime,
+                    text = timeDisplay,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)

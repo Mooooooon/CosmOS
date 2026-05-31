@@ -101,10 +101,11 @@ class DiaryRepository(private val context: Context) {
             put("id", entry.id)
             put("timestamp", entry.timestamp)
             put("virtualTime", entry.virtualTime)
+            put("nextVirtualTime", entry.nextVirtualTime)
             put("playerInput", entry.playerInput)
             put("content", entry.content)
             put("summary", entry.summary)
-            
+
             // 序列化 involvedCharacterIds
             val charIdsArray = JSONArray()
             entry.involvedCharacterIds.forEach { charIdsArray.put(it) }
@@ -127,6 +128,7 @@ class DiaryRepository(private val context: Context) {
         val id = json.getString("id")
         val timestamp = json.getLong("timestamp")
         val virtualTime = json.getString("virtualTime")
+        val nextVirtualTime = json.optString("nextVirtualTime", "")
         val playerInput = json.getString("playerInput")
         val content = json.getString("content")
         val summary = json.getString("summary")
@@ -160,6 +162,7 @@ class DiaryRepository(private val context: Context) {
             id = id,
             timestamp = timestamp,
             virtualTime = virtualTime,
+            nextVirtualTime = nextVirtualTime,
             playerInput = playerInput,
             content = content,
             summary = summary,
