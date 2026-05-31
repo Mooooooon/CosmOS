@@ -1,6 +1,10 @@
 package com.moonlib.cosmos.data.chat
 
 import android.content.Context
+import com.moonlib.cosmos.data.ai.AiJsonSchemaFactory
+import com.moonlib.cosmos.data.ai.AiRequestClient
+import com.moonlib.cosmos.data.ai.AiResponseCleaner
+import com.moonlib.cosmos.data.ai.AiSceneRequest
 import com.moonlib.cosmos.data.context.ConversationContextBuilder
 import com.moonlib.cosmos.data.profile.CharacterProfileRepository
 import com.moonlib.cosmos.data.settings.AiAuthorizationHeader
@@ -8,6 +12,7 @@ import com.moonlib.cosmos.data.settings.AiChatCompletionResponseParser
 import com.moonlib.cosmos.data.settings.AiConfigRepository
 import com.moonlib.cosmos.data.settings.AiReasoningRequestOptions
 import com.moonlib.cosmos.data.settings.AiServiceType
+import com.moonlib.cosmos.data.settings.AiSceneType
 import com.moonlib.cosmos.data.settings.AiVertexConfig
 import com.moonlib.cosmos.data.settings.SystemPromptRepository
 import com.moonlib.cosmos.data.time.VirtualTimeManager
@@ -194,36 +199,32 @@ object MomentEngine {
             throw Exception("激活的 AI 配置文件不完整。")
         }
 
-        val isNativeGenerateContent = activeProfile.serviceType == AiServiceType.VERTEX ||
-                (activeProfile.serviceType == AiServiceType.GEMINI && baseUrl.contains("googleapis.com"))
-
         val responseText = try {
-            if (isNativeGenerateContent) {
-                executeGeminiOfficial(baseUrl, modelName, apiKey, temperature, systemPrompt, activeProfile.serviceType, activeProfile.vertexRegion)
-            } else {
-                executeOpenAI(baseUrl, modelName, apiKey, temperature, systemPrompt, activeProfile.serviceType, activeProfile.thinkingLevel)
-            }
+            AiRequestClient.execute(
+                context = context,
+                request = AiSceneRequest(
+                    sceneType = AiSceneType.SOCIAL_REPLY_MOMENT,
+                    systemPrompt = mainPrompt,
+                    personaPrompt = "【已加好友的联系人列表及其设定】\n$charactersInfo",
+                    outputRequirement = """
+                        你正在模拟聊天 App 朋友圈的熟人评论。请根据角色性格、人设、关系与当前时间决定是否回复。
+                        $replyCountRule 正文必须控制在 1 到 2 句话内，严禁 emoji、颜文字和动作描写，指代用户必须用“你”。
+                    """.trimIndent(),
+                    jsonStructure = """{"replies":[{"character_id":"回复角色ID","reply_to_username":"被回复昵称","content":"评论内容","parent_id":"$momentId 或 reply_index_0","time_offset_seconds":20}]}""",
+                    historyText = "【当前朋友圈对话树历史】\n$threadTextBuilder\n\n【当前触发场景】\n$targetInteractionNote",
+                    userInput = "目标动态: ${targetMoment.content}",
+                    logCharacterName = "朋友圈AI评论引擎",
+                    logUserInput = "目标动态: ${targetMoment.content}",
+                    responseSchema = AiJsonSchemaFactory.socialRepliesSchema("cosmos_moment_replies")
+                )
+            ).rawResponse
         } catch (e: Exception) {
             "AI_REQUEST_FAILED: ${e.message.orEmpty()}"
         }
 
-        // 保存通讯日志
-        try {
-            val logRepo = com.moonlib.cosmos.data.settings.AiLogRepository(context)
-            logRepo.saveLog(
-                characterName = "朋友圈AI评论引擎",
-                modelName = modelName,
-                userInput = "目标动态: ${targetMoment.content}",
-                aiResponse = responseText,
-                prompt = systemPrompt
-            )
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-
         // 7. 解析返回的盖楼评论并保存
         val repliesArray = try {
-            val cleanJson = cleanJsonResponse(responseText)
+            val cleanJson = AiResponseCleaner.cleanJson(responseText)
             val jsonObj = JSONObject(cleanJson)
             jsonObj.optJSONArray("replies") ?: JSONArray()
         } catch (e: Exception) {
@@ -285,149 +286,4 @@ object MomentEngine {
 
     // ── 内部辅助与请求函数 ──────────────────────────────────────────
 
-    private fun cleanJsonResponse(rawResponse: String): String {
-        var trimmed = rawResponse.trim()
-        if (trimmed.startsWith("```")) {
-            val firstLineEnd = trimmed.indexOf("\n")
-            if (firstLineEnd != -1) {
-                trimmed = trimmed.substring(firstLineEnd + 1)
-            }
-            if (trimmed.endsWith("```")) {
-                trimmed = trimmed.substring(0, trimmed.length - 3)
-            }
-        }
-        trimmed = trimmed.trim()
-        val start = trimmed.indexOf("{")
-        val end = trimmed.lastIndexOf("}")
-        if (start != -1 && end != -1 && end > start) {
-            return trimmed.substring(start, end + 1)
-        }
-        return trimmed
-    }
-
-    private fun executeGeminiOfficial(
-        baseUrl: String,
-        modelName: String,
-        apiKey: String,
-        temperature: Float,
-        systemPrompt: String,
-        serviceType: AiServiceType = AiServiceType.GEMINI,
-        vertexRegion: String = AiVertexConfig.DEFAULT_REGION
-    ): String {
-        val base = baseUrl.removeSuffix("/")
-        val urlStr = if (serviceType == AiServiceType.VERTEX) {
-            AiVertexConfig.buildGenerateContentUrl(apiKey, vertexRegion, modelName)
-        } else {
-            "$base/v1beta/models/$modelName:generateContent?key=$apiKey"
-        }
-        val url = URL(urlStr)
-        val conn = url.openConnection() as HttpURLConnection
-        
-        conn.requestMethod = "POST"
-        conn.connectTimeout = 45000
-        conn.readTimeout = 45000
-        conn.setRequestProperty("Content-Type", "application/json")
-        if (serviceType == AiServiceType.VERTEX) {
-            conn.setRequestProperty("Authorization", AiAuthorizationHeader.create(serviceType, apiKey))
-        }
-        conn.doOutput = true
-
-        val requestJson = JSONObject().apply {
-            put("contents", JSONArray().put(
-                JSONObject().apply {
-                    put("role", "user")
-                    put("parts", JSONArray().put(
-                        JSONObject().apply {
-                            put("text", systemPrompt)
-                        }
-                    ))
-                }
-            ))
-            put("generationConfig", JSONObject().apply {
-                put("temperature", temperature.toDouble())
-                put("maxOutputTokens", 2048)
-                put("responseMimeType", "application/json")
-            })
-        }
-
-        conn.outputStream.use { os ->
-            os.write(requestJson.toString().toByteArray(Charsets.UTF_8))
-        }
-
-        val responseCode = conn.responseCode
-        if (responseCode == 200) {
-            val jsonText = conn.inputStream.bufferedReader().use { it.readText() }
-            val json = JSONObject(jsonText)
-            val candidates = json.getJSONArray("candidates")
-            val firstCandidate = candidates.getJSONObject(0)
-            val content = firstCandidate.getJSONObject("content")
-            val parts = content.getJSONArray("parts")
-            return parts.getJSONObject(0).getString("text").trim()
-        } else {
-            val errorText = try {
-                conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
-            } catch (e: Exception) {
-                ""
-            }
-            throw Exception("AI接口报错 HTTP $responseCode: ${errorText.take(120)}")
-        }
-    }
-
-    private fun executeOpenAI(
-        baseUrl: String,
-        modelName: String,
-        apiKey: String,
-        temperature: Float,
-        systemPrompt: String,
-        serviceType: AiServiceType,
-        thinkingLevel: String
-    ): String {
-        val base = baseUrl.removeSuffix("/")
-        val urlStr = if (base.endsWith("/chat/completions")) base else "$base/chat/completions"
-        val url = URL(urlStr)
-        val conn = url.openConnection() as HttpURLConnection
-        
-        conn.requestMethod = "POST"
-        conn.connectTimeout = 45000
-        conn.readTimeout = 45000
-        conn.setRequestProperty("Authorization", AiAuthorizationHeader.create(serviceType, apiKey))
-        conn.setRequestProperty("Content-Type", "application/json")
-        conn.doOutput = true
-
-        val messagesArray = JSONArray().apply {
-            put(JSONObject().apply {
-                put("role", "user")
-                put("content", systemPrompt)
-            })
-        }
-
-        val requestJson = JSONObject().apply {
-            put("model", modelName)
-            put("messages", messagesArray)
-            put("temperature", temperature.toDouble())
-            put("max_tokens", 4096)
-            AiReasoningRequestOptions.applyTo(this, serviceType, modelName, thinkingLevel)
-            
-            put("response_format", JSONObject().apply {
-                put("type", "json_object")
-            })
-        }
-
-        conn.outputStream.use { os ->
-            os.write(requestJson.toString().toByteArray(Charsets.UTF_8))
-        }
-
-        val responseCode = conn.responseCode
-        if (responseCode == 200) {
-            val jsonText = conn.inputStream.bufferedReader().use { it.readText() }
-            return AiChatCompletionResponseParser.extractContent(jsonText)
-        } else {
-            val errorText = try {
-                conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
-            } catch (e: Exception) {
-                ""
-            }
-            throw Exception("AI接口报错 HTTP $responseCode: ${errorText.take(120)}")
-        }
-    }
 }

@@ -30,6 +30,14 @@ E:\Android\CosmOS
 │       │   ├── java\com\moonlib\cosmos
 │       │   │   ├── MainActivity.kt
 │       │   │   ├── data
+│       │   │   │   ├── ai
+│       │   │   │   │   ├── AiJsonSchemaFactory.kt
+│       │   │   │   │   ├── AiModels.kt
+│       │   │   │   │   ├── AiPromptComposer.kt
+│       │   │   │   │   ├── AiRequestClient.kt
+│       │   │   │   │   ├── AiRequestLogger.kt
+│       │   │   │   │   ├── AiResponseCleaner.kt
+│       │   │   │   │   └── AiStatusUpdater.kt
 │       │   │   │   ├── chat
 │       │   │   │   │   ├── AiChatResponse.kt
 │       │   │   │   │   ├── AiPromptHelper.kt
@@ -168,6 +176,7 @@ E:\Android\CosmOS
 ## 结构说明
 
 - `app/src/main/java/com/moonlib/cosmos/MainActivity.kt`：应用入口 Activity，全局主题注入处。
+- `app/src/main/java/com/moonlib/cosmos/data/ai`：统一 AI 通讯基础层，负责请求发送、固定顺序 Prompt 组装、JSON Schema、响应清洗、通讯日志与状态卡更新。
 - `app/src/main/java/com/moonlib/cosmos/data/chat`：聊天联系人、消息模型、AI 回复解析、聊天提示词辅助、聊天引擎 / 仓库，以及朋友圈动态模型、生成引擎与持久化仓库。
 - `app/src/main/java/com/moonlib/cosmos/data/context`：跨聊天、互动、日记等场景的融合上下文构建与裁剪逻辑。
 - `app/src/main/java/com/moonlib/cosmos/data/interaction`：互动消息、消息合并、互动配置、互动仓库与互动生成引擎。
@@ -214,6 +223,8 @@ E:\Android\CosmOS
 - UI 组件、数据模型、数据访问、业务逻辑应保持分离，避免在单个 Composable 或 Activity 中堆叠过多职责。
 - 修改现有文件前，如果发现文件已经承担多个职责，应先说明拆分建议，再继续实现。
 - 当项目结构、模块职责或重要约定发生变动时，必须及时更新本文件。
+- 所有新 AI 通讯入口必须优先复用 `data/ai` 统一管线，并按“系统提示词 -> 人设提示词 -> 输出要求 -> JSON结构 -> 历史记录 -> 状态卡 -> 用户最新的发言”的顺序组装请求。
+- 时间跳过期间的线上行为必须由 `TimeSkipEngine` 的统一场景一次性模拟，覆盖私聊消息、朋友圈动态与推特动态；严禁再为推特或朋友圈新增独立的时间跳过 AI 请求。
 
 ## 主题与自适应开发指南
 

@@ -1,11 +1,17 @@
 package com.moonlib.cosmos.data.diary
 
 import android.content.Context
+import com.moonlib.cosmos.data.ai.AiJsonSchemaFactory
+import com.moonlib.cosmos.data.ai.AiRequestClient
+import com.moonlib.cosmos.data.ai.AiResponseCleaner
+import com.moonlib.cosmos.data.ai.AiSceneRequest
+import com.moonlib.cosmos.data.ai.AiStatusUpdater
 import com.moonlib.cosmos.data.profile.CharacterProfileRepository
 import com.moonlib.cosmos.data.settings.AiAuthorizationHeader
 import com.moonlib.cosmos.data.settings.AiConfigRepository
 import com.moonlib.cosmos.data.settings.AiReasoningRequestOptions
 import com.moonlib.cosmos.data.settings.AiServiceType
+import com.moonlib.cosmos.data.settings.AiSceneType
 import com.moonlib.cosmos.data.settings.AiVertexConfig
 import com.moonlib.cosmos.data.settings.SystemPromptRepository
 import com.moonlib.cosmos.data.time.VirtualTimeManager
@@ -255,31 +261,42 @@ object DiaryEngine {
             请创作这段剧情并直接输出对应的 JSON 结构。
         """.trimIndent()
 
-        // 5. 调用 AI 接口获取响应
-        val isNativeGenerateContent = activeProfile.serviceType == AiServiceType.VERTEX ||
-            (activeProfile.serviceType == AiServiceType.GEMINI && baseUrl.contains("googleapis.com"))
-        val responseText = if (isNativeGenerateContent) {
-            executeGeminiOfficial(baseUrl, modelName, apiKey, temperature, systemPrompt, userPrompt, activeProfile.serviceType, activeProfile.vertexRegion)
-        } else {
-            executeOpenAI(baseUrl, modelName, apiKey, temperature, systemPrompt, userPrompt, activeProfile.serviceType, characterProfiles, statusKeys, diaryStatusCardEnabled, activeProfile.thinkingLevel)
+        // 5. 调用统一 AI 管线获取响应
+        val historyText = recentHistorySlice.joinToString("\n") { msg ->
+            "${msg.sender}: ${msg.content}"
         }
-
-        // 6. 保存 AI 日志，便于在设置应用中查看
-        try {
-            val logRepo = com.moonlib.cosmos.data.settings.AiLogRepository(context)
-            logRepo.saveLog(
-                characterName = "剧情推进 (共 ${characterProfiles.size} 人)",
-                modelName = modelName,
-                userInput = playerInput,
-                aiResponse = responseText,
-                prompt = "=== System Prompt ===\n$systemPrompt\n\n=== User Prompt ===\n$userPrompt"
+        val result = AiRequestClient.execute(
+            context = context,
+            request = AiSceneRequest(
+                sceneType = AiSceneType.DIARY,
+                systemPrompt = mainPrompt,
+                personaPrompt = """
+                    【参与本次剧情的角色设定如下】
+                    $charProfilesStr
+                    
+                    【玩家设定如下】
+                    $processedPlayerPrompt
+                    
+                    【当前虚拟世界的时间】
+                    $currentVirtualTimeStr
+                """.trimIndent(),
+                outputRequirement = """
+                    你现在是一位负责推进剧情的叙事大师。请采用${if (perspective == "first") "第一视角" else "第三视角"}，根据玩家给出的引子扩展为正在发生的线下场景剧情。
+                    正文建议 300 至 600 字，必须有自然节奏，严禁 emoji 和颜文字。
+                """.trimIndent(),
+                jsonStructure = """{"content":"剧情正文","summary":"20到40字摘要","nextTime":"yyyy-MM-dd HH:mm"${if (diaryStatusCardEnabled && statusKeys.isNotEmpty()) "," + "\"status\":{\"角色名\":{\"词条名\":\"更新值\"}}" else ""}}""",
+                historyText = historyText,
+                statusCard = charStatusPrompt,
+                userInput = userPrompt,
+                logCharacterName = "剧情推进 (共 ${characterProfiles.size} 人)",
+                logUserInput = playerInput,
+                responseSchema = AiJsonSchemaFactory.diarySchema()
             )
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        )
+        val responseText = result.rawResponse
 
         // 7. 解析大模型返回的 JSON
-        val cleanJson = cleanJsonResponse(responseText)
+        val cleanJson = AiResponseCleaner.cleanJson(responseText)
         val jsonObj = JSONObject(cleanJson)
         val content = jsonObj.getString("content").trim()
         val summary = jsonObj.getString("summary").trim()
@@ -300,37 +317,10 @@ object DiaryEngine {
         }
 
         // 提取 status 并更新全局角色实时状态
-        val statusMap = mutableMapOf<String, Map<String, String>>()
-        if (diaryStatusCardEnabled && statusKeys.isNotEmpty() && jsonObj.has("status") && !jsonObj.isNull("status")) {
-            val statusObj = jsonObj.optJSONObject("status")
-            if (statusObj != null) {
-                val charNamesKeys = statusObj.keys()
-                while (charNamesKeys.hasNext()) {
-                    val charName = charNamesKeys.next()
-                    val charStatusObj = statusObj.optJSONObject(charName)
-                    if (charStatusObj != null) {
-                        val singleCharStatus = mutableMapOf<String, String>()
-                        val innerKeys = charStatusObj.keys()
-                        while (innerKeys.hasNext()) {
-                            val key = innerKeys.next()
-                            if (!charStatusObj.isNull(key)) {
-                                val value = charStatusObj.getString(key)
-                                if (value.isNotBlank() && value != "null") {
-                                    singleCharStatus[key] = cleanStatusValue(value)
-                                }
-                            }
-                        }
-                        if (singleCharStatus.isNotEmpty()) {
-                            val charId = characterProfiles.firstOrNull { it.name == charName }?.id
-                            if (charId != null) {
-                                statusMap[charId] = singleCharStatus
-                                // 更新全局状态卡，使数据能够顺滑在"日记"与"互动"APP间传递
-                                interactionSettingsRepo.updateCharacterStatus(charId, singleCharStatus)
-                            }
-                        }
-                    }
-                }
-            }
+        val statusMap = if (diaryStatusCardEnabled && statusKeys.isNotEmpty()) {
+            AiStatusUpdater.updateMultipleCharacters(context, characterProfiles, jsonObj)
+        } else {
+            emptyMap()
         }
 
         // 8. 组装最终 DiaryEntry
@@ -349,221 +339,4 @@ object DiaryEngine {
 
     // ─── 接口通信与数据清洗辅助方法 ────────────────────────────────
 
-    private fun executeOpenAI(
-        baseUrl: String,
-        modelName: String,
-        apiKey: String,
-        temperature: Float,
-        systemPrompt: String,
-        userPrompt: String,
-        serviceType: AiServiceType,
-        characterProfiles: List<com.moonlib.cosmos.data.profile.CharacterProfile>,
-        statusKeys: List<com.moonlib.cosmos.data.interaction.StatusKey>,
-        statusCardEnabled: Boolean,
-        thinkingLevel: String
-    ): String {
-        val base = baseUrl.removeSuffix("/")
-        val urlStr = if (base.endsWith("/chat/completions")) base else "$base/chat/completions"
-        val url = URL(urlStr)
-        val conn = url.openConnection() as HttpURLConnection
-
-        conn.requestMethod = "POST"
-        conn.connectTimeout = 60000
-        conn.readTimeout = 60000
-        conn.setRequestProperty("Authorization", AiAuthorizationHeader.create(serviceType, apiKey))
-        conn.setRequestProperty("Content-Type", "application/json")
-        conn.doOutput = true
-
-        val messagesArray = JSONArray().apply {
-            put(JSONObject().apply {
-                put("role", "system")
-                put("content", systemPrompt)
-            })
-            put(JSONObject().apply {
-                put("role", "user")
-                put("content", userPrompt)
-            })
-        }
-
-        val requestJson = JSONObject().apply {
-            put("model", modelName)
-            put("messages", messagesArray)
-            put("temperature", temperature.toDouble())
-            put("max_tokens", 2048)
-            AiReasoningRequestOptions.applyTo(this, serviceType, modelName, thinkingLevel)
-
-            if (serviceType == AiServiceType.OPEN_AI) {
-                // OpenAI 官方 Schema 强约束，加入 nextTime 必填字段
-                val openAiSchema = JSONObject().apply {
-                    put("type", "object")
-                    put("properties", JSONObject().apply {
-                        put("content", JSONObject().apply { put("type", "string") })
-                        put("summary", JSONObject().apply { put("type", "string") })
-                        put("nextTime", JSONObject().apply { put("type", "string") })
-                        if (statusCardEnabled && statusKeys.isNotEmpty()) {
-                            val statusProps = JSONObject()
-                            val statusRequired = JSONArray()
-                            for (char in characterProfiles) {
-                                val charProps = JSONObject()
-                                val charRequired = JSONArray()
-                                for (key in statusKeys) {
-                                    charProps.put(key.name, JSONObject().apply {
-                                        put("type", JSONArray().apply { put("string"); put("null") })
-                                    })
-                                    charRequired.put(key.name)
-                                }
-                                statusProps.put(char.name, JSONObject().apply {
-                                    put("type", "object")
-                                    put("properties", charProps)
-                                    put("required", charRequired)
-                                    put("additionalProperties", false)
-                                })
-                                statusRequired.put(char.name)
-                            }
-                            put("status", JSONObject().apply {
-                                put("type", JSONArray().apply { put("object"); put("null") })
-                                put("properties", statusProps)
-                                put("required", statusRequired)
-                                put("additionalProperties", false)
-                            })
-                        }
-                    })
-                    put("required", JSONArray().apply {
-                        put("content")
-                        put("summary")
-                        put("nextTime")
-                        if (statusCardEnabled && statusKeys.isNotEmpty()) {
-                            put("status")
-                        }
-                    })
-                    put("additionalProperties", false)
-                }
-
-                put("response_format", JSONObject().apply {
-                    put("type", "json_schema")
-                    put("json_schema", JSONObject().apply {
-                        put("name", "diary_generation_response")
-                        put("strict", true)
-                        put("schema", openAiSchema)
-                    })
-                })
-            } else {
-                // 其他模型采用 JSON Object Mode
-                put("response_format", JSONObject().apply {
-                    put("type", "json_object")
-                })
-            }
-        }
-
-        conn.outputStream.use { os ->
-            os.write(requestJson.toString().toByteArray(Charsets.UTF_8))
-        }
-
-        val responseCode = conn.responseCode
-        if (responseCode == 200) {
-            val jsonText = conn.inputStream.bufferedReader().use { it.readText() }
-            val json = JSONObject(jsonText)
-            val choices = json.getJSONArray("choices")
-            val firstChoice = choices.getJSONObject(0)
-            val message = firstChoice.getJSONObject("message")
-            return message.getString("content").trim()
-        } else {
-            val errorText = try {
-                conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
-            } catch (e: Exception) {
-                ""
-            }
-            throw Exception("AI接口报错 HTTP $responseCode: ${errorText.take(120)}")
-        }
-    }
-
-    private fun executeGeminiOfficial(
-        baseUrl: String,
-        modelName: String,
-        apiKey: String,
-        temperature: Float,
-        systemPrompt: String,
-        userPrompt: String,
-        serviceType: AiServiceType = AiServiceType.GEMINI,
-        vertexRegion: String = AiVertexConfig.DEFAULT_REGION
-    ): String {
-        val base = baseUrl.removeSuffix("/")
-        val urlStr = if (serviceType == AiServiceType.VERTEX) {
-            AiVertexConfig.buildGenerateContentUrl(apiKey, vertexRegion, modelName)
-        } else {
-            "$base/v1beta/models/$modelName:generateContent?key=$apiKey"
-        }
-        val url = URL(urlStr)
-        val conn = url.openConnection() as HttpURLConnection
-
-        conn.requestMethod = "POST"
-        conn.connectTimeout = 60000
-        conn.readTimeout = 60000
-        conn.setRequestProperty("Content-Type", "application/json")
-        if (serviceType == AiServiceType.VERTEX) {
-            conn.setRequestProperty("Authorization", AiAuthorizationHeader.create(serviceType, apiKey))
-        }
-        conn.doOutput = true
-
-        val requestJson = JSONObject().apply {
-            val partsArray = JSONArray().apply {
-                put(JSONObject().apply { put("text", "System Instructions:\n$systemPrompt\n\nUser Input:\n$userPrompt") })
-            }
-            val contentsObj = JSONObject().apply {
-                put("role", "user")
-                put("parts", partsArray)
-            }
-            put("contents", JSONArray().put(contentsObj))
-            put("generationConfig", JSONObject().apply {
-                put("temperature", temperature.toDouble())
-                put("responseMimeType", "application/json")
-            })
-        }
-
-        conn.outputStream.use { os ->
-            os.write(requestJson.toString().toByteArray(Charsets.UTF_8))
-        }
-
-        val responseCode = conn.responseCode
-        if (responseCode == 200) {
-            val jsonText = conn.inputStream.bufferedReader().use { it.readText() }
-            val json = JSONObject(jsonText)
-            val candidates = json.getJSONArray("candidates")
-            val firstCandidate = candidates.getJSONObject(0)
-            val content = firstCandidate.getJSONObject("content")
-            val parts = content.getJSONArray("parts")
-            return parts.getJSONObject(0).getString("text").trim()
-        } else {
-            val errorText = try {
-                conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
-            } catch (e: Exception) {
-                ""
-            }
-            throw Exception("AI 接口报错 HTTP $responseCode: ${errorText.take(120)}")
-        }
-    }
-
-    private fun cleanJsonResponse(rawResponse: String): String {
-        var trimmed = rawResponse.trim()
-        if (trimmed.startsWith("```")) {
-            val firstLineEnd = trimmed.indexOf("\n")
-            if (firstLineEnd != -1) {
-                trimmed = trimmed.substring(firstLineEnd + 1)
-            }
-            if (trimmed.endsWith("```")) {
-                trimmed = trimmed.substring(0, trimmed.length - 3)
-            }
-        }
-        trimmed = trimmed.trim()
-        val start = trimmed.indexOf("{")
-        val end = trimmed.lastIndexOf("}")
-        if (start != -1 && end != -1 && end > start) {
-            return trimmed.substring(start, end + 1)
-        }
-        return trimmed
-    }
-
-    private fun cleanStatusValue(value: String): String {
-        return value.replace(Regex("[()（）]"), "").trim()
-    }
 }

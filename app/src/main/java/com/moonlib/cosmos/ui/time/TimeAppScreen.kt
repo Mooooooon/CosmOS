@@ -591,7 +591,7 @@ private fun TimeSkipSimulationCard(
                                     )
                                     isSimulating = false
                                     if (result.success) {
-                                        simulationResultText = "时间推进成功！这期间模拟收到 ${result.simulatedMessageCount} 条离线消息。"
+                                        simulationResultText = "时间推进成功！这期间模拟收到 ${result.simulatedMessageCount} 条离线消息，新增 ${result.simulatedMomentCount} 条朋友圈动态，${result.simulatedTweetCount} 条推特动态。"
                                         userActivity = "" // 清空输入
                                     } else {
                                         simulationResultText = "时间推进失败：${result.errorMessage}"

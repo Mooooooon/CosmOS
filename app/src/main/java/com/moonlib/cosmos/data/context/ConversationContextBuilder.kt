@@ -1,6 +1,8 @@
 package com.moonlib.cosmos.data.context
 
 import android.content.Context
+import com.moonlib.cosmos.data.ai.AiHistoryItem
+import com.moonlib.cosmos.data.ai.AiHistorySource
 import com.moonlib.cosmos.data.chat.ChatRepository
 import com.moonlib.cosmos.data.diary.DiaryEntry
 import com.moonlib.cosmos.data.diary.DiaryRepository
@@ -17,6 +19,29 @@ import java.util.Locale
  * 职责单一：按时间线合并线上聊天、线下互动与剧情日记，并应用上下文数量裁剪规则。
  */
 object ConversationContextBuilder {
+
+    fun buildWideHistoryForCharacter(
+        context: Context,
+        charProfile: CharacterProfile,
+        maxContextSize: Int,
+        senderNameResolver: (String) -> String = { it }
+    ): List<AiHistoryItem> {
+        return buildForCharacter(context, charProfile, maxContextSize).map { msg ->
+            AiHistoryItem(
+                senderId = msg.senderId,
+                senderName = senderNameResolver(msg.senderId),
+                content = msg.content,
+                timestamp = msg.timestamp,
+                source = when (msg.source) {
+                    MergedMessageSource.CHAT -> AiHistorySource.CHAT
+                    MergedMessageSource.INTERACTION -> AiHistorySource.INTERACTION
+                    MergedMessageSource.DIARY -> AiHistorySource.DIARY
+                    MergedMessageSource.TWITTER -> AiHistorySource.TWITTER
+                    MergedMessageSource.MOMENT -> AiHistorySource.MOMENT
+                }
+            )
+        }
+    }
 
     fun buildForCharacter(
         context: Context,

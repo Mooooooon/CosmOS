@@ -269,6 +269,9 @@ object AiPromptHelper {
                     - 必须只返回纯 JSON，不能包裹在 ```json ... ``` 块中，也不要说任何废话。
                 """.trimIndent()
             }
+            else -> {
+                throw IllegalArgumentException("AiPromptHelper 只负责 CHAT 与 INTERACTION 场景，当前场景为 $sceneType")
+            }
         }
 
         val recentMerged = ConversationContextBuilder.buildForCharacter(context, charProfile, maxContextSize)

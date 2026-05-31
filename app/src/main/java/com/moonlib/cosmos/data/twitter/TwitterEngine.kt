@@ -1,6 +1,10 @@
 package com.moonlib.cosmos.data.twitter
 
 import android.content.Context
+import com.moonlib.cosmos.data.ai.AiJsonSchemaFactory
+import com.moonlib.cosmos.data.ai.AiRequestClient
+import com.moonlib.cosmos.data.ai.AiResponseCleaner
+import com.moonlib.cosmos.data.ai.AiSceneRequest
 import com.moonlib.cosmos.data.context.ConversationContextBuilder
 import com.moonlib.cosmos.data.profile.CharacterProfileRepository
 import com.moonlib.cosmos.data.settings.AiAuthorizationHeader
@@ -8,6 +12,7 @@ import com.moonlib.cosmos.data.settings.AiChatCompletionResponseParser
 import com.moonlib.cosmos.data.settings.AiConfigRepository
 import com.moonlib.cosmos.data.settings.AiReasoningRequestOptions
 import com.moonlib.cosmos.data.settings.AiServiceType
+import com.moonlib.cosmos.data.settings.AiSceneType
 import com.moonlib.cosmos.data.settings.AiVertexConfig
 import com.moonlib.cosmos.data.settings.SystemPromptRepository
 import com.moonlib.cosmos.data.time.VirtualTimeManager
@@ -192,36 +197,32 @@ object TwitterEngine {
             throw Exception("激活的 AI 配置文件不完整。")
         }
 
-        val isNativeGenerateContent = activeProfile.serviceType == AiServiceType.VERTEX ||
-                (activeProfile.serviceType == AiServiceType.GEMINI && baseUrl.contains("googleapis.com"))
-
         val responseText = try {
-            if (isNativeGenerateContent) {
-                executeGeminiOfficial(baseUrl, modelName, apiKey, temperature, systemPrompt, activeProfile.serviceType, activeProfile.vertexRegion)
-            } else {
-                executeOpenAI(baseUrl, modelName, apiKey, temperature, systemPrompt, activeProfile.serviceType, activeProfile.thinkingLevel)
-            }
+            AiRequestClient.execute(
+                context = context,
+                request = AiSceneRequest(
+                    sceneType = AiSceneType.SOCIAL_REPLY_TWITTER,
+                    systemPrompt = mainPrompt,
+                    personaPrompt = "【已关注的候选角色列表及其人设设定】\n$charactersInfo",
+                    outputRequirement = """
+                        你正在模拟 CosmOS 虚拟推特的评论盖楼。请根据角色性格、作息、关系与当前时间决定是否回复。
+                        $replyCountRule 正文必须控制在 1 到 2 句话内，严禁 emoji、颜文字和动作描写，指代用户必须用“你”。
+                    """.trimIndent(),
+                    jsonStructure = """{"replies":[{"character_id":"回复角色ID","reply_to_username":"被回复用户名","content":"评论内容","parent_id":"$tweetId 或 reply_index_0","time_offset_seconds":15}]}""",
+                    historyText = "【当前推文对话树历史】\n$threadTextBuilder\n\n【当前触发场景】\n$targetInteractionNote",
+                    userInput = "目标推文: ${targetTweet.content}",
+                    logCharacterName = "推特AI评论引擎",
+                    logUserInput = "目标推文: ${targetTweet.content}",
+                    responseSchema = AiJsonSchemaFactory.socialRepliesSchema("cosmos_twitter_replies")
+                )
+            ).rawResponse
         } catch (e: Exception) {
             "AI_REQUEST_FAILED: ${e.message.orEmpty()}"
         }
 
-        // 保存通讯日志
-        try {
-            val logRepo = com.moonlib.cosmos.data.settings.AiLogRepository(context)
-            logRepo.saveLog(
-                characterName = "推特AI评论引擎",
-                modelName = modelName,
-                userInput = "目标推文: ${targetTweet.content}",
-                aiResponse = responseText,
-                prompt = systemPrompt
-            )
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-
         // 7. 解析返回的盖楼评论并保存
         val repliesArray = try {
-            val cleanJson = cleanJsonResponse(responseText)
+            val cleanJson = AiResponseCleaner.cleanJson(responseText)
             val jsonObj = JSONObject(cleanJson)
             jsonObj.optJSONArray("replies") ?: JSONArray()
         } catch (e: Exception) {
@@ -280,322 +281,6 @@ object TwitterEngine {
         savedReplies
     }
 
-    /**
-     * 在时间跳过 (Time Skip) 期间，模拟已关注 NPC 主动发布的推特动态
-     */
-    suspend fun simulateOfflineTweets(
-        context: Context,
-        startTimeMillis: Long,
-        endTimeMillis: Long,
-        userActivity: String
-    ): List<Tweet> = withContext(Dispatchers.IO) {
-        val twitterRepo = TwitterRepository(context)
-        val followedProfiles = twitterRepo.getFollowedProfiles()
-        if (followedProfiles.isEmpty()) return@withContext emptyList()
-
-        val profileRepo = CharacterProfileRepository(context)
-        val systemProfiles = profileRepo.getProfiles()
-
-        val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.CHINESE)
-        val startTimeStr = sdf.format(Date(startTimeMillis))
-        val endTimeStr = sdf.format(Date(endTimeMillis))
-
-        // 1. 组装角色提示词与通用上下文（融合私聊/线下互动/日记/以往推特的记忆）
-        val charactersInfo = StringBuilder()
-        val maxContextSize = com.moonlib.cosmos.data.settings.AiSettingsRepository(context).getMaxContextSize().coerceAtMost(30)
-        for (fProf in followedProfiles) {
-            val systemProf = systemProfiles.firstOrNull { it.id == fProf.characterId } ?: continue
-            val promptProcessed = systemProf.prompt
-                .replace("{{char}}", fProf.nickname)
-                .replace("{{user}}", "玩家")
-                
-            // 获取该 NPC 的全局合并通用上下文记忆
-            val recentMerged = ConversationContextBuilder.buildForCharacter(context, systemProf, maxContextSize)
-            val unifiedMemoryText = if (recentMerged.isEmpty()) {
-                "（当前暂无与玩家的共同记忆与沟通历史）"
-            } else {
-                recentMerged.joinToString("\n") { msg ->
-                    val senderName = if (msg.senderId == "user") "玩家" else fProf.nickname
-                    "- [时间: ${sdf.format(Date(msg.timestamp))}] $senderName 的${msg.prefix}: ${msg.content}"
-                }
-            }
-
-            charactersInfo.append("角色 ID (character_id): ${fProf.characterId}\n")
-            charactersInfo.append("推特名字: ${fProf.nickname}\n")
-            charactersInfo.append("用户名: @${fProf.username}\n")
-            charactersInfo.append("【人设日常作息与发帖口味】：\n$promptProcessed\n")
-            charactersInfo.append("【该角色拥有的最新通用融合记忆（含线上私聊、线下互动、日记及以往推特）】：\n$unifiedMemoryText\n")
-            charactersInfo.append("=========================================\n\n")
-        }
-
-        // 2. 系统提示词基底
-        val systemPromptRepo = SystemPromptRepository(context)
-        val mainPrompt = systemPromptRepo.getMainPromptContent()
-
-        val systemPrompt = """
-            $mainPrompt
-            
-            【CosmOS 虚拟手机推特 - 离线主动发推模拟系统】
-            你现在正扮演 CosmOS 的“推特离线动态模拟器”。
-            用户在此期间执行了“时间跳过”，处于离线状态。你需要根据被关注角色的作息习惯、最近的生活剧情，判定在这一时间区间内，是否有角色会主动发推特动态（如发自拍、日常感慨、生活图景等）。
-            
-            【离线区间与玩家状态】：
-            - 起始时间：$startTimeStr
-            - 结束时间：$endTimeStr
-            - 玩家在此期间所做的事：${if (userActivity.isBlank()) "日常活动/睡觉" else userActivity}
-            
-            【已关注角色人设列表】：
-            -----------------------------------------
-            $charactersInfo
-            -----------------------------------------
-            
-            【决策要求】：
-            1. **拟真动态**：每个角色在这段时间内最多发 1 条推特动态，有的角色则完全不发，让整个时间线保持真实的物理感与松散的质感。
-            2. **文字口吻**：文字内容严禁 emoji、颜文字及动作描写。字数控制在 40 字以内。必须以第二人称“你”代指玩家。
-            3. **图文支持**：有些推文可以附带图片。如果附图，请将 `"has_image"` 设为 true，并写下极其生动的 `"image_description"` 画面文字描述（例如：『一张金黄的银杏树落叶铺满路面的特写，微风吹过，很有秋天悠闲的气息』），不需要包含实际图片路径，我们会将画面文字以高保真卡片渲染在前端。
-            
-            【底层通信输出格式】：
-            为了与其他系统集成，你必须以 JSON 格式输出，不要包含任何 markdown 块。你的输出必须能够被直接解析为以下 JSON 格式：
-            {
-              "tweets": [
-                {
-                  "character_id": "发推角色的 character_id",
-                  "content": "今天的早饭烤糊了，难过...",
-                  "has_image": true,
-                  "image_description": "一块表面烤得焦黑的吐司面包，旁边放着一杯热气腾腾的黑咖啡",
-                  "time": "yyyy-MM-dd HH:mm:ss"
-                }
-              ]
-            }
-        """.trimIndent()
-
-        // 3. AI 请求
-        val configRepo = AiConfigRepository(context)
-        val activeProfile = configRepo.getActiveProfile() ?: return@withContext emptyList()
-        val apiKey = activeProfile.apiKey
-        val baseUrl = activeProfile.baseUrl
-        val modelName = activeProfile.modelName
-        val temperature = activeProfile.temperature
-
-        val isNativeGenerateContent = activeProfile.serviceType == AiServiceType.VERTEX ||
-                (activeProfile.serviceType == AiServiceType.GEMINI && baseUrl.contains("googleapis.com"))
-
-        val responseText = if (isNativeGenerateContent) {
-            executeGeminiOfficial(baseUrl, modelName, apiKey, temperature, systemPrompt, activeProfile.serviceType, activeProfile.vertexRegion)
-        } else {
-            executeOpenAI(baseUrl, modelName, apiKey, temperature, systemPrompt, activeProfile.serviceType, activeProfile.thinkingLevel)
-        }
-
-        // 保存通讯日志
-        try {
-            val logRepo = com.moonlib.cosmos.data.settings.AiLogRepository(context)
-            logRepo.saveLog(
-                characterName = "推特离线主动发推模拟",
-                modelName = modelName,
-                userInput = "时间跳过: $startTimeStr -> $endTimeStr",
-                aiResponse = responseText,
-                prompt = systemPrompt
-            )
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-
-        // 4. 解析并保存模拟推文
-        val cleanJson = cleanJsonResponse(responseText)
-        val jsonObj = JSONObject(cleanJson)
-        val tweetsArray = jsonObj.optJSONArray("tweets") ?: JSONArray()
-        
-        val simulatedTweets = mutableListOf<Tweet>()
-        val sdfParser = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-
-        for (i in 0 until tweetsArray.length()) {
-            val tObj = tweetsArray.getJSONObject(i)
-            val charId = tObj.optString("character_id", "")
-            val content = tObj.optString("content", "")
-            val hasImage = tObj.optBoolean("has_image", false)
-            val imgDesc = tObj.optString("image_description", "")
-            val timeStr = tObj.optString("time", "")
-
-            if (charId.isBlank() || content.isBlank() || timeStr.isBlank()) continue
-
-            // 确认是已关注的角色
-            if (twitterRepo.getProfile(charId) == null) continue
-
-            val tweetTime = try {
-                sdfParser.parse(timeStr)?.time ?: (startTimeMillis + (endTimeMillis - startTimeMillis) / 2)
-            } catch (e: Exception) {
-                startTimeMillis + (endTimeMillis - startTimeMillis) / 2
-            }
-            // 夹在起止时间段内
-            val boundedTime = tweetTime.coerceIn(startTimeMillis, endTimeMillis)
-
-            val imagePathVal = if (hasImage && imgDesc.isNotBlank()) {
-                "simulated_image:$imgDesc"
-            } else {
-                null
-            }
-
-            val simulatedTweet = Tweet(
-                id = UUID.randomUUID().toString(),
-                authorId = charId,
-                content = content,
-                imagePath = imagePathVal,
-                timestamp = boundedTime,
-                parentId = null
-            )
-            twitterRepo.saveTweet(simulatedTweet)
-            simulatedTweets.add(simulatedTweet)
-        }
-
-        simulatedTweets
-    }
-
     // ── 内部辅助与请求函数 ──────────────────────────────────────────
 
-    private fun cleanJsonResponse(rawResponse: String): String {
-        var trimmed = rawResponse.trim()
-        if (trimmed.startsWith("```")) {
-            val firstLineEnd = trimmed.indexOf("\n")
-            if (firstLineEnd != -1) {
-                trimmed = trimmed.substring(firstLineEnd + 1)
-            }
-            if (trimmed.endsWith("```")) {
-                trimmed = trimmed.substring(0, trimmed.length - 3)
-            }
-        }
-        trimmed = trimmed.trim()
-        val start = trimmed.indexOf("{")
-        val end = trimmed.lastIndexOf("}")
-        if (start != -1 && end != -1 && end > start) {
-            return trimmed.substring(start, end + 1)
-        }
-        return trimmed
-    }
-
-    private fun executeGeminiOfficial(
-        baseUrl: String,
-        modelName: String,
-        apiKey: String,
-        temperature: Float,
-        systemPrompt: String,
-        serviceType: AiServiceType = AiServiceType.GEMINI,
-        vertexRegion: String = AiVertexConfig.DEFAULT_REGION
-    ): String {
-        val base = baseUrl.removeSuffix("/")
-        val urlStr = if (serviceType == AiServiceType.VERTEX) {
-            AiVertexConfig.buildGenerateContentUrl(apiKey, vertexRegion, modelName)
-        } else {
-            "$base/v1beta/models/$modelName:generateContent?key=$apiKey"
-        }
-        val url = URL(urlStr)
-        val conn = url.openConnection() as HttpURLConnection
-        
-        conn.requestMethod = "POST"
-        conn.connectTimeout = 45000
-        conn.readTimeout = 45000
-        conn.setRequestProperty("Content-Type", "application/json")
-        if (serviceType == AiServiceType.VERTEX) {
-            conn.setRequestProperty("Authorization", AiAuthorizationHeader.create(serviceType, apiKey))
-        }
-        conn.doOutput = true
-
-        val requestJson = JSONObject().apply {
-            put("contents", JSONArray().put(
-                JSONObject().apply {
-                    put("role", "user")
-                    put("parts", JSONArray().put(
-                        JSONObject().apply {
-                            put("text", systemPrompt)
-                        }
-                    ))
-                }
-            ))
-            put("generationConfig", JSONObject().apply {
-                put("temperature", temperature.toDouble())
-                put("maxOutputTokens", 2048)
-                put("responseMimeType", "application/json")
-            })
-        }
-
-        conn.outputStream.use { os ->
-            os.write(requestJson.toString().toByteArray(Charsets.UTF_8))
-        }
-
-        val responseCode = conn.responseCode
-        if (responseCode == 200) {
-            val jsonText = conn.inputStream.bufferedReader().use { it.readText() }
-            val json = JSONObject(jsonText)
-            val candidates = json.getJSONArray("candidates")
-            val firstCandidate = candidates.getJSONObject(0)
-            val content = firstCandidate.getJSONObject("content")
-            val parts = content.getJSONArray("parts")
-            return parts.getJSONObject(0).getString("text").trim()
-        } else {
-            val errorText = try {
-                conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
-            } catch (e: Exception) {
-                ""
-            }
-            throw Exception("AI接口报错 HTTP $responseCode: ${errorText.take(120)}")
-        }
-    }
-
-    private fun executeOpenAI(
-        baseUrl: String,
-        modelName: String,
-        apiKey: String,
-        temperature: Float,
-        systemPrompt: String,
-        serviceType: AiServiceType,
-        thinkingLevel: String
-    ): String {
-        val base = baseUrl.removeSuffix("/")
-        val urlStr = if (base.endsWith("/chat/completions")) base else "$base/chat/completions"
-        val url = URL(urlStr)
-        val conn = url.openConnection() as HttpURLConnection
-        
-        conn.requestMethod = "POST"
-        conn.connectTimeout = 45000
-        conn.readTimeout = 45000
-        conn.setRequestProperty("Authorization", AiAuthorizationHeader.create(serviceType, apiKey))
-        conn.setRequestProperty("Content-Type", "application/json")
-        conn.doOutput = true
-
-        val messagesArray = JSONArray().apply {
-            put(JSONObject().apply {
-                put("role", "user")
-                put("content", systemPrompt)
-            })
-        }
-
-        val requestJson = JSONObject().apply {
-            put("model", modelName)
-            put("messages", messagesArray)
-            put("temperature", temperature.toDouble())
-            put("max_tokens", 4096)
-            AiReasoningRequestOptions.applyTo(this, serviceType, modelName, thinkingLevel)
-            
-            // 使用 JSON Mode
-            put("response_format", JSONObject().apply {
-                put("type", "json_object")
-            })
-        }
-
-        conn.outputStream.use { os ->
-            os.write(requestJson.toString().toByteArray(Charsets.UTF_8))
-        }
-
-        val responseCode = conn.responseCode
-        if (responseCode == 200) {
-            val jsonText = conn.inputStream.bufferedReader().use { it.readText() }
-            return AiChatCompletionResponseParser.extractContent(jsonText)
-        } else {
-            val errorText = try {
-                conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
-            } catch (e: Exception) {
-                ""
-            }
-            throw Exception("AI接口报错 HTTP $responseCode: ${errorText.take(120)}")
-        }
-    }
 }

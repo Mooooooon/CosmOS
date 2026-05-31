@@ -1,18 +1,12 @@
 package com.moonlib.cosmos.data.profile
 
 import android.content.Context
-import com.moonlib.cosmos.data.settings.AiAuthorizationHeader
+import com.moonlib.cosmos.data.ai.AiRequestClient
+import com.moonlib.cosmos.data.ai.AiSceneRequest
 import com.moonlib.cosmos.data.settings.AiConfigRepository
-import com.moonlib.cosmos.data.settings.AiProfile
-import com.moonlib.cosmos.data.settings.AiReasoningRequestOptions
-import com.moonlib.cosmos.data.settings.AiServiceType
-import com.moonlib.cosmos.data.settings.AiVertexConfig
+import com.moonlib.cosmos.data.settings.AiSceneType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
 
 /**
  * 异步人设提示词生成助手
@@ -74,154 +68,20 @@ object CharacterProfileGenerator {
             throw Exception("激活的 AI 配置文件不完整，请前往【系统设置】检查配置。")
         }
 
-        val isNativeGenerateContent = activeProfile.serviceType == AiServiceType.VERTEX ||
-            (activeProfile.serviceType == AiServiceType.GEMINI && baseUrl.contains("googleapis.com"))
-
-        if (isNativeGenerateContent) {
-            executeGeminiOfficial(baseUrl, modelName, apiKey, temperature, userIdea, activeProfile.serviceType, activeProfile.vertexRegion)
-        } else {
-            executeOpenAISync(baseUrl, modelName, apiKey, temperature, userIdea, activeProfile.serviceType, activeProfile.thinkingLevel)
-        }
+        AiRequestClient.execute(
+            context = context,
+            request = AiSceneRequest(
+                sceneType = AiSceneType.PROFILE_GENERATION,
+                systemPrompt = SYSTEM_PROMPT,
+                personaPrompt = "这是一次独立的人设生成任务，不纳入角色扮演历史链。",
+                outputRequirement = "必须完全按照指定 Markdown 模板直接输出，不要解释，不要使用 JSON，不要包含 emoji 或颜文字。",
+                jsonStructure = "非 JSON 输出：直接返回 Markdown 人设文本。",
+                userInput = "我的核心想法是：$userIdea。请完全按照指定格式生成，并全程用 {{char}} 代替角色人名。",
+                logCharacterName = "人设生成器",
+                logUserInput = userIdea,
+                expectsJson = false
+            )
+        ).rawResponse.trim()
     }
 
-    /**
-     * 针对官方 Gemini API generateContent 格式的适配
-     */
-    private fun executeGeminiOfficial(
-        baseUrl: String,
-        modelName: String,
-        apiKey: String,
-        temperature: Float,
-        userIdea: String,
-        serviceType: AiServiceType = AiServiceType.GEMINI,
-        vertexRegion: String = AiVertexConfig.DEFAULT_REGION
-    ): String {
-        val base = baseUrl.removeSuffix("/")
-        // Gemini 官方 generateContent 接口地址
-        val urlStr = if (serviceType == AiServiceType.VERTEX) {
-            AiVertexConfig.buildGenerateContentUrl(apiKey, vertexRegion, modelName)
-        } else {
-            "$base/v1beta/models/$modelName:generateContent?key=$apiKey"
-        }
-        val url = URL(urlStr)
-        val conn = url.openConnection() as HttpURLConnection
-        
-        conn.requestMethod = "POST"
-        conn.connectTimeout = 60000
-        conn.readTimeout = 60000
-        conn.setRequestProperty("Content-Type", "application/json")
-        if (serviceType == AiServiceType.VERTEX) {
-            conn.setRequestProperty("Authorization", AiAuthorizationHeader.create(serviceType, apiKey))
-        }
-        conn.doOutput = true
-
-        // 拼接 Prompt：由于官方 Gemini 结构不同，将 system instruction 拼在 prompt 头
-        val fullPrompt = "$SYSTEM_PROMPT\n\n用户的核心想法是：$userIdea\n\n请直接开始生成，并全部使用 {{char}} 代替名字："
-        
-        // 构造 JSON 请求体
-        val requestJson = JSONObject().apply {
-            put("contents", JSONArray().put(
-                JSONObject().apply {
-                    put("role", "user")
-                    put("parts", JSONArray().put(
-                        JSONObject().apply {
-                            put("text", fullPrompt)
-                        }
-                    ))
-                }
-            ))
-            put("generationConfig", JSONObject().apply {
-                put("temperature", temperature.toDouble())
-            })
-        }
-
-        // 写入请求数据
-        conn.outputStream.use { os ->
-            os.write(requestJson.toString().toByteArray(Charsets.UTF_8))
-        }
-
-        val responseCode = conn.responseCode
-        if (responseCode == 200) {
-            val jsonText = conn.inputStream.bufferedReader().use { it.readText() }
-            val json = JSONObject(jsonText)
-            val candidates = json.getJSONArray("candidates")
-            val firstCandidate = candidates.getJSONObject(0)
-            val content = firstCandidate.getJSONObject("content")
-            val parts = content.getJSONArray("parts")
-            return parts.getJSONObject(0).getString("text").trim()
-        } else {
-            val errorText = try {
-                conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
-            } catch (e: Exception) {
-                ""
-            }
-            throw Exception("AI生成接口报错 HTTP $responseCode: ${errorText.take(150)}")
-        }
-    }
-
-    /**
-     * 针对标准 OpenAI/DeepSeek / 兼容 completions 格式的适配
-     */
-    private fun executeOpenAISync(
-        baseUrl: String,
-        modelName: String,
-        apiKey: String,
-        temperature: Float,
-        userIdea: String,
-        serviceType: AiServiceType,
-        thinkingLevel: String
-    ): String {
-        val base = baseUrl.removeSuffix("/")
-        val urlStr = if (base.endsWith("/chat/completions")) base else "$base/chat/completions"
-        val url = URL(urlStr)
-        val conn = url.openConnection() as HttpURLConnection
-        
-        conn.requestMethod = "POST"
-        conn.connectTimeout = 60000
-        conn.readTimeout = 60000
-        conn.setRequestProperty("Authorization", AiAuthorizationHeader.create(serviceType, apiKey))
-        conn.setRequestProperty("Content-Type", "application/json")
-        conn.doOutput = true
-
-        // 构造标准的 messages 数组，支持 system 角色
-        val messagesArray = JSONArray().apply {
-            put(JSONObject().apply {
-                put("role", "system")
-                put("content", SYSTEM_PROMPT)
-            })
-            put(JSONObject().apply {
-                put("role", "user")
-                put("content", "我的核心想法是：$userIdea。请完全按照指定的格式生成它，并全程用 {{char}} 代替角色人名。")
-            })
-        }
-
-        val requestJson = JSONObject().apply {
-            put("model", modelName)
-            put("messages", messagesArray)
-            put("temperature", temperature.toDouble())
-            AiReasoningRequestOptions.applyTo(this, serviceType, modelName, thinkingLevel)
-        }
-
-        // 写入数据
-        conn.outputStream.use { os ->
-            os.write(requestJson.toString().toByteArray(Charsets.UTF_8))
-        }
-
-        val responseCode = conn.responseCode
-        if (responseCode == 200) {
-            val jsonText = conn.inputStream.bufferedReader().use { it.readText() }
-            val json = JSONObject(jsonText)
-            val choices = json.getJSONArray("choices")
-            val firstChoice = choices.getJSONObject(0)
-            val message = firstChoice.getJSONObject("message")
-            return message.getString("content").trim()
-        } else {
-            val errorText = try {
-                conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
-            } catch (e: Exception) {
-                ""
-            }
-            throw Exception("AI生成接口报错 HTTP $responseCode: ${errorText.take(150)}")
-        }
-    }
 }

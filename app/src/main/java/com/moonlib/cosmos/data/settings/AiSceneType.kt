@@ -13,5 +13,30 @@ enum class AiSceneType {
     /**
      * 线下实体面对面互动场景
      */
-    INTERACTION
+    INTERACTION,
+
+    /**
+     * 剧情日记生成场景
+     */
+    DIARY,
+
+    /**
+     * 推特评论盖楼场景
+     */
+    SOCIAL_REPLY_TWITTER,
+
+    /**
+     * 朋友圈评论盖楼场景
+     */
+    SOCIAL_REPLY_MOMENT,
+
+    /**
+     * 时间跳过期间的统一线上行为模拟场景
+     */
+    TIME_SKIP_ONLINE,
+
+    /**
+     * 角色档案生成场景
+     */
+    PROFILE_GENERATION
 }
