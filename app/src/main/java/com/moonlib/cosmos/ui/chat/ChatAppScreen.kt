@@ -17,6 +17,7 @@ sealed interface ChatNavigation {
     data class EditContact(val contactId: String? = null) : ChatNavigation
     data class InfoCard(val contactId: String) : ChatNavigation
     data class Conversation(val contactId: String) : ChatNavigation
+    data class MomentThread(val momentId: String) : ChatNavigation
 }
 
 /**
@@ -88,6 +89,13 @@ fun ChatAppScreen(
             is ChatNavigation.Conversation -> {
                 ChatConversationScreen(
                     contactId = screen.contactId,
+                    onGoBack = goBack,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+            is ChatNavigation.MomentThread -> {
+                ChatMomentThreadScreen(
+                    momentId = screen.momentId,
                     onGoBack = goBack,
                     modifier = Modifier.fillMaxSize()
                 )

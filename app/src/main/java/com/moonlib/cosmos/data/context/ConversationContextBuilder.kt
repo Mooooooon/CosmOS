@@ -105,7 +105,41 @@ object ConversationContextBuilder {
             )
         }
 
-        val sortedCandidates = (formattedOnlineMsgs + offlineMsgs + diaryMsgs + twitterMsgs).sortedBy { it.message.timestamp }
+        // 获取朋友圈动态与评论，并合入全局历史记忆
+        val momentRepo = com.moonlib.cosmos.data.chat.MomentRepository(context)
+        val momentMsgs = momentRepo.getMoments().map { moment ->
+            val authorProfile = momentRepo.getProfile(moment.authorId)
+            val authorNickname = authorProfile?.nickname ?: moment.authorId
+            val parentMoment = moment.parentId?.let { momentRepo.getMoment(it) }
+            val parentProfile = parentMoment?.let { momentRepo.getProfile(it.authorId) }
+            val parentNickname = parentProfile?.nickname
+            
+            val formattedContent = buildString {
+                if (moment.imagePath != null) {
+                    val desc = moment.imagePath.removePrefix("simulated_image:")
+                    append("[发布了照片动态：“$desc”] ")
+                }
+                if (moment.videoPath != null) {
+                    val desc = moment.videoPath.removePrefix("simulated_video:")
+                    append("[发布了视频动态：“$desc”] ")
+                }
+                if (parentNickname != null) {
+                    append("回复了 $parentNickname 的动态评论: ")
+                }
+                append(moment.content)
+            }
+            ContextCandidate(
+                message = MergedMessage(
+                    senderId = moment.authorId,
+                    content = "$authorNickname: $formattedContent",
+                    timestamp = moment.timestamp,
+                    isOnline = false,
+                    source = MergedMessageSource.MOMENT
+                )
+            )
+        }
+
+        val sortedCandidates = (formattedOnlineMsgs + offlineMsgs + diaryMsgs + twitterMsgs + momentMsgs).sortedBy { it.message.timestamp }
         val anchoredCandidates = sortedCandidates.keepOnlyContextBeforeCurrentUserInput()
         val fullDiaryIndex = anchoredCandidates.indexOfDiaryToExpandForCurrentReply()
         val mergedMessages = anchoredCandidates.mapIndexed { index, candidate ->

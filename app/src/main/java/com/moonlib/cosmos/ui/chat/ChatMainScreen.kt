@@ -46,7 +46,7 @@ fun ChatMainScreen(
     var userNickname by remember { mutableStateOf(chatRepo.getUserNickname()) }
     var userAvatar by remember { mutableStateOf(chatRepo.getUserAvatar()) }
 
-    var activeTab by remember { mutableStateOf(0) } // 0: 消息, 1: 联系人
+    var activeTab by remember { mutableStateOf(0) } // 0: 消息, 1: 联系人, 2: 动态
     var showEditProfileDialog by remember { mutableStateOf(false) }
 
     Surface(
@@ -55,56 +55,60 @@ fun ChatMainScreen(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             
-            // ─── 1. 精美顶部栏（高仿 QQ 风格，去掉了返回按钮） ─────────────────────────────
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // 用户头像与昵称区（点击修改自己资料）
+            if (activeTab != 2) {
+                // ─── 1. 精美顶部栏（高仿 QQ 风格，去掉了返回按钮） ─────────────────────────────
                 Row(
                     modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable { showEditProfileDialog = true }
-                        .padding(vertical = 4.dp, horizontal = 4.dp),
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    AvatarView(
-                        avatarPath = userAvatar,
-                        name = userNickname,
-                        size = 40.dp
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = userNickname,
-                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onBackground,
-                            maxLines = 1
+                    // 用户头像与昵称区（点击修改自己资料）
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { showEditProfileDialog = true }
+                            .padding(vertical = 4.dp, horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AvatarView(
+                            avatarPath = userAvatar,
+                            name = userNickname,
+                            size = 40.dp
                         )
-                        Text(
-                            text = "在线",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = userNickname,
+                                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onBackground,
+                                maxLines = 1
+                            )
+                            Text(
+                                text = "在线",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                            )
+                        }
+                    }
+
+                    // 右侧加号按钮（点击添加联系人，使用主色）
+                    IconButton(
+                        onClick = { onNavigateTo(ChatNavigation.EditContact(null)) },
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "添加联系人",
+                            tint = MaterialTheme.colorScheme.onBackground,
+                            modifier = Modifier.size(28.dp)
                         )
                     }
                 }
-
-                // 右侧加号按钮（点击添加联系人，使用主色）
-                IconButton(
-                    onClick = { onNavigateTo(ChatNavigation.EditContact(null)) },
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "添加联系人",
-                        tint = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
+            } else {
+                Spacer(modifier = Modifier.statusBarsPadding())
             }
 
             // ─── 2. 页签内容渲染 ──────────────────────────────────────
@@ -118,8 +122,13 @@ fun ChatMainScreen(
                         onNavigateTo = onNavigateTo,
                         modifier = Modifier.fillMaxSize()
                     )
-                } else {
+                } else if (activeTab == 1) {
                     ContactListTab(
+                        onNavigateTo = onNavigateTo,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    ChatMomentTab(
                         onNavigateTo = onNavigateTo,
                         modifier = Modifier.fillMaxSize()
                     )
@@ -176,6 +185,30 @@ fun ChatMainScreen(
                                 text = "联系人",
                                 fontSize = 11.sp,
                                 fontWeight = if (activeTab == 1) FontWeight.Bold else FontWeight.Normal
+                            )
+                        },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            indicatorColor = Color.Transparent,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                        )
+                    )
+                    NavigationBarItem(
+                        selected = activeTab == 2,
+                        onClick = { activeTab = 2 },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Default.PhotoCamera,
+                                contentDescription = "动态"
+                            )
+                        },
+                        label = {
+                            Text(
+                                text = "动态",
+                                fontSize = 11.sp,
+                                fontWeight = if (activeTab == 2) FontWeight.Bold else FontWeight.Normal
                             )
                         },
                         colors = NavigationBarItemDefaults.colors(
