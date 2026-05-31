@@ -100,6 +100,19 @@ object AiJsonSchemaFactory {
         }
     }
 
+    fun contactMetadataSchema(schemaName: String = "cosmos_contact_metadata"): JSONObject {
+        return JSONObject().apply {
+            put("type", "object")
+            put("additionalProperties", true)
+            put("properties", JSONObject().apply {
+                put("nickname", JSONObject().apply { put("type", "string") })
+                put("signature", JSONObject().apply { put("type", "string") })
+            })
+            put("required", JSONArray().put("nickname").put("signature"))
+            put("_schema_name", schemaName)
+        }
+    }
+
     private fun socialPostSchema(): JSONObject {
         return JSONObject().apply {
             put("type", "object")

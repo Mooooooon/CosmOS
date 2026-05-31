@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.*
@@ -70,6 +70,9 @@ fun ContactEditScreen(
     val selectedProfileName = remember(selectedProfileId, profiles) {
         profiles.firstOrNull { it.id == selectedProfileId }?.name ?: "点击选择关联的系统人设"
     }
+    val selectedProfile = remember(selectedProfileId, profiles) {
+        profiles.firstOrNull { it.id == selectedProfileId }
+    }
 
     // 确定唯一 ID
     val targetContactId = remember { existingContact?.id ?: UUID.randomUUID().toString() }
@@ -101,8 +104,17 @@ fun ContactEditScreen(
                 windowInsets = WindowInsets(0.dp),
                 navigationIcon = {
                     IconButton(onClick = onGoBack) {
-                        Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "返回")
+                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
                     }
+                },
+                actions = {
+                    ContactAiGenerateAction(
+                        selectedProfile = selectedProfile,
+                        onGenerated = { generatedNickname, generatedSignature ->
+                            nickname = generatedNickname
+                            signature = generatedSignature
+                        }
+                    )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = backgroundColor

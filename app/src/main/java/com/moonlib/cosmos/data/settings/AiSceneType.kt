@@ -38,5 +38,10 @@ enum class AiSceneType {
     /**
      * 角色档案生成场景
      */
-    PROFILE_GENERATION
+    PROFILE_GENERATION,
+
+    /**
+     * 聊天联系人展示资料生成场景
+     */
+    CONTACT_PROFILE_GENERATION
 }
