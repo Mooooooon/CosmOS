@@ -1,6 +1,6 @@
 package com.moonlib.cosmos.ui.chat
 
-import android.widget.Toast
+// import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
@@ -141,7 +141,7 @@ fun ChatMomentThreadScreen(
                             onDelete = { toDelete ->
                                 repository.deleteMoment(toDelete.id)
                                 onGoBack() // 根帖子删除了，安全退回上一级
-                                Toast.makeText(context, "动态已成功删除", Toast.LENGTH_SHORT).show()
+                                // Toast.makeText(context, "动态已成功删除", Toast.LENGTH_SHORT).show()
                             }
                         )
                         Spacer(modifier = Modifier.height(8.dp))
@@ -175,7 +175,7 @@ fun ChatMomentThreadScreen(
                                 onDelete = { toDelete ->
                                     repository.deleteMoment(toDelete.id)
                                     repliesList = repository.getMoments() // 刷新列表
-                                    Toast.makeText(context, "评论已删除", Toast.LENGTH_SHORT).show()
+                                    // Toast.makeText(context, "评论已删除", Toast.LENGTH_SHORT).show()
                                 }
                             )
                         }
@@ -292,7 +292,7 @@ fun ChatMomentThreadScreen(
                                     repliesList = repository.getMoments()
                                     isLoadingReplies = false
                                 }
-                                Toast.makeText(context, "评论发表成功，虚拟时间已推进", Toast.LENGTH_SHORT).show()
+                                // Toast.makeText(context, "评论发表成功，虚拟时间已推进", Toast.LENGTH_SHORT).show()
                             },
                             enabled = textInput.trim().isNotBlank() && !isLoadingReplies,
                             modifier = Modifier

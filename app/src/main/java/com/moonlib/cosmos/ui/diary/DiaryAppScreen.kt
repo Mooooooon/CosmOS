@@ -1,6 +1,6 @@
 package com.moonlib.cosmos.ui.diary
 
-import android.widget.Toast
+// import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -156,7 +156,7 @@ fun DiaryAppScreen(
                                 onDelete = {
                                     diaryRepo.deleteDiary(diary.id)
                                     diaryList = diaryRepo.getDiaries().reversed()
-                                    Toast.makeText(context, "日记已删除", Toast.LENGTH_SHORT).show()
+                                    // Toast.makeText(context, "日记已删除", Toast.LENGTH_SHORT).show()
                                 },
                                 onRegenerate = {
                                     isLoading = true
@@ -179,11 +179,11 @@ fun DiaryAppScreen(
                                                 updatedList[idx] = newEntry.copy(timestamp = diary.timestamp)
                                                 diaryRepo.saveDiaries(updatedList)
                                                 diaryList = diaryRepo.getDiaries().reversed()
-                                                Toast.makeText(context, "日记已重新生成！", Toast.LENGTH_SHORT).show()
+                                                // Toast.makeText(context, "日记已重新生成！", Toast.LENGTH_SHORT).show()
                                             }
                                         } catch (e: Exception) {
                                             e.printStackTrace()
-                                            Toast.makeText(context, "重新生成失败: ${e.message}", Toast.LENGTH_LONG).show()
+                                            // Toast.makeText(context, "重新生成失败: ${e.message}", Toast.LENGTH_LONG).show()
                                         } finally {
                                             isLoading = false
                                         }
@@ -287,11 +287,11 @@ fun DiaryAppScreen(
                             onClick = {
                                 val input = textInput.trim()
                                 if (input.isBlank()) {
-                                    Toast.makeText(context, "请输入起因引子", Toast.LENGTH_SHORT).show()
+                                    // Toast.makeText(context, "请输入起因引子", Toast.LENGTH_SHORT).show()
                                     return@IconButton
                                 }
                                 if (selectedCharacterIds.isEmpty()) {
-                                    Toast.makeText(context, "请点击 @ 按钮选择至少一位参与人物", Toast.LENGTH_SHORT).show()
+                                    // Toast.makeText(context, "请点击 @ 按钮选择至少一位参与人物", Toast.LENGTH_SHORT).show()
                                     return@IconButton
                                 }
                                 isLoading = true
@@ -306,10 +306,10 @@ fun DiaryAppScreen(
                                         diaryRepo.addDiary(newEntry)
                                         diaryList = diaryRepo.getDiaries().reversed()
                                         selectedCharacterIds = emptyList()
-                                        Toast.makeText(context, "日记记录成功！", Toast.LENGTH_SHORT).show()
+                                        // Toast.makeText(context, "日记记录成功！", Toast.LENGTH_SHORT).show()
                                     } catch (e: Exception) {
                                         e.printStackTrace()
-                                        Toast.makeText(context, "生成失败: ${e.message}", Toast.LENGTH_LONG).show()
+                                        // Toast.makeText(context, "生成失败: ${e.message}", Toast.LENGTH_LONG).show()
                                         textInput = input // 恢复内容
                                     } finally {
                                         isLoading = false

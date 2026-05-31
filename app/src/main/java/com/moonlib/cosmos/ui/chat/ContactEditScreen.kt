@@ -1,7 +1,7 @@
 package com.moonlib.cosmos.ui.chat
 
 import android.net.Uri
-import android.widget.Toast
+// import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -253,11 +253,11 @@ fun ContactEditScreen(
                 onClick = {
                     // 表单合理性验证
                     if (nickname.isBlank()) {
-                        Toast.makeText(context, "请输入联系人昵称！", Toast.LENGTH_SHORT).show()
+                        // Toast.makeText(context, "请输入联系人昵称！", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
                     if (selectedProfileId.isBlank()) {
-                        Toast.makeText(context, "请关联一个人设档案！", Toast.LENGTH_SHORT).show()
+                        // Toast.makeText(context, "请关联一个人设档案！", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
 
@@ -272,7 +272,7 @@ fun ContactEditScreen(
                     chatRepo.saveContact(contact)
                     
                     val text = if (isEditMode) "保存成功！" else "联系人添加成功！"
-                    Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
+                    // Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
                     onGoBack()
                 },
                 modifier = Modifier

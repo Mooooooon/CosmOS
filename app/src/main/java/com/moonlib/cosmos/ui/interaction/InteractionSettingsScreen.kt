@@ -1,6 +1,6 @@
 package com.moonlib.cosmos.ui.interaction
 
-import android.widget.Toast
+// import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -151,7 +151,7 @@ fun InteractionSettingsScreen(
                             onClick = {
                                 repository.restoreDefaultKeys()
                                 keys = repository.getStatusKeys()
-                                Toast.makeText(context, "已恢复为默认词条", Toast.LENGTH_SHORT).show()
+                                // Toast.makeText(context, "已恢复为默认词条", Toast.LENGTH_SHORT).show()
                             },
                             contentPadding = PaddingValues(horizontal = 8.dp),
                             modifier = Modifier.height(32.dp)
@@ -219,7 +219,7 @@ fun InteractionSettingsScreen(
                                         val newKeys = keys.filter { it.name != key.name }
                                         repository.setStatusKeys(newKeys)
                                         keys = newKeys
-                                        Toast.makeText(context, "词条已删除", Toast.LENGTH_SHORT).show()
+                                        // Toast.makeText(context, "词条已删除", Toast.LENGTH_SHORT).show()
                                     },
                                     modifier = Modifier.size(36.dp)
                                 ) {
@@ -292,11 +292,11 @@ fun InteractionSettingsScreen(
                                     val name = newKeyName.trim()
                                     val desc = newKeyDesc.trim()
                                     if (name.isBlank() || desc.isBlank()) {
-                                        Toast.makeText(context, "名称与释义不能为空", Toast.LENGTH_SHORT).show()
+                                        // Toast.makeText(context, "名称与释义不能为空", Toast.LENGTH_SHORT).show()
                                         return@Button
                                     }
                                     if (keys.any { it.name == name }) {
-                                        Toast.makeText(context, "该词条已存在", Toast.LENGTH_SHORT).show()
+                                        // Toast.makeText(context, "该词条已存在", Toast.LENGTH_SHORT).show()
                                         return@Button
                                     }
                                     val newKeys = keys + StatusKey(name, desc)
@@ -304,7 +304,7 @@ fun InteractionSettingsScreen(
                                     keys = newKeys
                                     newKeyName = ""
                                     newKeyDesc = ""
-                                    Toast.makeText(context, "词条添加成功", Toast.LENGTH_SHORT).show()
+                                    // Toast.makeText(context, "词条添加成功", Toast.LENGTH_SHORT).show()
                                 },
                                 shape = RoundedCornerShape(10.dp),
                                 modifier = Modifier.fillMaxWidth(),

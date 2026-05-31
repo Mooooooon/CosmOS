@@ -1,7 +1,7 @@
 package com.moonlib.cosmos.ui.twitter
 
 import android.net.Uri
-import android.widget.Toast
+// import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -61,7 +61,7 @@ fun TwitterNewTweetDialog(
             if (localPath.isNotBlank()) {
                 selectedImagePath = localPath
             } else {
-                Toast.makeText(context, "图片加载失败", Toast.LENGTH_SHORT).show()
+                // Toast.makeText(context, "图片加载失败", Toast.LENGTH_SHORT).show()
             }
         }
     }

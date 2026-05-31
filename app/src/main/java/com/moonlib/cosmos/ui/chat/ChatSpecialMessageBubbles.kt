@@ -1,6 +1,6 @@
 package com.moonlib.cosmos.ui.chat
 
-import android.widget.Toast
+// import android.widget.Toast
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -52,7 +52,7 @@ fun SpecialMessageBubble(
                 if (msg.extra != "received") {
                     showRedPacketDialog = true
                 } else {
-                    Toast.makeText(context, "红包已拆开，金额已存入零钱", Toast.LENGTH_SHORT).show()
+                    // Toast.makeText(context, "红包已拆开，金额已存入零钱", Toast.LENGTH_SHORT).show()
                 }
             }
             "transfer" -> {
@@ -60,9 +60,9 @@ fun SpecialMessageBubble(
                     // 模拟收钱交互
                     val updated = msg.copy(extra = "collected")
                     onUpdateMessage(updated)
-                    Toast.makeText(context, "已确认收款，金额 ￥${msg.content} 已存入钱包", Toast.LENGTH_SHORT).show()
+                    // Toast.makeText(context, "已确认收款，金额 ￥${msg.content} 已存入钱包", Toast.LENGTH_SHORT).show()
                 } else {
-                    Toast.makeText(context, "已收钱，款项已存入钱包", Toast.LENGTH_SHORT).show()
+                    // Toast.makeText(context, "已收钱，款项已存入钱包", Toast.LENGTH_SHORT).show()
                 }
             }
             "image" -> {
@@ -72,7 +72,7 @@ fun SpecialMessageBubble(
                 showMediaPreview = true
             }
             "location" -> {
-                Toast.makeText(context, "导航去: ${msg.content}", Toast.LENGTH_SHORT).show()
+                // Toast.makeText(context, "导航去: ${msg.content}", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -101,7 +101,7 @@ fun SpecialMessageBubble(
                 val updated = msg.copy(extra = "received")
                 onUpdateMessage(updated)
                 showRedPacketDialog = false
-                Toast.makeText(context, "成功领取红包 ￥${msg.content} 元！", Toast.LENGTH_LONG).show()
+                // Toast.makeText(context, "成功领取红包 ￥${msg.content} 元！", Toast.LENGTH_LONG).show()
             }
         )
     }

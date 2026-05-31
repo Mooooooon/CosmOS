@@ -1,7 +1,7 @@
 package com.moonlib.cosmos.ui.twitter
 
 import android.net.Uri
-import android.widget.Toast
+// import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -65,7 +65,7 @@ fun TwitterProfileEditScreen(
             val localPath = repository.copyAvatarToLocal(it.toString(), profile.characterId)
             if (localPath.isNotBlank()) {
                 avatarPath = localPath
-                Toast.makeText(context, "推特头像设置成功", Toast.LENGTH_SHORT).show()
+                // Toast.makeText(context, "推特头像设置成功", Toast.LENGTH_SHORT).show()
             }
         }
     }

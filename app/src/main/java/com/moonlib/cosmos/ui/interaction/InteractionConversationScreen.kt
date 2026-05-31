@@ -1,6 +1,6 @@
 package com.moonlib.cosmos.ui.interaction
 
-import android.widget.Toast
+// import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -180,7 +180,7 @@ fun InteractionConversationScreen(
                     }
                 }
             } else {
-                Toast.makeText(context, "已发送至互动记录 (未触发 AI 回复)", Toast.LENGTH_SHORT).show()
+                // Toast.makeText(context, "已发送至互动记录 (未触发 AI 回复)", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -366,7 +366,7 @@ fun InteractionConversationScreen(
                                     onDelete = {
                                         interactionRepo.deleteMessage(characterId, msg.id)
                                         messages = interactionRepo.getMessages(characterId)
-                                        Toast.makeText(context, "互动已删除", Toast.LENGTH_SHORT).show()
+                                        // Toast.makeText(context, "互动已删除", Toast.LENGTH_SHORT).show()
                                     },
                                     onResend = {
                                         // 1. 回调系统虚拟时间
@@ -408,7 +408,7 @@ fun InteractionConversationScreen(
                                     onDelete = {
                                         interactionRepo.deleteMessage(characterId, msg.id)
                                         messages = interactionRepo.getMessages(characterId)
-                                        Toast.makeText(context, "消息已删除", Toast.LENGTH_SHORT).show()
+                                        // Toast.makeText(context, "消息已删除", Toast.LENGTH_SHORT).show()
                                     }
                                 )
                             }
@@ -420,7 +420,7 @@ fun InteractionConversationScreen(
                                     onDelete = {
                                         interactionRepo.deleteMessage(characterId, msg.id)
                                         messages = interactionRepo.getMessages(characterId)
-                                        Toast.makeText(context, "互动已删除", Toast.LENGTH_SHORT).show()
+                                        // Toast.makeText(context, "互动已删除", Toast.LENGTH_SHORT).show()
                                     }
                                 )
                             }

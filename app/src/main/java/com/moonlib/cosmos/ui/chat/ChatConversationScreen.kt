@@ -1,6 +1,6 @@
 package com.moonlib.cosmos.ui.chat
 
-import android.widget.Toast
+// import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -180,7 +180,7 @@ fun ChatConversationScreen(
                     }
                 }
             } else {
-                Toast.makeText(context, "已发送至记录 (未触发 AI 回复)", Toast.LENGTH_SHORT).show()
+                // Toast.makeText(context, "已发送至记录 (未触发 AI 回复)", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -371,7 +371,7 @@ fun ChatConversationScreen(
                                     onDelete = {
                                         chatRepo.deleteMessage(contactId, msg.id)
                                         messages = chatRepo.getMessages(contactId)
-                                        Toast.makeText(context, "消息已删除", Toast.LENGTH_SHORT).show()
+                                        // Toast.makeText(context, "消息已删除", Toast.LENGTH_SHORT).show()
                                     },
                                     onResend = {
                                         // 1. 回调系统时间到这条消息发送的时间
@@ -421,7 +421,7 @@ fun ChatConversationScreen(
                                     onDelete = {
                                         chatRepo.deleteMessage(contactId, msg.id)
                                         messages = chatRepo.getMessages(contactId)
-                                        Toast.makeText(context, "消息已删除", Toast.LENGTH_SHORT).show()
+                                        // Toast.makeText(context, "消息已删除", Toast.LENGTH_SHORT).show()
                                     }
                                 )
                             }
@@ -432,7 +432,7 @@ fun ChatConversationScreen(
                                     onDelete = {
                                         chatRepo.deleteMessage(contactId, msg.id)
                                         messages = chatRepo.getMessages(contactId)
-                                        Toast.makeText(context, "消息已删除", Toast.LENGTH_SHORT).show()
+                                        // Toast.makeText(context, "消息已删除", Toast.LENGTH_SHORT).show()
                                     },
                                     onUpdateMessage = { updated ->
                                         chatRepo.updateMessage(contactId, updated)

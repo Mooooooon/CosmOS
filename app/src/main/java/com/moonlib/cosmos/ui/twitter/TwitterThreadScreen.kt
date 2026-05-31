@@ -1,6 +1,6 @@
 package com.moonlib.cosmos.ui.twitter
 
-import android.widget.Toast
+// import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
@@ -131,7 +131,7 @@ fun TwitterThreadScreen(
                             onDeleteTweet = { toDelete ->
                                 repository.deleteTweet(toDelete.id)
                                 onBackClick() // 主推文被删除，安全退回上一级
-                                Toast.makeText(context, "推文已删除", Toast.LENGTH_SHORT).show()
+                                // Toast.makeText(context, "推文已删除", Toast.LENGTH_SHORT).show()
                             }
                         )
                         Spacer(modifier = Modifier.height(6.dp))
@@ -165,7 +165,7 @@ fun TwitterThreadScreen(
                                 onDeleteReply = { toDelete ->
                                     repository.deleteTweet(toDelete.id)
                                     repliesList = repository.getTweets() // 刷新列表
-                                    Toast.makeText(context, "评论已删除", Toast.LENGTH_SHORT).show()
+                                    // Toast.makeText(context, "评论已删除", Toast.LENGTH_SHORT).show()
                                 }
                             )
                         }
@@ -281,7 +281,7 @@ fun TwitterThreadScreen(
                                     repliesList = repository.getTweets()
                                     isLoadingReplies = false
                                 }
-                                Toast.makeText(context, "评论发表成功，虚拟时间已推进", Toast.LENGTH_SHORT).show()
+                                // Toast.makeText(context, "评论发表成功，虚拟时间已推进", Toast.LENGTH_SHORT).show()
                             },
                             enabled = textInput.trim().isNotBlank() && !isLoadingReplies,
                             modifier = Modifier

@@ -1,6 +1,6 @@
 package com.moonlib.cosmos.ui.twitter
 
-import android.widget.Toast
+// import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -82,13 +82,13 @@ fun TwitterAppScreen(
                     repository.saveProfile(updatedProfile)
                     editingProfile = null
                     refreshData()
-                    Toast.makeText(context, "资料保存成功！", Toast.LENGTH_SHORT).show()
+                    // Toast.makeText(context, "资料保存成功！", Toast.LENGTH_SHORT).show()
                 },
                 onUnfollowClick = {
                     repository.unfollowCharacter(editingProfile!!.characterId)
                     editingProfile = null
                     refreshData()
-                    Toast.makeText(context, "已成功取消关注", Toast.LENGTH_SHORT).show()
+                    // Toast.makeText(context, "已成功取消关注", Toast.LENGTH_SHORT).show()
                 },
                 modifier = Modifier.fillMaxSize()
             )
@@ -191,7 +191,7 @@ fun TwitterAppScreen(
                                 onDeleteTweet = { toDelete ->
                                     repository.deleteTweet(toDelete.id)
                                     refreshData()
-                                    Toast.makeText(context, "推文已删除", Toast.LENGTH_SHORT).show()
+                                    // Toast.makeText(context, "推文已删除", Toast.LENGTH_SHORT).show()
                                 },
                                 modifier = Modifier.fillMaxSize()
                             )
@@ -202,7 +202,7 @@ fun TwitterAppScreen(
                                 onFollow = { charId ->
                                     repository.followCharacter(charId)
                                     refreshData()
-                                    Toast.makeText(context, "关注成功！该博主已被加入时间线", Toast.LENGTH_SHORT).show()
+                                    // Toast.makeText(context, "关注成功！该博主已被加入时间线", Toast.LENGTH_SHORT).show()
                                 },
                                 onEditClick = { editingProfile = it },
                                 modifier = Modifier.fillMaxSize()
@@ -221,7 +221,7 @@ fun TwitterAppScreen(
                 onPublishSuccess = {
                     showNewTweetDialog = false
                     refreshData()
-                    Toast.makeText(context, "推特发布成功，虚拟时间已推进", Toast.LENGTH_SHORT).show()
+                    // Toast.makeText(context, "推特发布成功，虚拟时间已推进", Toast.LENGTH_SHORT).show()
                 }
             )
         }

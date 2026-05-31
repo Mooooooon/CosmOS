@@ -1,6 +1,6 @@
 package com.moonlib.cosmos.ui.chat
 
-import android.widget.Toast
+// import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -72,7 +72,7 @@ fun ContactInfoCardScreen(
                     IconButton(
                         onClick = {
                             chatRepo.deleteContact(contactId)
-                            Toast.makeText(context, "联系人已删除", Toast.LENGTH_SHORT).show()
+                            // Toast.makeText(context, "联系人已删除", Toast.LENGTH_SHORT).show()
                             onGoBack() // 成功删除后自动回退至列表页
                         }
                     ) {

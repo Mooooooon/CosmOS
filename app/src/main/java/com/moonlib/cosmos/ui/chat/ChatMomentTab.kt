@@ -1,6 +1,6 @@
 package com.moonlib.cosmos.ui.chat
 
-import android.widget.Toast
+// import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
@@ -86,7 +86,7 @@ fun ChatMomentTab(
                     repository = repository,
                     onPublishSuccess = {
                         refreshMoments()
-                        Toast.makeText(context, "动态发布成功，虚拟时间已推进", Toast.LENGTH_SHORT).show()
+                        // Toast.makeText(context, "动态发布成功，虚拟时间已推进", Toast.LENGTH_SHORT).show()
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -135,7 +135,7 @@ fun ChatMomentTab(
                         onDeleteMoment = { toDelete ->
                             repository.deleteMoment(toDelete.id)
                             refreshMoments()
-                            Toast.makeText(context, "动态已成功删除", Toast.LENGTH_SHORT).show()
+                            // Toast.makeText(context, "动态已成功删除", Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -690,7 +690,7 @@ fun MomentCard(
                     text = { Text("举报/屏蔽", color = MaterialTheme.colorScheme.onSurface) },
                     onClick = {
                         showMenu = false
-                        Toast.makeText(context, "操作已记录，后台智能屏蔽中", Toast.LENGTH_SHORT).show()
+                        // Toast.makeText(context, "操作已记录，后台智能屏蔽中", Toast.LENGTH_SHORT).show()
                     }
                 )
             }
