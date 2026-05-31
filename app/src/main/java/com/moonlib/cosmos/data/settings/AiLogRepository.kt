@@ -16,7 +16,8 @@ data class AiLog(
     val modelName: String,
     val userInput: String,
     val aiResponse: String,
-    val prompt: String
+    val prompt: String,
+    val requestDetails: String = ""
 )
 
 /**
@@ -61,7 +62,8 @@ class AiLogRepository(context: Context) {
         modelName: String,
         userInput: String,
         aiResponse: String,
-        prompt: String
+        prompt: String,
+        requestDetails: String = ""
     ) {
         android.util.Log.d("CosmOS_AI", "[saveLog] characterName=$characterName, modelName=$modelName, userInput=$userInput")
         android.util.Log.d("CosmOS_AI", "[saveLog] aiResponse length=${aiResponse.length}, first100=${aiResponse.take(100)}")
@@ -73,7 +75,8 @@ class AiLogRepository(context: Context) {
             modelName = modelName,
             userInput = userInput,
             aiResponse = aiResponse,
-            prompt = prompt
+            prompt = prompt,
+            requestDetails = requestDetails
         )
         // 头部插入新日志
         currentLogs.add(0, newLog)
@@ -121,7 +124,8 @@ class AiLogRepository(context: Context) {
             modelName = json.getString("modelName"),
             userInput = json.getString("userInput"),
             aiResponse = json.getString("aiResponse"),
-            prompt = json.getString("prompt")
+            prompt = json.getString("prompt"),
+            requestDetails = json.optString("requestDetails", "")
         )
     }
 
@@ -137,6 +141,7 @@ class AiLogRepository(context: Context) {
             put("userInput", log.userInput)
             put("aiResponse", log.aiResponse)
             put("prompt", log.prompt)
+            put("requestDetails", log.requestDetails)
         }
     }
 }

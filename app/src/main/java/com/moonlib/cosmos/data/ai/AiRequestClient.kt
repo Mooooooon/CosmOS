@@ -29,7 +29,7 @@ object AiRequestClient {
         val isNativeGenerateContent = activeProfile.serviceType == AiServiceType.VERTEX ||
             (activeProfile.serviceType == AiServiceType.GEMINI && activeProfile.baseUrl.contains("googleapis.com"))
 
-        val rawResponse = if (isNativeGenerateContent) {
+        val httpResult = if (isNativeGenerateContent) {
             executeGeminiOfficial(
                 baseUrl = activeProfile.baseUrl,
                 modelName = activeProfile.modelName,
@@ -54,6 +54,7 @@ object AiRequestClient {
                 thinkingLevel = activeProfile.thinkingLevel
             )
         }
+        val rawResponse = httpResult.rawResponse
 
         AiRequestLogger.save(
             context = context,
@@ -61,7 +62,8 @@ object AiRequestClient {
             modelName = activeProfile.modelName,
             userInput = request.logUserInput,
             aiResponse = rawResponse,
-            prompt = prompt
+            prompt = prompt,
+            requestDetails = httpResult.requestDetails
         )
 
         return AiSceneResult(
@@ -82,7 +84,7 @@ object AiRequestClient {
         expectsJson: Boolean,
         serviceType: AiServiceType,
         vertexRegion: String
-    ): String {
+    ): AiHttpResult {
         val base = baseUrl.removeSuffix("/")
         val urlStr = if (serviceType == AiServiceType.VERTEX) {
             AiVertexConfig.buildGenerateContentUrl(apiKey, vertexRegion, modelName)
@@ -94,9 +96,8 @@ object AiRequestClient {
         conn.connectTimeout = 60000
         conn.readTimeout = 60000
         conn.setRequestProperty("Content-Type", "application/json")
-        if (serviceType == AiServiceType.VERTEX) {
-            conn.setRequestProperty("Authorization", AiAuthorizationHeader.create(serviceType, apiKey))
-        }
+        val authHeader = if (serviceType == AiServiceType.VERTEX) AiAuthorizationHeader.create(serviceType, apiKey) else null
+        authHeader?.let { conn.setRequestProperty("Authorization", it) }
         conn.doOutput = true
 
         val requestJson = JSONObject().apply {
@@ -112,6 +113,18 @@ object AiRequestClient {
                 }
             })
         }
+        val requestDetails = buildRequestDetails(
+            serviceType = serviceType,
+            method = "POST",
+            url = sanitizeUrl(urlStr),
+            modelName = modelName,
+            temperature = temperature,
+            headers = buildMap {
+                put("Content-Type", "application/json")
+                authHeader?.let { put("Authorization", maskAuthorization(it)) }
+            },
+            body = requestJson
+        )
 
         conn.outputStream.use { it.write(requestJson.toString().toByteArray(Charsets.UTF_8)) }
         val responseCode = conn.responseCode
@@ -122,10 +135,10 @@ object AiRequestClient {
             throw Exception("AI 请求失败 HTTP $responseCode: $err")
         }
         val json = JSONObject(responseText)
-        val candidates = json.optJSONArray("candidates") ?: return ""
-        if (candidates.length() == 0) return ""
-        val content = candidates.getJSONObject(0).optJSONObject("content") ?: return ""
-        val parts = content.optJSONArray("parts") ?: return ""
+        val candidates = json.optJSONArray("candidates") ?: return AiHttpResult("", requestDetails)
+        if (candidates.length() == 0) return AiHttpResult("", requestDetails)
+        val content = candidates.getJSONObject(0).optJSONObject("content") ?: return AiHttpResult("", requestDetails)
+        val parts = content.optJSONArray("parts") ?: return AiHttpResult("", requestDetails)
         val builder = StringBuilder()
         for (i in 0 until parts.length()) {
             val text = parts.getJSONObject(i).optString("text", "")
@@ -134,7 +147,7 @@ object AiRequestClient {
                 builder.append(text)
             }
         }
-        return builder.toString()
+        return AiHttpResult(builder.toString(), requestDetails)
     }
 
     private fun executeOpenAI(
@@ -147,7 +160,7 @@ object AiRequestClient {
         expectsJson: Boolean,
         serviceType: AiServiceType,
         thinkingLevel: String
-    ): String {
+    ): AiHttpResult {
         val base = baseUrl.removeSuffix("/")
         val url = URL(if (base.endsWith("/chat/completions")) base else "$base/chat/completions")
         val conn = url.openConnection() as HttpURLConnection
@@ -155,7 +168,8 @@ object AiRequestClient {
         conn.connectTimeout = 60000
         conn.readTimeout = 60000
         conn.setRequestProperty("Content-Type", "application/json")
-        conn.setRequestProperty("Authorization", AiAuthorizationHeader.create(serviceType, apiKey))
+        val authHeader = AiAuthorizationHeader.create(serviceType, apiKey)
+        conn.setRequestProperty("Authorization", authHeader)
         conn.doOutput = true
 
         val requestJson = JSONObject().apply {
@@ -182,6 +196,18 @@ object AiRequestClient {
                 }
             }
         }
+        val requestDetails = buildRequestDetails(
+            serviceType = serviceType,
+            method = "POST",
+            url = url.toString(),
+            modelName = modelName,
+            temperature = temperature,
+            headers = mapOf(
+                "Content-Type" to "application/json",
+                "Authorization" to maskAuthorization(authHeader)
+            ),
+            body = requestJson
+        )
 
         conn.outputStream.use { it.write(requestJson.toString().toByteArray(Charsets.UTF_8)) }
         val responseCode = conn.responseCode
@@ -191,7 +217,43 @@ object AiRequestClient {
             val err = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
             throw Exception("AI 请求失败 HTTP $responseCode: $err")
         }
-        return AiChatCompletionResponseParser.extractContent(responseText)
+        return AiHttpResult(AiChatCompletionResponseParser.extractContent(responseText), requestDetails)
+    }
+
+    private data class AiHttpResult(
+        val rawResponse: String,
+        val requestDetails: String
+    )
+
+    private fun buildRequestDetails(
+        serviceType: AiServiceType,
+        method: String,
+        url: String,
+        modelName: String,
+        temperature: Float,
+        headers: Map<String, String>,
+        body: JSONObject
+    ): String {
+        return JSONObject().apply {
+            put("serviceType", serviceType.name)
+            put("method", method)
+            put("url", url)
+            put("modelName", modelName)
+            put("temperature", temperature.toDouble())
+            put("headers", JSONObject(headers))
+            put("body", body)
+        }.toString(4)
+    }
+
+    private fun sanitizeUrl(url: String): String {
+        return url.replace(Regex("([?&]key=)[^&]+")) { match ->
+            "${match.groupValues[1]}***"
+        }
+    }
+
+    private fun maskAuthorization(value: String): String {
+        val prefix = value.substringBefore(" ", "")
+        return if (prefix.isBlank()) "***" else "$prefix ***"
     }
 
     private fun JSONObject.copyWithoutSchemaName(): JSONObject {

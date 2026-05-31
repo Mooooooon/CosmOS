@@ -126,6 +126,7 @@ E:\Android\CosmOS
 │       │   │   │   │   └── ProfileScreenState.kt
 │       │   │   │   ├── settings
 │       │   │   │   │   ├── AiChatSettingsScreen.kt
+│       │   │   │   │   ├── AiLogDetailScreen.kt
 │       │   │   │   │   ├── AiLogsScreen.kt
 │       │   │   │   │   ├── ModelSelectDialog.kt
 │       │   │   │   │   ├── ModelServiceConfigScreen.kt
@@ -190,7 +191,7 @@ E:\Android\CosmOS
 - `app/src/main/java/com/moonlib/cosmos/ui/desktop`：桌面主界面、应用网格、应用图标、桌面时钟、虚拟状态栏与自适应壁纸。
 - `app/src/main/java/com/moonlib/cosmos/ui/interaction`：互动应用入口、互动列表、互动会话与互动设置界面。
 - `app/src/main/java/com/moonlib/cosmos/ui/profile`：角色档案应用入口、档案列表、档案编辑、AI 灵感输入与档案界面状态。
-- `app/src/main/java/com/moonlib/cosmos/ui/settings`：设置入口、AI 聊天设置、模型服务配置、服务商选择、模型选择、思考等级选择、日志、存档、系统提示词与主题配置界面。
+- `app/src/main/java/com/moonlib/cosmos/ui/settings`：设置入口、AI 聊天设置、模型服务配置、服务商选择、模型选择、思考等级选择、日志列表 / 日志详情、存档、系统提示词与主题配置界面。
 - `app/src/main/java/com/moonlib/cosmos/ui/theme`：Compose 主题、配色集（深浅双色板）与 CompositionLocal 定义。
 - `app/src/main/java/com/moonlib/cosmos/ui/time`：虚拟时间应用界面。
 - `app/src/main/java/com/moonlib/cosmos/ui/diary`：日记应用入口、信纸流卡片、参与人 @ 多选与独立状态卡渲染界面。
@@ -209,7 +210,6 @@ E:\Android\CosmOS
 - `app/src/main/java/com/moonlib/cosmos/ui/chat/ChatConversationScreen.kt`：约 764 行，建议拆出消息输入区、消息列表容器、顶部栏、发送状态与会话副作用处理。
 - `app/src/main/java/com/moonlib/cosmos/ui/interaction/InteractionConversationScreen.kt`：约 762 行，建议拆出互动消息列表、输入区、角色选择 / 状态区与生成流程 UI。
 - `app/src/main/java/com/moonlib/cosmos/ui/chat/ChatMomentTab.kt`：约 746 行，建议拆出动态列表项、发布入口、互动操作区与加载 / 空状态。
-- `app/src/main/java/com/moonlib/cosmos/ui/settings/AiLogsScreen.kt`：约 638 行，建议拆出日志列表、筛选 / 操作区、详情弹窗与格式化展示。
 - `app/src/main/java/com/moonlib/cosmos/ui/chat/ChatSpecialMessageBubbles.kt`：约 632 行，建议按特殊消息类型拆分气泡组件，保留统一入口负责分发。
 - `app/src/main/java/com/moonlib/cosmos/ui/time/TimeAppScreen.kt`：约 594 行，建议拆出时间显示、推进控制、结果展示与历史状态区域。
 - `app/src/main/java/com/moonlib/cosmos/data/interaction/InteractionEngine.kt`、`app/src/main/java/com/moonlib/cosmos/data/twitter/TwitterEngine.kt`、`app/src/main/java/com/moonlib/cosmos/data/diary/DiaryEngine.kt`、`app/src/main/java/com/moonlib/cosmos/data/chat/ChatEngine.kt`：均超过 500 行或接近该规模，后续新增生成逻辑时应优先拆出请求构建、上下文组装、响应解析与结果落库协调。

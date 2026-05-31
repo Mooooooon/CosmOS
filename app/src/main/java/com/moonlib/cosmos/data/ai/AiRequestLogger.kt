@@ -14,7 +14,8 @@ object AiRequestLogger {
         modelName: String,
         userInput: String,
         aiResponse: String,
-        prompt: String
+        prompt: String,
+        requestDetails: String = ""
     ) {
         try {
             AiLogRepository(context).saveLog(
@@ -22,7 +23,8 @@ object AiRequestLogger {
                 modelName = modelName,
                 userInput = userInput,
                 aiResponse = aiResponse,
-                prompt = prompt
+                prompt = prompt,
+                requestDetails = requestDetails
             )
         } catch (e: Exception) {
             e.printStackTrace()
