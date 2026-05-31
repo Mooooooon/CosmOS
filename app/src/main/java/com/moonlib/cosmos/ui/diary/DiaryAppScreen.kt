@@ -105,6 +105,7 @@ fun DiaryAppScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .imePadding()
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 // ── 1. 日记列表区域 (最新的日记在最上方) ──

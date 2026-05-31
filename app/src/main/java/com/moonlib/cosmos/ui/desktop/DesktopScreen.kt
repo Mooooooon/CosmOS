@@ -3,7 +3,9 @@ package com.moonlib.cosmos.ui.desktop
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,10 +44,18 @@ fun DesktopScreen() {
         // ── 1. 深空星云壁纸（最底层，覆盖全屏含状态栏区域）────
         SpaceWallpaper(modifier = Modifier.matchParentSize())
 
+        val isDark = LocalThemeConfig.current.isDark
+        val columnBg = when (activeAppId) {
+            null -> Color.Transparent
+            "chat" -> if (isDark) Color.Black else Color.White
+            else -> MaterialTheme.colorScheme.background
+        }
+
         // ── 2. 内容列（从屏幕顶部 y=0 开始）──────────────────
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(columnBg)
                 .navigationBarsPadding(),        // 底部让出导航栏
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {

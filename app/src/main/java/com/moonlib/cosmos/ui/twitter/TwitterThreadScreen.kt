@@ -113,6 +113,7 @@ fun TwitterThreadScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .imePadding()
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 // ── 1. 滚动视图区（主推文 + 回复楼层列表） ─────────────────

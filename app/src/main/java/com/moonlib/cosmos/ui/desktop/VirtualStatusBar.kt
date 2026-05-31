@@ -24,7 +24,7 @@ fun VirtualStatusBar(modifier: Modifier = Modifier) {
     val themeConfig = LocalThemeConfig.current
     val isDark = themeConfig.isDark
 
-    val currentBg = if (isDark) StatusBarBg else LightStatusBarBg
+    val currentBg = Color.Transparent
     val currentIconColor = if (isDark) StatusIconColor else LightStatusIconColor
     val currentTextColor = if (isDark) StarWhite else LightTextPrimary
 
