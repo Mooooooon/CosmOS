@@ -107,7 +107,7 @@ object ConversationContextBuilder {
 
         val sortedCandidates = (formattedOnlineMsgs + offlineMsgs + diaryMsgs + twitterMsgs).sortedBy { it.message.timestamp }
         val anchoredCandidates = sortedCandidates.keepOnlyContextBeforeCurrentUserInput()
-        val fullDiaryIndex = anchoredCandidates.indexOfLatestDiaryForCurrentReply()
+        val fullDiaryIndex = anchoredCandidates.indexOfDiaryToExpandForCurrentReply()
         val mergedMessages = anchoredCandidates.mapIndexed { index, candidate ->
             if (index == fullDiaryIndex) {
                 candidate.message.copy(content = candidate.fullDiaryContent ?: candidate.message.content)
@@ -115,7 +115,7 @@ object ConversationContextBuilder {
                 candidate.message
             }
         }
-        return mergedMessages.moveFullDiaryBeforeCurrentUserInput(fullDiaryIndex).takeLast(maxContextSize)
+        return mergedMessages.takeLast(maxContextSize)
     }
 
     private data class ContextCandidate(
@@ -134,28 +134,13 @@ object ConversationContextBuilder {
         return historyBeforeInput + currentUserInput
     }
 
-    private fun List<ContextCandidate>.indexOfLatestDiaryForCurrentReply(): Int {
+    private fun List<ContextCandidate>.indexOfDiaryToExpandForCurrentReply(): Int {
         if (isEmpty()) return -1
 
         val currentUserInputIndex = indexOfLast { it.message.isCurrentUserInput() }
-        val searchEndIndex = if (currentUserInputIndex >= 0) currentUserInputIndex - 1 else lastIndex
-        val diaryBeforeCurrentInput = (searchEndIndex downTo 0).firstOrNull { this[it].message.source == MergedMessageSource.DIARY }
-        return diaryBeforeCurrentInput ?: indexOfLast { it.message.source == MergedMessageSource.DIARY }
-    }
-
-    private fun List<MergedMessage>.moveFullDiaryBeforeCurrentUserInput(fullDiaryIndex: Int): List<MergedMessage> {
-        if (fullDiaryIndex < 0) return this
-
-        val currentUserInputIndex = indexOfLast { it.isCurrentUserInput() }
-        if (currentUserInputIndex < 0 || fullDiaryIndex == currentUserInputIndex - 1) return this
-
-        val fullDiary = this[fullDiaryIndex]
-        val withoutFullDiary = filterIndexed { index, _ -> index != fullDiaryIndex }.toMutableList()
-        val adjustedUserInputIndex = withoutFullDiary.indexOfLast { it.isCurrentUserInput() }
-        if (adjustedUserInputIndex < 0) return this
-
-        withoutFullDiary.add(adjustedUserInputIndex, fullDiary)
-        return withoutFullDiary
+        val candidateIndex = if (currentUserInputIndex >= 0) currentUserInputIndex - 1 else lastIndex
+        if (candidateIndex < 0) return -1
+        return if (this[candidateIndex].message.source == MergedMessageSource.DIARY) candidateIndex else -1
     }
 
     private fun MergedMessage.isCurrentUserInput(): Boolean {
