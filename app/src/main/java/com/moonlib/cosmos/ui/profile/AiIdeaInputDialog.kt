@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.moonlib.cosmos.data.settings.AiConfigRepository
 import com.moonlib.cosmos.data.settings.AiProfile
+import com.moonlib.cosmos.data.profile.CharacterProfile
 import com.moonlib.cosmos.data.profile.CharacterProfileGenerator
 import kotlinx.coroutines.launch
 
@@ -25,6 +26,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AiIdeaInputDialog(
+    availableProfiles: List<CharacterProfile> = emptyList(),
     onDismiss: () -> Unit,
     onGenerateSuccess: (String) -> Unit
 ) {
@@ -35,6 +37,7 @@ fun AiIdeaInputDialog(
     // ── 状态声明 ──────────────────────────────────────────────
     var activeProfile by remember { mutableStateOf<AiProfile?>(null) }
     var ideaText by remember { mutableStateOf("") }
+    var selectedReferenceIds by remember { mutableStateOf(emptySet<String>()) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isCheckingConfig by remember { mutableStateOf(true) }
@@ -86,6 +89,8 @@ fun AiIdeaInputDialog(
     } else {
         // ── 状态二：灵感录入与生成中 ─────────────────────────────────
         val isFormValid = ideaText.isNotBlank()
+        val playerProfile = availableProfiles.firstOrNull { it.isPlayer }
+        val referenceProfiles = availableProfiles.filter { !it.isPlayer && it.prompt.isNotBlank() }
 
         AlertDialog(
             onDismissRequest = { if (!isLoading) onDismiss() },
@@ -164,6 +169,12 @@ fun AiIdeaInputDialog(
                             shape = RoundedCornerShape(12.dp)
                         )
 
+                        AiReferenceProfileSelector(
+                            profiles = referenceProfiles,
+                            selectedProfileIds = selectedReferenceIds,
+                            onSelectionChange = { selectedReferenceIds = it }
+                        )
+
                         // 错误状态栏
                         errorMessage?.let { err ->
                             Card(
@@ -202,7 +213,13 @@ fun AiIdeaInputDialog(
                                 errorMessage = null
                                 coroutineScope.launch {
                                     try {
-                                        val result = CharacterProfileGenerator.generateProfile(context, ideaText)
+                                        val selectedReferences = referenceProfiles.filter { it.id in selectedReferenceIds }
+                                        val result = CharacterProfileGenerator.generateProfile(
+                                            context = context,
+                                            userIdea = ideaText,
+                                            playerProfile = playerProfile,
+                                            referenceProfiles = selectedReferences
+                                        )
                                         onGenerateSuccess(result)
                                         onDismiss()
                                     } catch (e: Exception) {

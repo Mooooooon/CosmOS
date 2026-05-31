@@ -53,7 +53,9 @@ object CharacterProfileGenerator {
      */
     suspend fun generateProfile(
         context: Context,
-        userIdea: String
+        userIdea: String,
+        playerProfile: CharacterProfile? = null,
+        referenceProfiles: List<CharacterProfile> = emptyList()
     ): String = withContext(Dispatchers.IO) {
         val configRepo = AiConfigRepository(context)
         val activeProfile = configRepo.getActiveProfile()
@@ -73,7 +75,7 @@ object CharacterProfileGenerator {
             request = AiSceneRequest(
                 sceneType = AiSceneType.PROFILE_GENERATION,
                 systemPrompt = SYSTEM_PROMPT,
-                personaPrompt = "这是一次独立的人设生成任务，不纳入角色扮演历史链。",
+                personaPrompt = buildReferencePrompt(playerProfile, referenceProfiles),
                 outputRequirement = "必须完全按照指定 Markdown 模板直接输出，不要解释，不要使用 JSON，不要包含 emoji 或颜文字。",
                 jsonStructure = "非 JSON 输出：直接返回 Markdown 人设文本。",
                 userInput = "我的核心想法是：$userIdea。请完全按照指定格式生成，并全程用 {{char}} 代替角色人名。",
@@ -82,6 +84,34 @@ object CharacterProfileGenerator {
                 expectsJson = false
             )
         ).rawResponse.trim()
+    }
+
+    private fun buildReferencePrompt(
+        playerProfile: CharacterProfile?,
+        referenceProfiles: List<CharacterProfile>
+    ): String {
+        val validReferences = referenceProfiles.filter { !it.isPlayer && it.prompt.isNotBlank() }
+        return buildString {
+            append("这是一次独立的人设生成任务，不纳入角色扮演历史链。")
+            if (playerProfile != null && playerProfile.prompt.isNotBlank()) {
+                append("\n\n【用户人设（用于建立新角色与 {{user}} 的关系）】\n")
+                appendProfile(playerProfile)
+            }
+            if (validReferences.isNotEmpty()) {
+                append("\n\n【已有角色参考（用于生成朋友、亲人、同事等关系，不要直接复制）】\n")
+                validReferences.forEach { profile ->
+                    appendProfile(profile)
+                }
+                append("请优先参考这些既有设定中的关系、口吻、背景与世界观连续性，生成的新角色仍必须是独立完整的人设。\n")
+            }
+        }
+    }
+
+    private fun StringBuilder.appendProfile(profile: CharacterProfile) {
+        append("姓名：${profile.name}\n")
+        append("人设：\n")
+        append(profile.prompt.trim())
+        append("\n\n")
     }
 
 }

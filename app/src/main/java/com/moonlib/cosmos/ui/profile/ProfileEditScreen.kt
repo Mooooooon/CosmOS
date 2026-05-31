@@ -45,6 +45,7 @@ import java.util.UUID
 @Composable
 fun ProfileEditScreen(
     initialProfile: CharacterProfile?,
+    profiles: List<CharacterProfile> = emptyList(),
     isPlayer: Boolean,
     onBackClick: () -> Unit,
     onSaveClick: (CharacterProfile) -> Unit,
@@ -458,7 +459,9 @@ fun ProfileEditScreen(
 
     // ── 6. AI 想法输入 Dialog ────────────────────────────────
     if (showAiDialog) {
+        val aiReferenceProfiles = profiles.filter { it.id != targetProfileId }
         AiIdeaInputDialog(
+            availableProfiles = if (isPlayer) emptyList() else aiReferenceProfiles,
             onDismiss = { showAiDialog = false },
             onGenerateSuccess = { prompt = it }
         )

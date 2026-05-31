@@ -81,6 +81,7 @@ fun ProfileAppScreen(
 
                 ProfileEditScreen(
                     initialProfile = initialProfile,
+                    profiles = profiles,
                     isPlayer = screen.isPlayer,
                     onBackClick = {
                         currentScreen = ProfileScreenState.List
