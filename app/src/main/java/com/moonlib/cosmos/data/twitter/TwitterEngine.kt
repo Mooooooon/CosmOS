@@ -9,6 +9,7 @@ import com.moonlib.cosmos.data.ai.AiSceneRequest
 import com.moonlib.cosmos.data.context.ConversationContextBuilder
 import com.moonlib.cosmos.data.profile.CharacterProfileRepository
 import com.moonlib.cosmos.data.settings.AiConfigRepository
+import com.moonlib.cosmos.data.settings.AiSettingsRepository
 import com.moonlib.cosmos.data.settings.AiSceneType
 import com.moonlib.cosmos.data.settings.SystemPromptRepository
 import com.moonlib.cosmos.data.time.VirtualTimeManager
@@ -99,7 +100,7 @@ object TwitterEngine {
 
         // 3. 构造候选角色的详细性格作息设定；历史统一放入 historyText
         val charactersInfo = StringBuilder()
-        val maxContextSize = com.moonlib.cosmos.data.settings.AiSettingsRepository(context).getMaxContextSize().coerceAtMost(30)
+        val maxContextSize = AiSettingsRepository(context).getMaxContextSize()
         val candidateProfiles = mutableListOf<com.moonlib.cosmos.data.profile.CharacterProfile>()
         
         for (fProf in followedProfiles) {

@@ -217,6 +217,13 @@ class TwitterRepository(private val context: Context) {
     }
 
     /**
+     * 清空所有推文与回复
+     */
+    fun clearAllTweets() {
+        prefs.edit().remove(KEY_TWEETS).apply()
+    }
+
+    /**
      * 将外部图片裁剪并复制到本地推特专用存储沙盒中
      */
     fun copyAvatarToLocal(uriString: String, destId: String): String {

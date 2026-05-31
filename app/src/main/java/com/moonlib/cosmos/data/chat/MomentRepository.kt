@@ -239,6 +239,16 @@ class MomentRepository(private val context: Context) {
         return getMoments().filter { it.parentId == momentId }.sortedBy { it.timestamp }
     }
 
+    /**
+     * 清空所有朋友圈动态与点赞集合
+     */
+    fun clearAllMoments() {
+        prefs.edit()
+            .remove(KEY_MOMENTS)
+            .remove(KEY_LIKED_SET)
+            .apply()
+    }
+
     // ── 点赞持久化实现 ──────────────────────────────────────────
 
     private fun getLikedSet(): Set<String> {

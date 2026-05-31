@@ -81,7 +81,7 @@ object TimeSkipEngine {
             val startTimeStr = sdf.format(Date(startTimeMillis))
             val endTimeStr = sdf.format(Date(endTimeMillis))
             val maxMessages = aiSettingsRepo.getTimeSkipMaxMessages()
-            val maxContextSize = aiSettingsRepo.getMaxContextSize().coerceAtMost(30)
+            val maxContextSize = aiSettingsRepo.getMaxContextSize()
             val candidateProfiles = candidates.map { it.profile }.distinctBy { it.id }
             val recentMergedHistory = ConversationContextBuilder.buildWideHistoryForCharacters(
                 context = context,

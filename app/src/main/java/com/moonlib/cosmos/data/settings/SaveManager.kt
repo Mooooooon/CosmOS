@@ -7,9 +7,12 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
 import com.moonlib.cosmos.data.chat.ChatRepository
+import com.moonlib.cosmos.data.chat.MomentRepository
 import com.moonlib.cosmos.data.profile.CharacterProfileRepository
 import com.moonlib.cosmos.data.interaction.InteractionRepository
 import com.moonlib.cosmos.data.interaction.InteractionSettingsRepository
+import com.moonlib.cosmos.data.diary.DiaryRepository
+import com.moonlib.cosmos.data.twitter.TwitterRepository
 
 /**
  * 存档槽位数据结构
@@ -294,6 +297,28 @@ object SaveManager {
 
             // 3. 将虚拟时间回滚并初始化为系统当前时间
             com.moonlib.cosmos.data.time.VirtualTimeManager.rollbackTime(System.currentTimeMillis())
+
+            // 4. 清除朋友圈动态与点赞
+            val momentRepo = MomentRepository(context)
+            momentRepo.clearAllMoments()
+
+            // 5. 清除日记记录
+            val diaryRepo = DiaryRepository(context)
+            diaryRepo.clearDiaries()
+
+            // 6. 清除推特动态与回复
+            val twitterRepo = TwitterRepository(context)
+            twitterRepo.clearAllTweets()
+
+            // 7. 清理生成的推文配图以释放空间
+            try {
+                val tweetImagesDir = java.io.File(context.filesDir, getAvatarDirName("twitter_images"))
+                if (tweetImagesDir.exists()) {
+                    tweetImagesDir.deleteRecursively()
+                }
+            } catch (ex: Exception) {
+                ex.printStackTrace()
+            }
 
         } catch (e: Exception) {
             e.printStackTrace()
