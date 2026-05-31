@@ -233,6 +233,7 @@ fun DiaryCard(
                                     Text(
                                         text = "📍 $key: ",
                                         fontSize = 11.sp,
+                                        lineHeight = 16.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
                                         modifier = Modifier.width(70.dp)
@@ -240,8 +241,8 @@ fun DiaryCard(
                                     Text(
                                         text = value,
                                         fontSize = 11.sp,
+                                        lineHeight = 16.sp,
                                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
-                                        lineHeight = 14.sp,
                                         modifier = Modifier.weight(1f)
                                     )
                                 }
