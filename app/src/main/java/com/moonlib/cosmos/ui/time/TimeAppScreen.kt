@@ -1,92 +1,57 @@
 package com.moonlib.cosmos.ui.time
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.moonlib.cosmos.data.time.VirtualTimeManager
-import com.moonlib.cosmos.data.time.TimeSkipEngine
-import kotlinx.coroutines.launch
-import java.time.Instant
-import java.time.LocalDateTime
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Calendar
 
 /**
- * 虚拟时间控制 App 主页面
+ * 时间控制 App 主页面。
  *
- * 职责单一：渲染虚拟时间的详细数字时钟状态，以及修改虚拟时间（微调与精确设定）的各个功能面板组件
+ * 职责单一：组织目标时间选择与跳转执行入口。
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TimeAppScreen(
     onGoBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // 拦截物理/手势返回按键
     BackHandler(enabled = true) {
         onGoBack()
     }
 
-    // 订阅全局虚拟时间流，一旦修改会立即在此响应刷新
     val currentVirtualTime by VirtualTimeManager.currentTimeFlow.collectAsState()
-
-    // 格式化当前虚拟时间属性，防止每次重新组合时都多次处理转换
-    val timeInfo = remember(currentVirtualTime) {
-        val instant = Instant.ofEpochMilli(currentVirtualTime)
-        val ldt = LocalDateTime.ofInstant(instant, ZoneId.systemDefault())
-        val timeStr = ldt.format(DateTimeFormatter.ofPattern("HH:mm:ss"))
-        val dateStr = ldt.format(DateTimeFormatter.ofPattern("yyyy年MM月dd日"))
-        val weekStr = ldt.format(DateTimeFormatter.ofPattern("EEEE"))
-        Triple(timeStr, dateStr, weekStr)
-    }
-
-    val (timeStr, dateStr, weekStr) = timeInfo
+    var targetTimeMillis by remember(currentVirtualTime) { mutableLongStateOf(currentVirtualTime) }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "虚拟时间控制",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onGoBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "返回",
-                            tint = MaterialTheme.colorScheme.onBackground
-                        )
-                    }
-                },
-                windowInsets = WindowInsets(0.dp),
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    titleContentColor = MaterialTheme.colorScheme.onBackground
-                )
-            )
+            TimeTopBar(onGoBack = onGoBack)
         },
         containerColor = MaterialTheme.colorScheme.background,
         modifier = modifier
@@ -99,32 +64,15 @@ fun TimeAppScreen(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // ── 1. 时钟面板（大屏卡片展示） ──
-            TimeClockPanel(
-                timeStr = timeStr,
-                dateStr = dateStr,
-                weekStr = weekStr
-            )
-
-            // ── 2. 快捷时间微调控制 ──
-            TimeControlsCard(
+            TimeTargetPicker(
                 currentTimeMillis = currentVirtualTime,
-                onTimeChange = { newTime ->
-                    VirtualTimeManager.rollbackTime(newTime)
-                }
+                targetTimeMillis = targetTimeMillis,
+                onTargetTimeChange = { targetTimeMillis = it }
             )
 
-            // ── 3. 系统动作（校准与精确设定） ──
-            TimeActionCard(
+            TimeTravelControlCard(
                 currentTimeMillis = currentVirtualTime,
-                onTimeChange = { newTime ->
-                    VirtualTimeManager.rollbackTime(newTime)
-                }
-            )
-
-            // ── 4. 时间跳过与离线消息模拟 ──
-            TimeSkipSimulationCard(
-                currentTimeMillis = currentVirtualTime
+                targetTimeMillis = targetTimeMillis
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -132,505 +80,33 @@ fun TimeAppScreen(
     }
 }
 
-/**
- * 虚拟时钟显示面板，大卡片展示当前的虚拟时钟状态
- */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TimeClockPanel(
-    timeStr: String,
-    dateStr: String,
-    weekStr: String
+private fun TimeTopBar(
+    onGoBack: () -> Unit
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp)),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // “沙盒时间”标签
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(100.dp))
-                    .background(Color(0xFF7C3AED).copy(alpha = 0.15f))
-                    .padding(horizontal = 12.dp, vertical = 4.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(6.dp)
-                            .clip(RoundedCornerShape(100.dp))
-                            .background(Color(0xFF7C3AED))
-                    )
-                    Text(
-                        text = "VIRTUAL SANDBOX TIME",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF7C3AED),
-                        letterSpacing = 1.sp
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 时间大字号数字显示 HH:mm:ss
+    TopAppBar(
+        title = {
             Text(
-                text = timeStr,
-                fontSize = 48.sp,
-                fontWeight = FontWeight.Light,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                letterSpacing = 1.sp
+                text = "时间控制",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
             )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // 日期 & 星期
-            Text(
-                text = "$dateStr  $weekStr",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Normal,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-            )
-        }
-    }
-}
-
-/**
- * 快捷时间微调控制面板
- */
-@Composable
-private fun TimeControlsCard(
-    currentTimeMillis: Long,
-    onTimeChange: (Long) -> Unit
-) {
-    Column {
-        Text(
-            text = "快捷时间微调",
-            color = MaterialTheme.colorScheme.primary,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(start = 6.dp, bottom = 8.dp)
-        )
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp)),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-            )
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // 第一行：天数微调
-                AdjustmentRow(
-                    label = "日期调整",
-                    minusLabel = "-1 天",
-                    plusLabel = "+1 天",
-                    onMinusClick = { onTimeChange(currentTimeMillis - 24 * 3600 * 1000L) },
-                    onPlusClick = { onTimeChange(currentTimeMillis + 24 * 3600 * 1000L) }
-                )
-
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f), thickness = 0.5.dp)
-
-                // 第二行：小时微调
-                AdjustmentRow(
-                    label = "小时调整",
-                    minusLabel = "-1 小时",
-                    plusLabel = "+1 小时",
-                    onMinusClick = { onTimeChange(currentTimeMillis - 3600 * 1000L) },
-                    onPlusClick = { onTimeChange(currentTimeMillis + 3600 * 1000L) }
-                )
-
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f), thickness = 0.5.dp)
-
-                // 第三行：分钟微调
-                AdjustmentRow(
-                    label = "分钟调整",
-                    minusLabel = "-10 分钟",
-                    plusLabel = "+10 分钟",
-                    onMinusClick = { onTimeChange(currentTimeMillis - 10 * 60 * 1000L) },
-                    onPlusClick = { onTimeChange(currentTimeMillis + 10 * 60 * 1000L) }
+        },
+        navigationIcon = {
+            IconButton(onClick = onGoBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "返回",
+                    tint = MaterialTheme.colorScheme.onBackground
                 )
             }
-        }
-    }
-}
-
-/**
- * 每一行微调按钮的封装组件
- */
-@Composable
-private fun AdjustmentRow(
-    label: String,
-    minusLabel: String,
-    plusLabel: String,
-    onMinusClick: () -> Unit,
-    onPlusClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            text = label,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurface
+        },
+        windowInsets = WindowInsets(0.dp),
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.background,
+            titleContentColor = MaterialTheme.colorScheme.onBackground
         )
-
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            FilledTonalButton(
-                onClick = onMinusClick,
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.height(32.dp)
-            ) {
-                Text(text = minusLabel, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            }
-
-            FilledTonalButton(
-                onClick = onPlusClick,
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.height(32.dp)
-            ) {
-                Text(text = plusLabel, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            }
-        }
-    }
-}
-
-/**
- * 系统动作（校准与精确设定）面板
- */
-@Composable
-private fun TimeActionCard(
-    currentTimeMillis: Long,
-    onTimeChange: (Long) -> Unit
-) {
-    val context = LocalContext.current
-
-    // 精确日期与时间设定的触发函数
-    val showDateTimePicker = {
-        val calendar = Calendar.getInstance().apply {
-            timeInMillis = currentTimeMillis
-        }
-
-        val datePickerDialog = android.app.DatePickerDialog(
-            context,
-            { _, year, month, dayOfMonth ->
-                val timePickerDialog = android.app.TimePickerDialog(
-                    context,
-                    { _, hourOfDay, minute ->
-                        val newCal = Calendar.getInstance().apply {
-                            set(Calendar.YEAR, year)
-                            set(Calendar.MONTH, month)
-                            set(Calendar.DAY_OF_MONTH, dayOfMonth)
-                            set(Calendar.HOUR_OF_DAY, hourOfDay)
-                            set(Calendar.MINUTE, minute)
-                            set(Calendar.SECOND, 0)
-                            set(Calendar.MILLISECOND, 0)
-                        }
-                        onTimeChange(newCal.timeInMillis)
-                    },
-                    calendar.get(Calendar.HOUR_OF_DAY),
-                    calendar.get(Calendar.MINUTE),
-                    true
-                )
-                timePickerDialog.show()
-            },
-            calendar.get(Calendar.YEAR),
-            calendar.get(Calendar.MONTH),
-            calendar.get(Calendar.DAY_OF_MONTH)
-        )
-        datePickerDialog.show()
-    }
-
-    Column {
-        Text(
-            text = "高级时间校准",
-            color = MaterialTheme.colorScheme.primary,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(start = 6.dp, bottom = 8.dp)
-        )
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp)),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-            )
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // 精确设定按钮
-                OutlinedButton(
-                    onClick = { showDateTimePicker() },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.primary
-                    ),
-                    contentPadding = PaddingValues(vertical = 12.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CalendarToday,
-                        contentDescription = "精准设置",
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = "精准设定时间 (年-月-日 时:分)", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                }
-
-                // 同步系统时间按钮
-                Button(
-                    onClick = { onTimeChange(System.currentTimeMillis()) },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    ),
-                    contentPadding = PaddingValues(vertical = 12.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Sync,
-                        contentDescription = "同步时间",
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = "同步回系统当前真实时间", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                }
-            }
-        }
-    }
-}
-
-/**
- * 时间跳过与消息模拟控制面板
- */
-@Composable
-private fun TimeSkipSimulationCard(
-    currentTimeMillis: Long
-) {
-    val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
-
-    var userActivity by remember { mutableStateOf("") }
-    var targetHourDelta by remember { mutableStateOf(8) } // 默认跳过 8 小时
-    var isSimulating by remember { mutableStateOf(false) }
-    var simulationResultText by remember { mutableStateOf<String?>(null) }
-
-    Column {
-        Text(
-            text = "时间跳过与消息模拟",
-            color = MaterialTheme.colorScheme.primary,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(start = 6.dp, bottom = 8.dp)
-        )
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp)),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-            )
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // 1. 玩家活动输入
-                OutlinedTextField(
-                    value = userActivity,
-                    onValueChange = { userActivity = it },
-                    label = { Text("你这段时间在做什么？（如：睡觉）", fontSize = 12.sp) },
-                    placeholder = { Text("例如：睡觉、上学、在公司加班等", fontSize = 12.sp) },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                        focusedLabelColor = MaterialTheme.colorScheme.primary,
-                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                    ),
-                    singleLine = true
-                )
-
-                // 2. 快捷跳过时长 Chip 组
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "选择要推进的时间长度：",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        val durationOptions = listOf(
-                            Pair(1, "1小时"),
-                            Pair(4, "4小时"),
-                            Pair(8, "8小时 (睡)"),
-                            Pair(12, "12小时"),
-                            Pair(24, "24小时")
-                        )
-                        durationOptions.forEach { (hours, label) ->
-                            val isSelected = targetHourDelta == hours
-                            val chipBgColor = if (isSelected) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.surfaceVariant
-                            }
-                            val chipTextColor = if (isSelected) {
-                                MaterialTheme.colorScheme.onPrimary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(chipBgColor)
-                                    .clickable { targetHourDelta = hours }
-                                    .padding(vertical = 8.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = label,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = chipTextColor
-                                )
-                            }
-                        }
-                    }
-                }
-
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f), thickness = 0.5.dp)
-
-                // 3. 目标时刻预览与触发按钮
-                val targetTimeMillis = currentTimeMillis + targetHourDelta * 3600 * 1000L
-                val previewTimeStr = remember(targetTimeMillis) {
-                    val instant = Instant.ofEpochMilli(targetTimeMillis)
-                    val ldt = LocalDateTime.ofInstant(instant, ZoneId.systemDefault())
-                    ldt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "推进后时间将变成：",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = previewTimeStr,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    if (isSimulating) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.primary,
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Button(
-                            onClick = {
-                                isSimulating = true
-                                simulationResultText = null
-                                coroutineScope.launch {
-                                    val result = TimeSkipEngine.executeTimeSkip(
-                                        context = context,
-                                        startTimeMillis = currentTimeMillis,
-                                        endTimeMillis = targetTimeMillis,
-                                        userActivity = userActivity
-                                    )
-                                    isSimulating = false
-                                    if (result.success) {
-                                        simulationResultText = "时间推进成功！这期间模拟收到 ${result.simulatedMessageCount} 条离线消息，新增 ${result.simulatedMomentCount} 条朋友圈动态，${result.simulatedTweetCount} 条推特动态。"
-                                        userActivity = "" // 清空输入
-                                    } else {
-                                        simulationResultText = "时间推进失败：${result.errorMessage}"
-                                    }
-                                }
-                            },
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary
-                            ),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                        ) {
-                            Text("开始推进", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-
-                // 4. 显示模拟状态/结果
-                simulationResultText?.let { text ->
-                    val isSuccess = text.startsWith("时间推进成功")
-                    val alertColor = if (isSuccess) Color(0xFF10B981) else MaterialTheme.colorScheme.error
-                    val alertBgColor = alertColor.copy(alpha = 0.1f)
-                    
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(alertBgColor, shape = RoundedCornerShape(8.dp))
-                            .padding(10.dp)
-                    ) {
-                        Text(
-                            text = text,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = alertColor
-                        )
-                    }
-                }
-            }
-        }
-    }
+    )
 }
