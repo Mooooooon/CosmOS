@@ -1,10 +1,5 @@
 package com.moonlib.cosmos.ui.twitter
 
-import android.net.Uri
-// import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -17,25 +12,25 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.moonlib.cosmos.data.time.VirtualTimeManager
 import com.moonlib.cosmos.data.twitter.Tweet
 import com.moonlib.cosmos.data.twitter.TwitterEngine
 import com.moonlib.cosmos.data.twitter.TwitterRepository
-import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.launch
 
 /**
  * 悬浮写推特弹窗组件
  * 
- * 职责单一：负责输入推文正文、选择相册照片并处理物理复制、展现字数超标指示，以及确认发布触发 NPC 脑洞评论流程。
+ * 职责单一：负责输入推文正文、添加配图描述、展现字数超标指示，以及确认发布触发 NPC 脑洞评论流程。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,25 +43,12 @@ fun TwitterNewTweetDialog(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var textInput by remember { mutableStateOf("") }
-    var selectedImagePath by remember { mutableStateOf<String?>(null) }
+    var simulatedPhotoDesc by remember { mutableStateOf<String?>(null) }
+    var showPhotoDialog by remember { mutableStateOf(false) }
     var isPublishing by remember { mutableStateOf(false) }
 
     val characterLimit = 140
     val textLength = textInput.length
-
-    // ── 图像选择器 ───────────────────────────────────────────
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let {
-            val localPath = repository.copyTweetImageToLocal(it.toString())
-            if (localPath.isNotBlank()) {
-                selectedImagePath = localPath
-            } else {
-                // Toast.makeText(context, "图片加载失败", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
 
     AlertDialog(
         onDismissRequest = { if (!isPublishing) onDismiss() },
@@ -134,7 +116,7 @@ fun TwitterNewTweetDialog(
                 ) {
                     // 添加图片动作按钮
                     IconButton(
-                        onClick = { imagePickerLauncher.launch("image/*") },
+                        onClick = { showPhotoDialog = true },
                         enabled = !isPublishing,
                         modifier = Modifier
                             .size(36.dp)
@@ -166,48 +148,69 @@ fun TwitterNewTweetDialog(
                 }
 
                 // 精致已选配图缩略图预览（支持删除）
-                selectedImagePath?.let { path ->
-                    val bitmap = remember(path) {
-                        try {
-                            val file = File(path)
-                            if (file.exists()) {
-                                android.graphics.BitmapFactory.decodeFile(path)?.asImageBitmap()
-                            } else null
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                            null
-                        }
-                    }
-
-                    if (bitmap != null) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(120.dp)
-                                .clip(RoundedCornerShape(10.dp)),
-                            contentAlignment = Alignment.TopEnd
-                        ) {
-                            Image(
-                                bitmap = bitmap,
-                                contentDescription = "已选配图",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
+                simulatedPhotoDesc?.let { desc ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(120.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(
+                                Brush.linearGradient(
+                                    colors = listOf(Color(0xFF0F172A), Color(0xFF1E293B))
+                                )
                             )
-                            IconButton(
-                                onClick = { selectedImagePath = null },
-                                enabled = !isPublishing,
-                                modifier = Modifier
-                                    .padding(6.dp)
-                                    .size(24.dp)
-                                    .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                            .padding(12.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "清除图片",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(14.dp)
+                                    imageVector = Icons.Default.Image,
+                                    contentDescription = "已选配图",
+                                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = "已添加图片",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
+
+                            Text(
+                                text = "“ $desc ”",
+                                fontSize = 12.sp,
+                                color = Color.White.copy(alpha = 0.85f),
+                                fontStyle = FontStyle.Italic,
+                                lineHeight = 16.sp,
+                                maxLines = 2,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            )
+
+                            Spacer(modifier = Modifier.height(2.dp))
+                        }
+
+                        // 右上角的删除按钮
+                        IconButton(
+                            onClick = { simulatedPhotoDesc = null },
+                            enabled = !isPublishing,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .size(24.dp)
+                                .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "清除图片",
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
                         }
                     }
                 }
@@ -217,7 +220,7 @@ fun TwitterNewTweetDialog(
             Button(
                 onClick = {
                     val contentText = textInput.trim()
-                    if (contentText.isBlank()) return@Button
+                    if (contentText.isBlank() && simulatedPhotoDesc == null) return@Button
 
                     scope.launch {
                         isPublishing = true
@@ -229,7 +232,7 @@ fun TwitterNewTweetDialog(
                                 id = newTweetUuid,
                                 authorId = "user",
                                 content = contentText,
-                                imagePath = selectedImagePath,
+                                imagePath = simulatedPhotoDesc?.let { "simulated_image:$it" },
                                 timestamp = currentVirtualTime,
                                 parentId = null
                             )
@@ -246,7 +249,7 @@ fun TwitterNewTweetDialog(
                         }
                     }
                 },
-                enabled = textInput.trim().isNotBlank() && !isPublishing,
+                enabled = (textInput.trim().isNotBlank() || simulatedPhotoDesc != null) && !isPublishing,
                 shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary
@@ -274,4 +277,73 @@ fun TwitterNewTweetDialog(
         containerColor = MaterialTheme.colorScheme.surface,
         modifier = modifier
     )
+
+    if (showPhotoDialog) {
+        AttachmentDialog(
+            title = "添加照片",
+            label = "请输入照片的画面描述：",
+            placeholder = "例如：天台拍摄的星空与霓虹灯交错",
+            onDismiss = { showPhotoDialog = false },
+            onConfirm = { desc ->
+                simulatedPhotoDesc = desc
+                showPhotoDialog = false
+            }
+        )
+    }
+}
+
+/**
+ * 附件描述录入 Dialog (高保真通用)
+ */
+@Composable
+fun AttachmentDialog(
+    title: String,
+    label: String,
+    placeholder: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var text by remember { mutableStateOf("") }
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    placeholder = { Text(placeholder, fontSize = 12.sp) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp)
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("取消", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            val final = text.trim()
+                            onConfirm(final.ifEmpty { "拟真附件描述" })
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("确定", color = Color.White)
+                    }
+                }
+            }
+        }
+    }
 }
