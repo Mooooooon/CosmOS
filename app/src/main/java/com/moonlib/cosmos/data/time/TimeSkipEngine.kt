@@ -155,10 +155,10 @@ object TimeSkipEngine {
                     {"character_id":"角色ID","type":"text","time":"yyyy-MM-dd HH:mm:ss","content":"消息正文","extra":"可选"}
                   ],
                   "simulated_moments": [
-                    {"character_id":"角色ID","content":"朋友圈正文","has_image":false,"image_description":"","has_video":false,"video_description":"","time":"yyyy-MM-dd HH:mm:ss"}
+                    {"character_id":"角色ID","content":"朋友圈正文","has_image":false,"image_description":"如果 has_image=true，必填写一段生动具体的图片画面描述（20-50字）让人能在脑中清晰还原这张图片","has_video":false,"video_description":"如果 has_video=true，必填写一段生动具体的视频动态画面描述（20-50字）让人能感受到现场感","time":"yyyy-MM-dd HH:mm:ss"}
                   ],
                   "simulated_tweets": [
-                    {"character_id":"角色ID","content":"推特正文","has_image":false,"image_description":"","time":"yyyy-MM-dd HH:mm:ss"}
+                    {"character_id":"角色ID","content":"推特正文","has_image":false,"image_description":"如果 has_image=true，必填写一段生动具体的图片画面描述（20-50字）让人能在脑中清晰还原这张图片","time":"yyyy-MM-dd HH:mm:ss"}
                   ]
                 }
             """.trimIndent()
