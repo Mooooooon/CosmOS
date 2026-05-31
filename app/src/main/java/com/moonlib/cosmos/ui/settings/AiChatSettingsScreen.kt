@@ -18,7 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.moonlib.cosmos.data.settings.AiSettingsRepository
-import kotlin.math.roundToInt
+
 
 /**
  * AI 通讯设置页面
@@ -39,10 +39,6 @@ fun AiChatSettingsScreen(
         mutableStateOf(aiSettingsRepo.getMaxContextSize())
     }
 
-    // 初始化时间跳过单人最大消息数状态
-    var timeSkipMaxMessages by remember {
-        mutableStateOf(aiSettingsRepo.getTimeSkipMaxMessages())
-    }
 
     Scaffold(
         topBar = {
@@ -172,79 +168,6 @@ fun AiChatSettingsScreen(
                 modifier = Modifier.padding(start = 2.dp)
             )
 
-            // ── 1.5 时间跳过单人限制卡片 ─────────────────────────────
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp)),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "时间跳过单人最大消息数",
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "$timeSkipMaxMessages 条",
-                            color = MaterialTheme.colorScheme.primary,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Black
-                        )
-                    }
-
-                    // 滑动条 (范围为 1 到 100)
-                    Slider(
-                        value = timeSkipMaxMessages.toFloat(),
-                        onValueChange = { newValue ->
-                            timeSkipMaxMessages = newValue.roundToInt()
-                        },
-                        onValueChangeFinished = {
-                            // 滑动松开时持久化
-                            aiSettingsRepo.saveTimeSkipMaxMessages(timeSkipMaxMessages)
-                        },
-                        valueRange = 1f..100f,
-                        colors = SliderDefaults.colors(
-                            thumbColor = MaterialTheme.colorScheme.primary,
-                            activeTrackColor = MaterialTheme.colorScheme.primary,
-                            inactiveTrackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    // 辅助刻度
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "精简 (1)",
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                            fontSize = 11.sp
-                        )
-                        Text(
-                            text = "默认 (5)",
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                            fontSize = 11.sp
-                        )
-                        Text(
-                            text = "海量 (100)",
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                            fontSize = 11.sp
-                        )
-                    }
-                }
-            }
 
             // ── 2. 高级指南说明卡片 ────────────────────────────────────
             Card(

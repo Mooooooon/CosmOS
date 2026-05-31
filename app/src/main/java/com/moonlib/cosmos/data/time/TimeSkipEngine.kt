@@ -80,7 +80,6 @@ object TimeSkipEngine {
             val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.CHINESE)
             val startTimeStr = sdf.format(Date(startTimeMillis))
             val endTimeStr = sdf.format(Date(endTimeMillis))
-            val maxMessages = aiSettingsRepo.getTimeSkipMaxMessages()
             val maxContextSize = aiSettingsRepo.getMaxContextSize()
             val candidateProfiles = candidates.map { it.profile }.distinctBy { it.id }
             val recentMergedHistory = ConversationContextBuilder.buildWideHistoryForCharacters(
@@ -115,9 +114,17 @@ object TimeSkipEngine {
             val outputRequirement = """
                 你现在是 CosmOS 时间跳过期间的统一线上行为调度器。用户在这段时间内处于离线状态，你需要一次性判断各角色是否会发生线上行为。
                 私聊消息、朋友圈动态、推特动态必须在同一个 JSON 中统一输出，不要把推特或朋友圈拆成额外请求。
-                每个角色最多生成 $maxMessages 条私聊消息，最多 1 条朋友圈动态，最多 1 条推特动态。
                 所有 time 必须严格落在 [$startTimeStr, $endTimeStr] 内。
-                私聊消息要像真实聊天，简洁口语化；朋友圈更私密日常；推特更公开化。所有文字严禁 emoji、颜文字和动作描写，指代玩家必须使用第二人称“你”。
+                
+                【私聊消息生成规则（重要）】
+                每个角色在整段时间跳过内只能主动开口一次。所谓"一次开口"是指：角色因为某个原因主动联系玩家，把想说的话一次性发出（类似现实中把一段话分成 2-3 条短消息发送），然后等待玩家回复。
+                - 严禁模拟"角色发消息 → 等玩家回复 → 角色再追发"的多轮自言自语场景，玩家不在线不可能回复。
+                - 一次开口的若干条消息 time 必须集中在很短的时间段内（几分钟以内），内容是同一个话题的自然延伸短句，不能出现话题跳转或等待回应后的追问。
+                - 如果角色性格不主动或近期已有大量对话，可以选择不发消息（不在 simulated_messages 中输出该角色）。
+                
+                【其他内容规则】
+                每个角色最多 1 条朋友圈动态，最多 1 条推特动态。
+                私聊消息简洁口语化；朋友圈更私密日常；推特更公开化。所有文字严禁 emoji、颜文字和动作描写，指代玩家必须使用第二人称"你"。
             """.trimIndent()
 
             val jsonStructure = """
@@ -168,7 +175,6 @@ object TimeSkipEngine {
                 chatRepo = chatRepo,
                 startTimeMillis = startTimeMillis,
                 endTimeMillis = endTimeMillis,
-                maxMessages = maxMessages
             )
             val momentCount = saveSimulatedMoments(
                 jsonArray = jsonObj.optJSONArray("simulated_moments") ?: JSONArray(),
@@ -245,10 +251,8 @@ object TimeSkipEngine {
         candidates: Map<String, OnlineCandidate>,
         chatRepo: ChatRepository,
         startTimeMillis: Long,
-        endTimeMillis: Long,
-        maxMessages: Int
+        endTimeMillis: Long
     ): Int {
-        val perCharacterCount = mutableMapOf<String, Int>()
         var savedCount = 0
         for (i in 0 until jsonArray.length()) {
             val obj = jsonArray.optJSONObject(i) ?: continue
@@ -256,8 +260,6 @@ object TimeSkipEngine {
             val candidate = candidates[characterId] ?: continue
             val contactId = candidate.chatContactId ?: continue
             if (!candidate.canSendMessage) continue
-            val currentCount = perCharacterCount[characterId] ?: 0
-            if (currentCount >= maxMessages) continue
             val content = obj.optString("content", "")
             val timeStr = obj.optString("time", "")
             if (content.isBlank() || timeStr.isBlank()) continue
@@ -272,7 +274,6 @@ object TimeSkipEngine {
                     extra = if (obj.has("extra") && !obj.isNull("extra")) obj.optString("extra") else null
                 )
             )
-            perCharacterCount[characterId] = currentCount + 1
             savedCount++
         }
         return savedCount
