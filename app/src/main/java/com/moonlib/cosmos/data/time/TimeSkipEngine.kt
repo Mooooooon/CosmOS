@@ -52,7 +52,8 @@ object TimeSkipEngine {
         val canPostTweet: Boolean = false,
         val momentNickname: String? = null,
         val twitterNickname: String? = null,
-        val twitterUsername: String? = null
+        val twitterUsername: String? = null,
+        val twitterBio: String? = null
     )
 
     suspend fun executeTimeSkip(
@@ -105,7 +106,7 @@ object TimeSkipEngine {
                 可模拟平台: $abilities
                 聊天昵称: ${candidate.chatNickname ?: "未开通"}
                 朋友圈昵称: ${candidate.momentNickname ?: "未开通"}
-                推特昵称/用户名: ${candidate.twitterNickname ?: "未开通"}${candidate.twitterUsername?.let { " / @$it" } ?: ""}
+                推特昵称/用户名: ${candidate.twitterNickname ?: "未开通"}${candidate.twitterUsername?.let { " / @$it" } ?: ""}${if (candidate.twitterBio != null) "\n                推特账号简介: ${candidate.twitterBio}" else ""}
                 【人设与作息】
                 $processedPrompt
                 """.trimIndent()
@@ -136,11 +137,12 @@ object TimeSkipEngine {
 
                 【推特动态生成规则（重要）】
                 推特逻辑类似微博、小红书、Twitter——这是面向公开互联网用户的发言平台。
-                - 内容偏向：观点输出、兴趣爱好分享、时事评论、生活感悟的公开版、对某个话题的想法等；比朋友圈更"对外"。
-                - 适合发：有趣的见闻和感想、某件事的个人看法、推荐内容、分享爱好相关内容（游戏/动漫/运动/美食等）。
-                - 不适合发：过于私密的个人情感（那应发朋友圈）、指向特定人（如玩家）的私人对话。
-                - 配图可以是截图、拍摄的场景、自制图表、二次元图等，比朋友圈更多元。
-                - 语气可以更公开化，有观点有态度，但需符合角色人设风格。
+                - 【核心要求】每个角色的"推特账号简介"定义了该账号的定位与核心话题圈，生成的推特内容必须与简介高度吻合。例如简介中提到"摄影"就围绕摄影类内容发布，提到"FGO"就围绕游戏相关内容发布，切忌输出与简介无关的泛泛生活感悟。
+                - 内容偏向：观点输出、与简介定位匹配的兴趣爱好分享、时事评论、生活感悟的公开版、对某个话题的想法等；比朋友圈更"对外"。
+                - 适合发：与简介定位匹配的有趣见闻和感想、某件事的个人看法、推荐内容、分享简介中提及的爱好相关内容。
+                - 不适合发：与简介定位完全无关的内容、过于私密的个人情感（那应发朋友圈）、指向特定人（如玩家）的私人对话。
+                - 配图可以是截图、拍摄的场景、自制图表、二次元图等，比朋友圈更多元；配图主题也应与简介定位一致。
+                - 语气可以更公开化，有观点有态度，但需符合角色人设风格与简介中展示的账号气质。
                 每个角色最多 1 条推特动态，如无合适内容可不发。
 
                 【通用规范】
@@ -259,7 +261,8 @@ object TimeSkipEngine {
             byId[profile.id] = (existing ?: OnlineCandidate(profile.id, profile)).copy(
                 canPostTweet = true,
                 twitterNickname = twitterProfile.nickname,
-                twitterUsername = twitterProfile.username
+                twitterUsername = twitterProfile.username,
+                twitterBio = twitterProfile.bio.takeIf { it.isNotBlank() }
             )
         }
 
