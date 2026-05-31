@@ -1,6 +1,6 @@
 package com.moonlib.cosmos.ui.twitter
 
-// import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -55,6 +55,10 @@ fun TwitterAppScreen(
     fun refreshData() {
         tweetsList = repository.getTweets()
         twitterProfiles = repository.getProfiles()
+    }
+
+    BackHandler(enabled = activeThreadTweet == null && editingProfile == null) {
+        onGoBack()
     }
 
     Box(modifier = modifier.fillMaxSize()) {

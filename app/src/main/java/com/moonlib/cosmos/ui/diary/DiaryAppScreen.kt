@@ -1,6 +1,6 @@
 package com.moonlib.cosmos.ui.diary
 
-// import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -71,6 +71,10 @@ fun DiaryAppScreen(
     var selectedCharacterIds by remember { mutableStateOf<List<String>>(emptyList()) }
     var isAtDialogOpen by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = true) {
+        onGoBack()
+    }
 
     Scaffold(
         topBar = {
