@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.input.pointer.pointerInput
@@ -361,17 +362,23 @@ fun ThreadRootCard(
                     name = authorName,
                     size = 48.dp
                 )
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
+                    // 昵称，允许拼换
                     Text(
                         text = authorName,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
+                    // @用户名，maxLines=1 截断
                     Text(
                         text = "@$authorUsername",
                         fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
@@ -473,29 +480,34 @@ fun ThreadReplyItem(
                     .padding(10.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                // 作者 + 目标回复人 + 时间
+                // 作者 + @用户名 + 时间（参考真实 Twitter：左侧截断，时间固定不被挤压）
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(
-                            text = authorName,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "@$authorUsername",
-                            fontSize = 9.sp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
-                        )
-                    }
                     Text(
-                        text = formattedTime,
+                        text = authorName,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false).widthIn(max = 90.dp)
+                    )
+                    Text(
+                        text = " @$authorUsername",
                         fontSize = 9.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(2f, fill = false)
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    Text(
+                        text = "· $formattedTime",
+                        fontSize = 9.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                        maxLines = 1
                     )
                 }
 
