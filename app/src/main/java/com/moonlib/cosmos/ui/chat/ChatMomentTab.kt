@@ -776,23 +776,13 @@ fun MomentCard(
             onDismissRequest = { showMenu = false },
             modifier = Modifier.background(MaterialTheme.colorScheme.surface)
         ) {
-            if (moment.authorId == "user") {
-                DropdownMenuItem(
-                    text = { Text("删除动态", color = MaterialTheme.colorScheme.error) },
-                    onClick = {
-                        showMenu = false
-                        onDeleteMoment(moment)
-                    }
-                )
-            } else {
-                DropdownMenuItem(
-                    text = { Text("举报/屏蔽", color = MaterialTheme.colorScheme.onSurface) },
-                    onClick = {
-                        showMenu = false
-                        // Toast.makeText(context, "操作已记录，后台智能屏蔽中", Toast.LENGTH_SHORT).show()
-                    }
-                )
-            }
+            DropdownMenuItem(
+                text = { Text("删除动态", color = MaterialTheme.colorScheme.error) },
+                onClick = {
+                    showMenu = false
+                    onDeleteMoment(moment)
+                }
+            )
         }
     }
 }

@@ -425,15 +425,13 @@ fun ThreadRootCard(
             onDismissRequest = { showMenu = false },
             modifier = Modifier.background(MaterialTheme.colorScheme.surface)
         ) {
-            if (moment.authorId == "user") {
-                DropdownMenuItem(
-                    text = { Text("删除动态", color = MaterialTheme.colorScheme.error) },
-                    onClick = {
-                        showMenu = false
-                        onDelete(moment)
-                    }
-                )
-            }
+            DropdownMenuItem(
+                text = { Text("删除动态", color = MaterialTheme.colorScheme.error) },
+                onClick = {
+                    showMenu = false
+                    onDelete(moment)
+                }
+            )
         }
     }
 }
