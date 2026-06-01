@@ -55,11 +55,26 @@ fun DiaryAppScreen(
 
     // 输入面板状态
     var textInput by remember { mutableStateOf("") }
-    var selectedCharacterIds by remember { mutableStateOf<List<String>>(emptyList()) }
+    val availableCharacterIds = remember(availableCharacters) { availableCharacters.map { it.id }.toSet() }
+    var selectedCharacterIds by remember {
+        mutableStateOf(diaryRepo.getLastSelectedCharacterIds().filter { it in availableCharacterIds })
+    }
     var isAtDialogOpen by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     val diaryListState = rememberLazyListState()
     var shouldScrollToLatest by remember { mutableStateOf(false) }
+    val updateSelectedCharacterIds: (List<String>) -> Unit = { nextSelection ->
+        val sanitizedSelection = nextSelection.distinct().filter { it in availableCharacterIds }
+        selectedCharacterIds = sanitizedSelection
+        diaryRepo.setLastSelectedCharacterIds(sanitizedSelection)
+    }
+
+    LaunchedEffect(availableCharacterIds) {
+        val sanitizedSelection = selectedCharacterIds.filter { it in availableCharacterIds }
+        if (sanitizedSelection != selectedCharacterIds) {
+            updateSelectedCharacterIds(sanitizedSelection)
+        }
+    }
 
     LaunchedEffect(diaryList.firstOrNull()?.id, shouldScrollToLatest) {
         if (shouldScrollToLatest && diaryList.isNotEmpty()) {
@@ -201,7 +216,7 @@ fun DiaryAppScreen(
                     characterProfiles = characterProfiles,
                     isLoading = isLoading,
                     onRemoveCharacter = { charId ->
-                        selectedCharacterIds = selectedCharacterIds.filter { it != charId }
+                        updateSelectedCharacterIds(selectedCharacterIds.filter { it != charId })
                     },
                     onAtClicked = { isAtDialogOpen = true },
                     onSendClicked = {
@@ -220,7 +235,6 @@ fun DiaryAppScreen(
                                 diaryRepo.addDiary(newEntry)
                                 diaryList = diaryRepo.getDiaries().reversed()
                                 shouldScrollToLatest = true
-                                selectedCharacterIds = emptyList()
                             } catch (e: Exception) {
                                 e.printStackTrace()
                                 textInput = input // 恢复内容
@@ -258,7 +272,7 @@ fun DiaryAppScreen(
             availableCharacters = availableCharacters,
             selectedCharacterIds = selectedCharacterIds,
             onSelectedCharactersChange = { nextSelection ->
-                selectedCharacterIds = nextSelection
+                updateSelectedCharacterIds(nextSelection)
             }
         )
     }

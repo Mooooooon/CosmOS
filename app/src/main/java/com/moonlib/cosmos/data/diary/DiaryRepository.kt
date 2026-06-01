@@ -9,7 +9,7 @@ import org.json.JSONObject
 /**
  * 日记数据存储仓库
  *
- * 职责单一：负责日记列表的 CRUD、人称（第一/第三人称）配置的持久化，完全隔离在当前存档槽位内。
+ * 职责单一：负责日记列表的 CRUD、写作配置与参与者选择的持久化，完全隔离在当前存档槽位内。
  */
 class DiaryRepository(private val context: Context) {
 
@@ -20,6 +20,7 @@ class DiaryRepository(private val context: Context) {
         private const val PREF_NAME = "cosmos_diary_prefs"
         private const val KEY_DIARIES = "diaries_list"
         private const val KEY_PERSPECTIVE = "diary_perspective" // "first" 或 "third"
+        private const val KEY_LAST_SELECTED_CHARACTER_IDS = "last_selected_character_ids"
     }
 
     /**
@@ -92,6 +93,33 @@ class DiaryRepository(private val context: Context) {
      */
     fun setPerspective(perspective: String) {
         prefs.edit().putString(KEY_PERSPECTIVE, perspective).apply()
+    }
+
+    /**
+     * 获取上次勾选的参与者
+     */
+    fun getLastSelectedCharacterIds(): List<String> {
+        val jsonString = prefs.getString(KEY_LAST_SELECTED_CHARACTER_IDS, null) ?: return emptyList()
+        return try {
+            val jsonArray = JSONArray(jsonString)
+            buildList {
+                for (i in 0 until jsonArray.length()) {
+                    add(jsonArray.getString(i))
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    /**
+     * 保存当前勾选的参与者
+     */
+    fun setLastSelectedCharacterIds(characterIds: List<String>) {
+        val jsonArray = JSONArray()
+        characterIds.distinct().forEach { jsonArray.put(it) }
+        prefs.edit().putString(KEY_LAST_SELECTED_CHARACTER_IDS, jsonArray.toString()).apply()
     }
 
     // ─── JSON 辅助序列化/反序列化 ────────────────────────────────────
