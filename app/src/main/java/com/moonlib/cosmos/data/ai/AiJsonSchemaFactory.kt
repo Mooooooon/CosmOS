@@ -127,6 +127,20 @@ object AiJsonSchemaFactory {
         }
     }
 
+    fun characterNamesSchema(schemaName: String = "cosmos_character_names"): JSONObject {
+        return JSONObject().apply {
+            put("type", "object")
+            put("additionalProperties", true)
+            put("properties", JSONObject().apply {
+                put("names", JSONArrayItemsSchema(JSONObject().apply {
+                    put("type", "string")
+                }))
+            })
+            put("required", JSONArray().put("names"))
+            put("_schema_name", schemaName)
+        }
+    }
+
     private fun socialPostSchema(): JSONObject {
         return JSONObject().apply {
             put("type", "object")

@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.SupportAgent
@@ -73,6 +74,7 @@ fun ProfileEditScreen(
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showAiDialog by remember { mutableStateOf(false) }
+    var showNameAiDialog by remember { mutableStateOf(false) }
 
     // ── 图片选择器 Launcher ────────────────────────────────────
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -227,8 +229,43 @@ fun ProfileEditScreen(
                         value = name,
                         onValueChange = { name = it },
                         label = { Text("姓名") },
-                        placeholder = { Text("请输入真实姓名或角色名") },
+                        placeholder = { Text("请输入或由 AI 智能取名") },
                         singleLine = true,
+                        trailingIcon = {
+                            val isPromptValid = prompt.isNotBlank()
+                            IconButton(
+                                onClick = { showNameAiDialog = true },
+                                enabled = isPromptValid,
+                                modifier = Modifier
+                                    .padding(end = 4.dp)
+                                    .size(36.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(
+                                            color = if (isPromptValid) {
+                                                MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.04f)
+                                            },
+                                            shape = CircleShape
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.AutoAwesome,
+                                        contentDescription = "AI 取名",
+                                        tint = if (isPromptValid) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                                        },
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        },
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
@@ -240,52 +277,56 @@ fun ProfileEditScreen(
 
                     // 人设提示词多行输入
                     Column(modifier = Modifier.fillMaxWidth()) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "人设提示词",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                        Text(
+                            text = "人设提示词",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+
+                        Box(modifier = Modifier.fillMaxWidth()) {
+                            OutlinedTextField(
+                                value = prompt,
+                                onValueChange = { prompt = it },
+                                placeholder = { Text("请详细输入该人设的性格特征、身世背景、口吻喜好等核心提示词，或点击右上角 AI 星标一键智能构思生成。") },
+                                minLines = 7,
+                                maxLines = 15,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                                    focusedLabelColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                ),
+                                modifier = Modifier.fillMaxWidth()
                             )
-                            
-                            // 极简扁平纯色 AI 智绘按钮
-                            Box(
+
+                            // 极简扁平圆形 AI 智绘按钮，绝对定位在右上角
+                            IconButton(
+                                onClick = { showAiDialog = true },
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(MaterialTheme.colorScheme.primary)
-                                    .clickable { showAiDialog = true }
-                                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                                contentAlignment = Alignment.Center
+                                    .align(Alignment.TopEnd)
+                                    .padding(top = 8.dp, end = 8.dp)
+                                    .size(36.dp)
                             ) {
-                                Text(
-                                    text = "✨ AI 智绘",
-                                    color = Color.White,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(
+                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                                            shape = CircleShape
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.AutoAwesome,
+                                        contentDescription = "AI 智绘人设",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
                             }
                         }
-
-                        OutlinedTextField(
-                            value = prompt,
-                            onValueChange = { prompt = it },
-                            placeholder = { Text("请详细输入该人设的性格特征、身世背景、口吻喜好等核心提示词，或点击上方“AI 智绘”一键智能生成。") },
-                            minLines = 7,
-                            maxLines = 15,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                                focusedLabelColor = MaterialTheme.colorScheme.primary,
-                                unfocusedLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
                         
                         // 底部右侧字数统计
                         Row(
@@ -484,6 +525,15 @@ fun ProfileEditScreen(
             availableProfiles = if (isPlayer) emptyList() else aiReferenceProfiles,
             onDismiss = { showAiDialog = false },
             onGenerateSuccess = { prompt = it }
+        )
+    }
+
+    // ── 7. AI 取名 Dialog ───────────────────────────────────
+    if (showNameAiDialog) {
+        AiNameRecommendationDialog(
+            prompt = prompt,
+            onDismiss = { showNameAiDialog = false },
+            onNameSelected = { name = it }
         )
     }
 }

@@ -48,5 +48,10 @@ enum class AiSceneType {
     /**
      * 推特博主主页资料生成场景
      */
-    TWITTER_PROFILE_GENERATION
+    TWITTER_PROFILE_GENERATION,
+
+    /**
+     * 角色取名生成场景
+     */
+    CHARACTER_NAME_GENERATION
 }
