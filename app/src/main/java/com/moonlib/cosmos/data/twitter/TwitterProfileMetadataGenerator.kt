@@ -10,6 +10,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
+import com.moonlib.cosmos.data.settings.SystemPromptRepository
+
 /**
  * 推特博主主页资料生成器。
  *
@@ -36,6 +38,7 @@ object TwitterProfileMetadataGenerator {
             request = AiSceneRequest(
                 sceneType = AiSceneType.TWITTER_PROFILE_GENERATION,
                 systemPrompt = SYSTEM_PROMPT,
+                worldPrompt = SystemPromptRepository(context).getWorldPromptContent(),
                 personaPrompt = buildPersonaPrompt(characterProfile),
                 outputRequirement = "只返回 JSON 对象，不要解释，不要使用 Markdown。nickname 参考真实推特、微博等公开社交平台的昵称风格；username 不带 @，只能由英文字母和数字组成；bio 是面向全世界网友的主页简介，说明兴趣、常发内容或账号气质。",
                 jsonStructure = """{"nickname":"公开社交昵称","username":"lettersAndNumbersOnly","bio":"个人简介"}""",

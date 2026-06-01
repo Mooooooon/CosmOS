@@ -75,6 +75,7 @@ object ChatEngine {
             request = AiSceneRequest(
                 sceneType = AiSceneType.CHAT,
                 systemPrompt = promptData.systemPrompt,
+                worldPrompt = promptData.worldPrompt,
                 personaPrompt = promptData.personaPrompt,
                 outputRequirement = promptData.outputRequirement,
                 jsonStructure = promptData.jsonStructure,
@@ -220,6 +221,7 @@ object ChatEngine {
 
     private data class ChatPromptData(
         val systemPrompt: String,
+        val worldPrompt: String,
         val personaPrompt: String,
         val outputRequirement: String,
         val jsonStructure: String,
@@ -288,6 +290,7 @@ object ChatEngine {
 
         return ChatPromptData(
             systemPrompt = SystemPromptRepository(context).getMainPromptContent(),
+            worldPrompt = SystemPromptRepository(context).getWorldPromptContent(),
             personaPrompt = """
                 你现在正在扮演角色【${charProfile.name}】。
                 

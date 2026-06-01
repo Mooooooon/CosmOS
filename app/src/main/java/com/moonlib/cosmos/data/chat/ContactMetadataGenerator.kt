@@ -10,6 +10,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
+import com.moonlib.cosmos.data.settings.SystemPromptRepository
+
 /**
  * 聊天联系人展示资料生成器。
  *
@@ -35,6 +37,7 @@ object ContactMetadataGenerator {
             request = AiSceneRequest(
                 sceneType = AiSceneType.CONTACT_PROFILE_GENERATION,
                 systemPrompt = SYSTEM_PROMPT,
+                worldPrompt = SystemPromptRepository(context).getWorldPromptContent(),
                 personaPrompt = buildPersonaPrompt(profile),
                 outputRequirement = "只返回 JSON 对象，不要解释，不要使用 Markdown。nickname 必须是网名 / 社交账号名风格，禁止直接使用人物姓名、姓名简称、亲昵称呼或备注名；signature 必须代入角色本人，像她会在聊天 APP 中写下的自我表达，不要写成第三人称简介。",
                 jsonStructure = """{"nickname":"联系人昵称","signature":"个性签名"}""",

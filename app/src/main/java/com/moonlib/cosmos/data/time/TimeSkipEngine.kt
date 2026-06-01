@@ -175,6 +175,7 @@ object TimeSkipEngine {
                 request = AiSceneRequest(
                     sceneType = AiSceneType.TIME_SKIP_ONLINE,
                     systemPrompt = SystemPromptRepository(context).getMainPromptContent(),
+                    worldPrompt = SystemPromptRepository(context).getWorldPromptContent(),
                     personaPrompt = personaPrompt,
                     outputRequirement = outputRequirement,
                     jsonStructure = jsonStructure,

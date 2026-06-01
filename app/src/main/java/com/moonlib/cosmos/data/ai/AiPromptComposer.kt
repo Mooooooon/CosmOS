@@ -10,6 +10,7 @@ object AiPromptComposer {
     fun compose(request: AiSceneRequest): String {
         return listOf(
             AiPromptSection("系统提示词", request.systemPrompt),
+            AiPromptSection("世界设定", request.worldPrompt),
             AiPromptSection("人设提示词", request.personaPrompt),
             AiPromptSection("输出要求", request.outputRequirement),
             AiPromptSection("JSON结构", request.jsonStructure),

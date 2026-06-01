@@ -39,6 +39,7 @@ data class AiPromptSection(
 data class AiSceneRequest(
     val sceneType: AiSceneType,
     val systemPrompt: String,
+    val worldPrompt: String = "",
     val personaPrompt: String,
     val outputRequirement: String,
     val jsonStructure: String,

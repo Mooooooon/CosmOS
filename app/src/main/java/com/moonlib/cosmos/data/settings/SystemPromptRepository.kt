@@ -29,6 +29,7 @@ class SystemPromptRepository(context: Context) {
         private const val KEY_PROMPT_ITEMS = "system_prompt_items"
         
         const val ID_MAIN_PROMPT = "main_prompt"
+        const val ID_WORLD_PROMPT = "world_prompt"
     }
 
     /**
@@ -43,6 +44,13 @@ class SystemPromptRepository(context: Context) {
                     title = "主提示词",
                     description = "会在所有的AI通讯时，拼接在最顶部。主要用于控制 AI 的全局角色扮演规则和交流规范限制。",
                     content = "【全局核心设定】\n1. 你现在处于 CosmOS 虚拟手机中，并在与用户进行仿真的即时通讯聊天。\n2. 请完全沉浸扮演角色，绝对不能出现 OOC 或脱离角色，永远不能承认你是人工智能模型或辅助助手。\n3. 不要使用任何 emoji 表情符号或颜文字，全部使用纯文本文字聊天。",
+                    isSystem = true
+                ),
+                SystemPromptItem(
+                    id = ID_WORLD_PROMPT,
+                    title = "世界设定",
+                    description = "用于存放世界观设定（如时代、地点、世界规则等）。会在所有 AI 通讯时，拼接到主提示词下方，人设提示词上方。",
+                    content = "【世界观设定】\n1. 时代背景：现代都市。\n2. 科技水平：与现实当下同步。",
                     isSystem = true
                 )
             )
@@ -77,6 +85,29 @@ class SystemPromptRepository(context: Context) {
                 ))
                 savePromptItems(list)
             }
+
+            // 确保世界设定必须存在于列表中（兜底策略）
+            if (list.none { it.id == ID_WORLD_PROMPT }) {
+                val index = list.indexOfFirst { it.id == ID_MAIN_PROMPT }
+                if (index != -1) {
+                    list.add(index + 1, SystemPromptItem(
+                        id = ID_WORLD_PROMPT,
+                        title = "世界设定",
+                        description = "用于存放世界观设定（如时代、地点、世界规则等）。会在所有 AI 通讯时，拼接到主提示词下方，人设提示词上方。",
+                        content = "【世界观设定】\n1. 时代背景：现代都市。\n2. 科技水平：与现实当下同步。",
+                        isSystem = true
+                    ))
+                } else {
+                    list.add(SystemPromptItem(
+                        id = ID_WORLD_PROMPT,
+                        title = "世界设定",
+                        description = "用于存放世界观设定（如时代、地点、世界规则等）。会在所有 AI 通讯时，拼接到主提示词下方，人设提示词上方。",
+                        content = "【世界观设定】\n1. 时代背景：现代都市。\n2. 科技水平：与现实当下同步。",
+                        isSystem = true
+                    ))
+                }
+                savePromptItems(list)
+            }
             list
         } catch (e: Exception) {
             e.printStackTrace()
@@ -104,7 +135,7 @@ class SystemPromptRepository(context: Context) {
     fun deletePromptItem(id: String) {
         val currentList = getPromptItems().toMutableList()
         val item = currentList.firstOrNull { it.id == id } ?: return
-        if (item.isSystem) return // 系统预置的主提示词不可被删除
+        if (item.isSystem) return // 系统预置的提示词不可被删除
         currentList.removeAll { it.id == id }
         savePromptItems(currentList)
     }
@@ -114,6 +145,13 @@ class SystemPromptRepository(context: Context) {
      */
     fun getMainPromptContent(): String {
         return getPromptItems().firstOrNull { it.id == ID_MAIN_PROMPT }?.content ?: ""
+    }
+
+    /**
+     * 获取世界设定的内容，用于拼接到系统提示词下方，人设提示词上方
+     */
+    fun getWorldPromptContent(): String {
+        return getPromptItems().firstOrNull { it.id == ID_WORLD_PROMPT }?.content ?: ""
     }
 
     /**

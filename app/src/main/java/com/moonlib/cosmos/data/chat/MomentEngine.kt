@@ -155,6 +155,7 @@ object MomentEngine {
                 request = AiSceneRequest(
                     sceneType = AiSceneType.SOCIAL_REPLY_MOMENT,
                     systemPrompt = mainPrompt,
+                    worldPrompt = SystemPromptRepository(context).getWorldPromptContent(),
                     personaPrompt = "【已加好友的联系人列表及其设定】\n$charactersInfo",
                     outputRequirement = """
                         你正在模拟聊天 App 朋友圈的熟人评论。请根据角色性格、人设、关系与当前时间决定是否回复。

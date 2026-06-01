@@ -78,6 +78,7 @@ object InteractionEngine {
             request = AiSceneRequest(
                 sceneType = AiSceneType.INTERACTION,
                 systemPrompt = promptData.systemPrompt,
+                worldPrompt = promptData.worldPrompt,
                 personaPrompt = promptData.personaPrompt,
                 outputRequirement = promptData.outputRequirement,
                 jsonStructure = promptData.jsonStructure,
@@ -222,6 +223,7 @@ object InteractionEngine {
 
     private data class InteractionPromptData(
         val systemPrompt: String,
+        val worldPrompt: String,
         val personaPrompt: String,
         val outputRequirement: String,
         val jsonStructure: String,
@@ -284,6 +286,7 @@ object InteractionEngine {
 
         return InteractionPromptData(
             systemPrompt = SystemPromptRepository(context).getMainPromptContent(),
+            worldPrompt = SystemPromptRepository(context).getWorldPromptContent(),
             personaPrompt = """
                 你现在正在扮演角色【${charProfile.name}】。
                 

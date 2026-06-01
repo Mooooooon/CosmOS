@@ -8,6 +8,8 @@ import com.moonlib.cosmos.data.settings.AiSceneType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+import com.moonlib.cosmos.data.settings.SystemPromptRepository
+
 /**
  * 异步人设提示词生成助手
  * 
@@ -75,6 +77,7 @@ object CharacterProfileGenerator {
             request = AiSceneRequest(
                 sceneType = AiSceneType.PROFILE_GENERATION,
                 systemPrompt = SYSTEM_PROMPT,
+                worldPrompt = SystemPromptRepository(context).getWorldPromptContent(),
                 personaPrompt = buildReferencePrompt(playerProfile, referenceProfiles),
                 outputRequirement = "必须完全按照指定 Markdown 模板直接输出，不要解释，不要使用 JSON，不要包含 emoji 或颜文字。",
                 jsonStructure = "非 JSON 输出：直接返回 Markdown 人设文本。",

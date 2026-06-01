@@ -168,6 +168,7 @@ object DiaryEngine {
             request = AiSceneRequest(
                 sceneType = AiSceneType.DIARY,
                 systemPrompt = mainPrompt,
+                worldPrompt = SystemPromptRepository(context).getWorldPromptContent(),
                 personaPrompt = """
                     【参与本次剧情的角色设定如下】
                     $charProfilesStr

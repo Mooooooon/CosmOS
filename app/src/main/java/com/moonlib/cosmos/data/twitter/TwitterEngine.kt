@@ -154,6 +154,7 @@ object TwitterEngine {
                 request = AiSceneRequest(
                     sceneType = AiSceneType.SOCIAL_REPLY_TWITTER,
                     systemPrompt = mainPrompt,
+                    worldPrompt = SystemPromptRepository(context).getWorldPromptContent(),
                     personaPrompt = "【已关注的候选角色列表及其人设设定】\n$charactersInfo",
                     outputRequirement = """
                         你正在模拟 CosmOS 虚拟推特的评论盖楼。请根据角色性格、作息、关系与当前时间决定是否回复。
