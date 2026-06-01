@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Settings
@@ -57,6 +58,15 @@ fun DiaryAppScreen(
     var selectedCharacterIds by remember { mutableStateOf<List<String>>(emptyList()) }
     var isAtDialogOpen by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
+    val diaryListState = rememberLazyListState()
+    var shouldScrollToLatest by remember { mutableStateOf(false) }
+
+    LaunchedEffect(diaryList.firstOrNull()?.id, shouldScrollToLatest) {
+        if (shouldScrollToLatest && diaryList.isNotEmpty()) {
+            diaryListState.animateScrollToItem(0)
+            shouldScrollToLatest = false
+        }
+    }
 
     BackHandler(enabled = true) {
         onGoBack()
@@ -136,6 +146,7 @@ fun DiaryAppScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f),
+                        state = diaryListState,
                         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
@@ -208,6 +219,7 @@ fun DiaryAppScreen(
                                 )
                                 diaryRepo.addDiary(newEntry)
                                 diaryList = diaryRepo.getDiaries().reversed()
+                                shouldScrollToLatest = true
                                 selectedCharacterIds = emptyList()
                             } catch (e: Exception) {
                                 e.printStackTrace()
