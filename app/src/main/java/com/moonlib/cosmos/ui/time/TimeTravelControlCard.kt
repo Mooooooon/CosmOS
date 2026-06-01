@@ -22,6 +22,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -61,6 +62,10 @@ fun TimeTravelControlCard(
     var isRunning by remember { mutableStateOf(false) }
     var resultText by remember { mutableStateOf<String?>(null) }
     var resultIsError by remember { mutableStateOf(false) }
+    val switchCheckedColor = MaterialTheme.colorScheme.primary
+    val switchUncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+    val switchUncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.62f)
+    val switchUncheckedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.32f)
 
     LaunchedEffect(canSimulate) {
         if (!canSimulate) {
@@ -137,7 +142,21 @@ fun TimeTravelControlCard(
                             shouldSimulate = it 
                             if (!it) userActivity = ""
                         },
-                        enabled = canSimulate && !isRunning
+                        enabled = canSimulate && !isRunning,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                            checkedTrackColor = switchCheckedColor,
+                            checkedBorderColor = switchCheckedColor,
+                            uncheckedThumbColor = switchUncheckedThumbColor,
+                            uncheckedTrackColor = switchUncheckedTrackColor,
+                            uncheckedBorderColor = switchUncheckedBorderColor,
+                            disabledCheckedThumbColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                            disabledCheckedTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                            disabledCheckedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.18f),
+                            disabledUncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                            disabledUncheckedTrackColor = switchUncheckedTrackColor,
+                            disabledUncheckedBorderColor = switchUncheckedBorderColor
+                        )
                     )
                 }
 
