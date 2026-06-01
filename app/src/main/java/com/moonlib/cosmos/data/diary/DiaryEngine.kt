@@ -191,17 +191,24 @@ object DiaryEngine {
                     3. 剧情必须有自然节奏：起因、经过、高光时刻、自然收尾。
                     4. 禁止假大空套话和词语堆砌。
                     5. 严禁 emoji、颜文字和表情符号。
+                    
+                    时间推进要求（重要）：
+                    创作结束后，根据剧情内容为本段场景确定一个合理的结束时刻（nextTime）：
+                    - 若种子含时间锚点词，优先对齐其自然结束时刻（如"吃午饭"→ 约 12:30–13:30，"看电影"→ 约 2–3 小时后）。
+                    - 若无锚点词，则根据剧情规模估算跨度（简短互动约 15–45 分钟，丰富多环节场景可达数小时）。
+                    - nextTime 必须是符合剧情自然节律的绝对时刻，禁止机械地在起始时间上加固定分钟数。
                 """.trimIndent(),
                 jsonStructure = """
                     {
                       "content": "高质量剧情场景完整正文，纯文字叙事",
                       "summary": "20到40字的一句话摘要",
-                      "nextTime": "yyyy-MM-dd HH:mm"${if (diaryStatusCardEnabled && statusKeys.isNotEmpty()) ",\n                      \"status\": {\n                        \"角色名\": {\n                          \"词条名\": \"仅当状态改变时填写更新值，未改变则不输出或设为 null\"\n                        }\n                      }" else ""}
+                      "nextTime": "yyyy-MM-dd HH:mm，根据剧情场景与时长灵活推断的合理结束时刻"${if (diaryStatusCardEnabled && statusKeys.isNotEmpty()) ",\n                      \"status\": {\n                        \"角色名\": {\n                          \"词条名\": \"仅当状态改变时填写更新值，未改变则不输出或设为 null\"\n                        }\n                      }" else ""}
                     }
                     
                     约束：
                     - 只返回纯 JSON，不要 markdown 代码块或解释文本。
-                    - nextTime 必须存在，必须晚于或等于当前起始时间，并符合 yyyy-MM-dd HH:mm。
+                    - nextTime 必须存在，格式严格为 yyyy-MM-dd HH:mm，且不早于起始时间。
+                    - nextTime 的时刻必须符合剧情的自然节律，禁止随意给出与剧情内容不符的时间。
                 """.trimIndent(),
                 historyText = historyText,
                 statusCard = charStatusPrompt,
