@@ -31,6 +31,7 @@ import com.moonlib.cosmos.data.chat.Moment
 import com.moonlib.cosmos.data.chat.MomentEngine
 import com.moonlib.cosmos.data.chat.MomentRepository
 import com.moonlib.cosmos.data.time.VirtualTimeManager
+import com.moonlib.cosmos.ui.common.conversationInputInsets
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -222,6 +223,7 @@ fun ChatMomentThreadScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f))
+                        .conversationInputInsets()
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     Row(

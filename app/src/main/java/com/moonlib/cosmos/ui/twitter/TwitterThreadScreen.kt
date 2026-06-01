@@ -33,6 +33,7 @@ import com.moonlib.cosmos.data.twitter.Tweet
 import com.moonlib.cosmos.data.twitter.TwitterEngine
 import com.moonlib.cosmos.data.twitter.TwitterRepository
 import com.moonlib.cosmos.ui.chat.AvatarView
+import com.moonlib.cosmos.ui.common.conversationInputInsets
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -114,7 +115,6 @@ fun TwitterThreadScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .imePadding()
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 // ── 1. 滚动视图区（主推文 + 回复楼层列表） ─────────────────
@@ -214,6 +214,7 @@ fun TwitterThreadScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f))
+                        .conversationInputInsets()
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     Row(
