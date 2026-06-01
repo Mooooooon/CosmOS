@@ -138,7 +138,8 @@ fun InteractionConversationScreen(
                 id = UUID.randomUUID().toString(),
                 senderId = "user",
                 content = text,
-                timestamp = currentVirtualTime
+                timestamp = currentVirtualTime,
+                statusMap = settingsRepo.getCharacterStatus(characterId)
             )
             interactionRepo.saveMessage(characterId, userMsg)
 
@@ -372,6 +373,35 @@ fun InteractionConversationScreen(
                                     onResend = {
                                         // 1. 回调系统虚拟时间
                                         VirtualTimeManager.rollbackTime(msg.timestamp)
+
+                                        // 回滚状态卡片到上一条（检查上一条最新的状态卡消息是日记还是互动）
+                                        val targetTime = msg.timestamp
+                                        val lastInteractionMsg = interactionRepo.getMessages(characterId)
+                                            .filter { it.timestamp <= targetTime && it.statusMap != null }
+                                            .maxByOrNull { it.timestamp }
+                                        
+                                        val diaryRepo = com.moonlib.cosmos.data.diary.DiaryRepository(context)
+                                        val lastDiary = diaryRepo.getDiaries()
+                                            .filter { it.timestamp <= targetTime && it.statusMap.containsKey(characterId) }
+                                            .maxByOrNull { it.timestamp }
+
+                                        if (lastDiary == null && lastInteractionMsg == null) {
+                                            settingsRepo.saveCharacterStatus(characterId, emptyMap())
+                                        } else if (lastDiary != null && lastInteractionMsg == null) {
+                                            val statusToRestore = lastDiary.statusMap[characterId] ?: emptyMap()
+                                            settingsRepo.saveCharacterStatus(characterId, statusToRestore)
+                                        } else if (lastDiary == null && lastInteractionMsg != null) {
+                                            val statusToRestore = lastInteractionMsg.statusMap ?: emptyMap()
+                                            settingsRepo.saveCharacterStatus(characterId, statusToRestore)
+                                        } else {
+                                            if (lastDiary!!.timestamp > lastInteractionMsg!!.timestamp) {
+                                                val statusToRestore = lastDiary.statusMap[characterId] ?: emptyMap()
+                                                settingsRepo.saveCharacterStatus(characterId, statusToRestore)
+                                            } else {
+                                                val statusToRestore = lastInteractionMsg.statusMap ?: emptyMap()
+                                                settingsRepo.saveCharacterStatus(characterId, statusToRestore)
+                                            }
+                                        }
 
                                         // 2. 清空本消息之后的记录
                                         interactionRepo.deleteMessagesAfter(characterId, msg.id)

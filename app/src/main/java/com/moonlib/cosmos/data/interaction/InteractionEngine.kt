@@ -104,8 +104,11 @@ object InteractionEngine {
         val currentVirtualTime = VirtualTimeManager.getCurrentTimeMillis()
         val aiMessages = parseAiResponseJson(responseText, characterId, currentVirtualTime)
 
+        val latestStatus = InteractionSettingsRepository(context).getCharacterStatus(characterId)
+
         for (msg in aiMessages) {
-            interactionRepo.saveMessage(characterId, msg)
+            val msgWithStatus = msg.copy(statusMap = latestStatus)
+            interactionRepo.saveMessage(characterId, msgWithStatus)
         }
 
         // 7. 推进虚拟时间为最后一条回复的时间

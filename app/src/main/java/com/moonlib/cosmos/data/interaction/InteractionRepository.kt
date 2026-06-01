@@ -99,12 +99,24 @@ class InteractionRepository(private val context: Context) {
     // ─── JSON 编解码助手 ─────────────────────────────────────────
 
     private fun parseMessage(json: JSONObject): InteractionMessage {
+        val statusMap = if (json.has("statusMap")) {
+            val statusObj = json.getJSONObject("statusMap")
+            val map = mutableMapOf<String, String>()
+            val keys = statusObj.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                map[key] = statusObj.getString(key)
+            }
+            map
+        } else null
+
         return InteractionMessage(
             id = json.getString("id"),
             senderId = json.getString("senderId"),
             content = json.getString("content"),
             timestamp = json.getLong("timestamp"),
-            isPending = json.optBoolean("isPending", false)
+            isPending = json.optBoolean("isPending", false),
+            statusMap = statusMap
         )
     }
 
@@ -115,6 +127,13 @@ class InteractionRepository(private val context: Context) {
             put("content", message.content)
             put("timestamp", message.timestamp)
             put("isPending", message.isPending)
+            if (message.statusMap != null) {
+                val statusObj = JSONObject()
+                for ((key, value) in message.statusMap) {
+                    statusObj.put(key, value)
+                }
+                put("statusMap", statusObj)
+            }
         }
     }
 }
