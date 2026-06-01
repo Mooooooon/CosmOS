@@ -16,6 +16,8 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -53,6 +55,8 @@ fun SaveSlotsListScreen(
     var renameTargetSlot by remember { mutableStateOf<SaveSlot?>(null) }
     var deleteTargetSlotId by remember { mutableStateOf<String?>(null) }
     var resetTargetSlotId by remember { mutableStateOf<String?>(null) }
+    var copyTargetSlot by remember { mutableStateOf<SaveSlot?>(null) }
+    var switchTargetSlot by remember { mutableStateOf<SaveSlot?>(null) }
     var inputText by remember { mutableStateOf("") }
 
     val refreshSlots = {
@@ -131,8 +135,7 @@ fun SaveSlotsListScreen(
                         isActive = isActive,
                         onSelect = {
                             if (!isActive) {
-                                SaveManager.switchSave(context, slot.id)
-                                refreshSlots()
+                                switchTargetSlot = slot
                             }
                         },
                         onRename = {
@@ -144,6 +147,10 @@ fun SaveSlotsListScreen(
                         },
                         onReset = {
                             resetTargetSlotId = slot.id
+                        },
+                        onCopy = {
+                            inputText = "${slot.name}_副本"
+                            copyTargetSlot = slot
                         }
                     )
                 }
@@ -340,6 +347,101 @@ fun SaveSlotsListScreen(
             containerColor = MaterialTheme.colorScheme.surface
         )
     }
+
+    // ── 5. 复制存档对话框 ──────────────────────────────────────
+    val copySlot = copyTargetSlot
+    if (copySlot != null) {
+        AlertDialog(
+            onDismissRequest = { copyTargetSlot = null },
+            title = {
+                Text(
+                    text = "复制存档",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            text = {
+                OutlinedTextField(
+                    value = inputText,
+                    onValueChange = { inputText = it },
+                    label = { Text("新存档名称") },
+                    placeholder = { Text("请输入新存档名称") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val trimmed = inputText.trim()
+                        if (trimmed.isNotEmpty()) {
+                            SaveManager.copySave(context, copySlot.id, trimmed)
+                            refreshSlots()
+                            copyTargetSlot = null
+                        }
+                    },
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("复制")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { copyTargetSlot = null }) {
+                    Text("取消")
+                }
+            },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    }
+
+    // ── 6. 切换存档确认对话框 ────────────────────────────────────
+    val switchSlot = switchTargetSlot
+    if (switchSlot != null) {
+        AlertDialog(
+            onDismissRequest = { switchTargetSlot = null },
+            title = {
+                Text(
+                    text = "切换存档",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            },
+            text = {
+                Text(
+                    text = "您确定要切换到“${switchSlot.name}”吗？切换后系统将装载此存档下的所有联系人数据、聊天历史及朋友圈动态。",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        SaveManager.switchSave(context, switchSlot.id)
+                        refreshSlots()
+                        switchTargetSlot = null
+                    },
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("确定")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { switchTargetSlot = null }) {
+                    Text("取消")
+                }
+            },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    }
 }
 
 /**
@@ -352,7 +454,8 @@ private fun SaveSlotCard(
     onSelect: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
-    onReset: () -> Unit
+    onReset: () -> Unit,
+    onCopy: () -> Unit
 ) {
     val borderColor by animateColorAsState(
         targetValue = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
@@ -433,32 +536,89 @@ private fun SaveSlotCard(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // 按钮操作区
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                CompactIconButton(
-                    icon = Icons.Default.Edit,
-                    contentDescription = "重命名",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                    onClick = onRename
-                )
-
-                CompactIconButton(
-                    icon = Icons.Default.Refresh,
-                    contentDescription = "重置",
-                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                    onClick = onReset
-                )
-
-                // 默认存档和当前活跃存档禁止删除
-                if (!isActive && slot.id != "default") {
-                    CompactIconButton(
-                        icon = Icons.Default.DeleteOutline,
-                        contentDescription = "删除",
-                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
-                        onClick = onDelete
+            // 三个点下拉菜单操作区
+            var menuExpanded by remember { mutableStateOf(false) }
+            Box(contentAlignment = Alignment.Center) {
+                IconButton(
+                    onClick = { menuExpanded = true }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "更多操作",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                    )
+                }
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false },
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("复制存档") },
+                        onClick = {
+                            menuExpanded = false
+                            onCopy()
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.ContentCopy,
+                                contentDescription = "复制存档",
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("重命名") },
+                        onClick = {
+                            menuExpanded = false
+                            onRename()
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "重命名",
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("重置") },
+                        onClick = {
+                            menuExpanded = false
+                            onReset()
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "重置",
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    )
+                    
+                    val canDelete = !isActive && slot.id != "default"
+                    DropdownMenuItem(
+                        text = { Text("删除") },
+                        onClick = {
+                            menuExpanded = false
+                            onDelete()
+                        },
+                        enabled = canDelete,
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.DeleteOutline,
+                                contentDescription = "删除",
+                                tint = if (canDelete) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        },
+                        colors = MenuDefaults.itemColors(
+                            textColor = MaterialTheme.colorScheme.error,
+                            leadingIconColor = MaterialTheme.colorScheme.error,
+                            disabledTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                            disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                        )
                     )
                 }
             }

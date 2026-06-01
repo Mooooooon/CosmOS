@@ -13,6 +13,7 @@ import com.moonlib.cosmos.data.interaction.InteractionRepository
 import com.moonlib.cosmos.data.interaction.InteractionSettingsRepository
 import com.moonlib.cosmos.data.diary.DiaryRepository
 import com.moonlib.cosmos.data.twitter.TwitterRepository
+import java.io.File
 
 /**
  * 存档槽位数据结构
@@ -199,6 +200,111 @@ object SaveManager {
         currentSlots.add(newSlot)
         saveSaveSlots(currentSlots)
         return newSlot
+    }
+
+    /**
+     * 复制指定的存档
+     */
+    fun copySave(context: Context, sourceSaveId: String, newName: String): SaveSlot? {
+        if (!::globalPrefs.isInitialized) return null
+        val cleanName = newName.trim()
+        if (cleanName.isEmpty()) return null
+
+        val slots = getSaveSlots()
+        if (slots.none { it.id == sourceSaveId }) return null
+
+        // 1. 创建新档
+        val targetSlot = createSave(cleanName) ?: return null
+        val targetSaveId = targetSlot.id
+
+        // 2. 复制 SharedPreferences
+        val saveRelatedPrefs = listOf(
+            "cosmos_chat_prefs",
+            "cosmos_moment_prefs",
+            "cosmos_diary_prefs",
+            "cosmos_interaction_prefs",
+            "cosmos_interaction_settings_prefs",
+            "cosmos_character_profiles_prefs",
+            "cosmos_time_prefs",
+            "cosmos_twitter_prefs"
+        )
+
+        for (baseName in saveRelatedPrefs) {
+            val sourcePrefName = if (sourceSaveId == "default") {
+                baseName
+            } else {
+                "cosmos_save_${sourceSaveId}_${baseName}"
+            }
+            val targetPrefName = "cosmos_save_${targetSaveId}_${baseName}"
+
+            val sourcePrefs = context.getSharedPreferences(sourcePrefName, Context.MODE_PRIVATE)
+            val targetPrefs = context.getSharedPreferences(targetPrefName, Context.MODE_PRIVATE)
+            val editor = targetPrefs.edit()
+            editor.clear()
+            for ((key, value) in sourcePrefs.all) {
+                when (value) {
+                    is Boolean -> editor.putBoolean(key, value)
+                    is Float -> editor.putFloat(key, value)
+                    is Int -> editor.putInt(key, value)
+                    is Long -> editor.putLong(key, value)
+                    is String -> editor.putString(key, value)
+                    is Set<*> -> {
+                        @Suppress("UNCHECKED_CAST")
+                        editor.putStringSet(key, value as? Set<String>)
+                    }
+                }
+            }
+            editor.apply()
+        }
+
+        // 3. 复制关联文件目录
+        try {
+            if (sourceSaveId == "default") {
+                val subDirs = listOf(
+                    "chat_avatars",
+                    "profile_avatars",
+                    "voice_messages",
+                    "twitter_avatars",
+                    "twitter_images"
+                )
+                for (subDir in subDirs) {
+                    val srcDir = File(context.filesDir, subDir)
+                    if (srcDir.exists()) {
+                        val destDir = File(context.filesDir, "saves/$targetSaveId/$subDir")
+                        copyDirectory(srcDir, destDir)
+                    }
+                }
+            } else {
+                val srcDir = File(context.filesDir, "saves/$sourceSaveId")
+                if (srcDir.exists()) {
+                    val destDir = File(context.filesDir, "saves/$targetSaveId")
+                    copyDirectory(srcDir, destDir)
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        return targetSlot
+    }
+
+    private fun copyDirectory(sourceDir: File, targetDir: File) {
+        if (!sourceDir.exists()) return
+        if (!targetDir.exists()) {
+            targetDir.mkdirs()
+        }
+        sourceDir.listFiles()?.forEach { file ->
+            val targetFile = File(targetDir, file.name)
+            if (file.isDirectory) {
+                copyDirectory(file, targetFile)
+            } else {
+                try {
+                    file.copyTo(targetFile, overwrite = true)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
     }
 
     /**
