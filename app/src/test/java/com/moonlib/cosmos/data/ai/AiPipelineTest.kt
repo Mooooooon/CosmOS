@@ -1,6 +1,10 @@
 package com.moonlib.cosmos.data.ai
 
 import com.moonlib.cosmos.data.settings.AiSceneType
+import com.moonlib.cosmos.data.settings.AiModelCatalog
+import com.moonlib.cosmos.data.settings.AiReasoningRequestOptions
+import com.moonlib.cosmos.data.settings.AiServiceType
+import com.moonlib.cosmos.data.settings.AiThinkingLevel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -42,9 +46,33 @@ class AiPipelineTest {
     }
 
     @Test
+    fun removeThinkingSupportsMiniMaxThinkTags() {
+        val raw = """
+            <think>
+            internal reasoning
+            </think>
+            你好，我在。
+        """.trimIndent()
+
+        assertEquals("你好，我在。", AiResponseCleaner.removeThinking(raw))
+    }
+
+    @Test
     fun cleanJsonExtractsObjectFromExtraText() {
         val raw = "好的，结果如下：{\"content\":\"正文\",\"summary\":\"摘要\"} 请查收"
 
         assertEquals("""{"content":"正文","summary":"摘要"}""", AiResponseCleaner.cleanJson(raw))
+    }
+
+    @Test
+    fun miniMaxUsesExpectedDefaultsWithoutThinkingOptions() {
+        assertEquals("https://api.minimaxi.com/v1", AiServiceType.MINIMAX.defaultUrl)
+        assertEquals("MiniMax-M3", AiServiceType.MINIMAX.defaultModel)
+        assertTrue(AiModelCatalog.recommendedModels(AiServiceType.MINIMAX).contains("MiniMax-M3"))
+
+        assertEquals(
+            listOf(AiThinkingLevel.DEFAULT),
+            AiReasoningRequestOptions.supportedLevelsFor(AiServiceType.MINIMAX, "MiniMax-M3")
+        )
     }
 }

@@ -15,6 +15,7 @@ object AiReasoningRequestOptions {
         modelName: String,
         thinkingLevel: String
     ) {
+        if (serviceType == AiServiceType.MINIMAX) return
         when (AiThinkingLevel.normalize(thinkingLevel)) {
             AiThinkingLevel.DEFAULT.value -> return
             AiThinkingLevel.NONE.value -> applyDisabledOptions(requestJson, serviceType, modelName)
@@ -25,6 +26,8 @@ object AiReasoningRequestOptions {
     fun supportedLevelsFor(serviceType: AiServiceType, modelName: String): List<AiThinkingLevel> {
         val normalizedModel = modelName.lowercase()
         return when {
+            serviceType == AiServiceType.MINIMAX -> listOf(AiThinkingLevel.DEFAULT)
+
             serviceType == AiServiceType.GEMINI || normalizedModel.contains("gemini") -> listOf(
                 AiThinkingLevel.DEFAULT,
                 AiThinkingLevel.NONE,

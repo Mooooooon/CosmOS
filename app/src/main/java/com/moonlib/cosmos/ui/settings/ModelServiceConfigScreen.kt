@@ -60,7 +60,7 @@ fun ModelServiceConfigScreen(
         mutableStateOf(initialProfile?.modelName ?: AiServiceType.OPEN_AI.defaultModel)
     }
     var temperature by remember {
-        mutableStateOf(initialProfile?.temperature ?: 0.7f)
+        mutableStateOf(initialProfile?.temperature ?: 1.0f)
     }
     var thinkingLevel by remember {
         mutableStateOf(initialProfile?.thinkingLevel ?: "default")
@@ -341,51 +341,19 @@ fun ModelServiceConfigScreen(
                         }
                     }
 
-                    // 温度 (Temperature) 滑动条
-                    Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "创意温度 (Temperature)",
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                                fontSize = 13.sp
-                            )
-                            Text(
-                                text = String.format("%.1f", temperature),
-                                color = MaterialTheme.colorScheme.primary,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Slider(
-                            value = temperature,
-                            onValueChange = { temperature = it },
-                            valueRange = 0.0f..1.5f,
-                            colors = SliderDefaults.colors(
-                                thumbColor = MaterialTheme.colorScheme.primary,
-                                activeTrackColor = MaterialTheme.colorScheme.primary,
-                                inactiveTrackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("精确 (0.0)", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f), fontSize = 10.sp)
-                            Text("默认 (0.7)", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f), fontSize = 10.sp)
-                            Text("极富创意 (1.5)", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f), fontSize = 10.sp)
-                        }
-                    }
-
-                    ThinkingLevelSelector(
-                        serviceType = serviceType,
-                        modelName = modelName,
-                        thinkingLevel = thinkingLevel,
-                        onThinkingLevelChange = { thinkingLevel = it }
+                    ModelTemperatureSlider(
+                        temperature = temperature,
+                        onTemperatureChange = { temperature = it }
                     )
+
+                    if (serviceType != AiServiceType.MINIMAX) {
+                        ThinkingLevelSelector(
+                            serviceType = serviceType,
+                            modelName = modelName,
+                            thinkingLevel = thinkingLevel,
+                            onThinkingLevelChange = { thinkingLevel = it }
+                        )
+                    }
                 }
             }
 
@@ -400,7 +368,7 @@ fun ModelServiceConfigScreen(
                             apiKey        = apiKey.trim(),
                             baseUrl       = effectiveBaseUrl.trim(),
                             modelName     = modelName.trim(),
-                            temperature   = temperature,
+                            temperature   = normalizeTemperature(temperature),
                             isActive      = initialProfile?.isActive ?: false,
                             thinkingLevel = thinkingLevel,
                             vertexRegion  = AiVertexConfig.normalizeRegion(vertexRegion)

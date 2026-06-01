@@ -164,17 +164,8 @@ object InteractionEngine {
             e.printStackTrace()
             list.clear()
             
-            // 1. 尝试清洗可能混入的 thinking 标签，获取纯文本回复
-            var rawText = jsonStr.trim()
-            if (rawText.contains("</thinking>")) {
-                val parts = rawText.split("</thinking>")
-                rawText = parts.last().trim()
-            } else if (rawText.contains("<thinking>")) {
-                val index = rawText.indexOf("<thinking>")
-                if (index != -1) {
-                    rawText = rawText.substring(0, index).trim()
-                }
-            }
+            // 1. 尝试清洗可能混入的思考标签，获取纯文本回复
+            val rawText = AiResponseCleaner.removeThinking(jsonStr)
             
             // 2. 将纯文本按双换行或单换行切分
             val rawLines = rawText.split(Regex("\n+"))

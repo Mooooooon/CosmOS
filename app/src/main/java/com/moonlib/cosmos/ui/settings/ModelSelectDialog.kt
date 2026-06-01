@@ -13,155 +13,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.moonlib.cosmos.data.settings.AiAuthorizationHeader
+import com.moonlib.cosmos.data.settings.AiModelCatalog
 import com.moonlib.cosmos.data.settings.AiServiceType
 import com.moonlib.cosmos.data.settings.ModelListCacheRepository
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
-
-/**
- * 异步在线拉取模型列表的方法
- * 支持标准 OpenAI 接口格式，并针对 Gemini 官方 API 端点做了智能适配
- */
-suspend fun fetchModelsOnline(
-    serviceType: AiServiceType,
-    apiKey: String,
-    baseUrl: String,
-    vertexRegion: String = "global"
-): List<String> = withContext(Dispatchers.IO) {
-    val isGeminiOfficial = serviceType == AiServiceType.GEMINI && baseUrl.contains("googleapis.com")
-    if (serviceType == AiServiceType.VERTEX) {
-        return@withContext fetchVertexModels(apiKey)
-    }
-
-    val urlStr = if (isGeminiOfficial) {
-        val base = baseUrl.removeSuffix("/")
-        "$base/v1beta/models?key=$apiKey"
-    } else {
-        val base = baseUrl.removeSuffix("/")
-        "$base/models"
-    }
-
-    val url = URL(urlStr)
-    val conn = url.openConnection() as HttpURLConnection
-    conn.requestMethod = "GET"
-    conn.connectTimeout = 60000
-    conn.readTimeout = 60000
-    
-    // 非 Gemini 官方接口需要添加 Bearer token
-    if (!isGeminiOfficial) {
-        conn.setRequestProperty("Authorization", AiAuthorizationHeader.create(serviceType, apiKey))
-    }
-    conn.setRequestProperty("Content-Type", "application/json")
-    conn.setRequestProperty("Accept", "application/json")
-
-    val responseCode = conn.responseCode
-    if (responseCode == 200) {
-        val jsonText = conn.inputStream.bufferedReader().use { it.readText() }
-        val models = mutableListOf<String>()
-        val json = JSONObject(jsonText)
-        
-        if (isGeminiOfficial) {
-            if (json.has("models")) {
-                val modelsArray = json.getJSONArray("models")
-                for (i in 0 until modelsArray.length()) {
-                    val modelObj = modelsArray.getJSONObject(i)
-                    if (modelObj.has("name")) {
-                        val fullName = modelObj.getString("name")
-                        // "models/gemini-1.5-flash" -> "gemini-1.5-flash"
-                        val shortName = fullName.substringAfter("models/")
-                        models.add(shortName)
-                    }
-                }
-            }
-        } else {
-            // OpenAI 标准响应格式
-            if (json.has("data")) {
-                val dataArray = json.getJSONArray("data")
-                for (i in 0 until dataArray.length()) {
-                    val modelObj = dataArray.getJSONObject(i)
-                    if (modelObj.has("id")) {
-                        models.add(modelObj.getString("id"))
-                    }
-                }
-            }
-        }
-        models.distinct().sorted()
-    } else {
-        val errorText = try {
-            conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
-        } catch (e: Exception) {
-            ""
-        }
-        val tip = if (responseCode == 401) "API Key 无效或未授权" else if (responseCode == 404) "端点路由错误 (404)" else "请求失败"
-        throw Exception("HTTP $responseCode: $tip ${errorText.take(100)}")
-    }
-}
-
-private suspend fun fetchVertexModels(
-    serviceAccountJson: String
-): List<String> = withContext(Dispatchers.IO) {
-    val url = URL("https://aiplatform.googleapis.com/v1beta1/publishers/google/models?listAllVersions=true&pageSize=200")
-    val conn = url.openConnection() as HttpURLConnection
-    conn.requestMethod = "GET"
-    conn.connectTimeout = 60000
-    conn.readTimeout = 60000
-    conn.setRequestProperty("Authorization", AiAuthorizationHeader.create(AiServiceType.VERTEX, serviceAccountJson))
-    conn.setRequestProperty("Accept", "application/json")
-
-    if (conn.responseCode != 200) {
-        val errorText = try {
-            conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
-        } catch (e: Exception) {
-            ""
-        }
-        throw Exception(
-            "Vertex 未返回模型列表 HTTP ${conn.responseCode}，请检查服务账号权限。${errorText.take(120)}"
-        )
-    }
-
-    val json = JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
-    val models = mutableListOf<String>()
-    val array = json.optJSONArray("publisherModels") ?: json.optJSONArray("models")
-    if (array != null) {
-        for (i in 0 until array.length()) {
-            val item = array.getJSONObject(i)
-            val id = item.optString("name").substringAfterLast("/")
-                .takeIf { it.isNotBlank() }
-            if (id != null && id.startsWith("gemini-")) {
-                models.add(id)
-            }
-        }
-    }
-    if (models.isEmpty()) {
-        throw Exception("Vertex /models 响应为空，已保留推荐列表")
-    }
-    models.distinct().sorted()
-}
-
-private fun vertexRecommendModels(): List<String> {
-    return listOf(
-        "gemini-3-pro-preview",
-        "gemini-3-flash-preview",
-        "gemini-2.5-pro",
-        "gemini-2.5-flash",
-        "gemini-2.5-flash-lite",
-        "gemini-2.5-flash-image-preview",
-        "gemini-2.0-flash-001",
-        "gemini-2.0-flash-lite-001",
-        "gemini-1.5-pro-002",
-        "gemini-1.5-flash-002"
-    )
-}
 
 /**
  * 智能模型选择与在线获取对话框
@@ -189,12 +48,7 @@ fun ModelSelectDialog(
     var searchQuery by remember { mutableStateOf("") }
 
     // 本地推荐模型，作为无网或未填写 Key 时的兜底
-    val localRecommendModels = when (serviceType) {
-        AiServiceType.OPEN_AI -> listOf("gpt-4o", "gpt-4o-mini", "o1-mini", "o1-preview", "gpt-4-turbo", "gpt-3.5-turbo")
-        AiServiceType.DEEP_SEEK -> listOf("deepseek-chat", "deepseek-coder")
-        AiServiceType.GEMINI -> listOf("gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.0-pro", "gemini-2.0-flash-exp")
-        AiServiceType.VERTEX -> vertexRecommendModels()
-    }
+    val localRecommendModels = AiModelCatalog.recommendedModels(serviceType)
 
     // 初始化时优先使用缓存；没有缓存时才自动拉取一次。
     LaunchedEffect(cacheKey) {
@@ -202,7 +56,7 @@ fun ModelSelectDialog(
             isLoading = true
             errorMessage = null
             try {
-                val fetched = fetchModelsOnline(serviceType, apiKey, baseUrl, vertexRegion)
+                val fetched = AiModelCatalog.fetchOnline(serviceType, apiKey, baseUrl, vertexRegion)
                 onlineModels = fetched
                 cacheRepository.saveModels(cacheKey, fetched)
             } catch (e: Exception) {
@@ -409,7 +263,7 @@ fun ModelSelectDialog(
                                 isLoading = true
                                 errorMessage = null
                                 try {
-                                    val fetched = fetchModelsOnline(serviceType, apiKey, baseUrl, vertexRegion)
+                                    val fetched = AiModelCatalog.fetchOnline(serviceType, apiKey, baseUrl, vertexRegion)
                                     onlineModels = fetched
                                     cacheRepository.saveModels(cacheKey, fetched)
                                 } catch (e: Exception) {

@@ -118,7 +118,7 @@ fun ModelServicesListScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "点击右下角的“+”按钮，添加你的第一个 AI 服务配置（如 OpenAI、DeepSeek、Gemini）",
+                        text = "点击右下角的“+”按钮，添加你的第一个 AI 服务配置（如 OpenAI、DeepSeek、Gemini、MiniMax）",
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                         fontSize = 13.sp,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -164,6 +164,7 @@ private fun ProfileCard(
         AiServiceType.DEEP_SEEK -> Color(0xFF3B82F6)
         AiServiceType.GEMINI -> Color(0xFF8B5CF6)
         AiServiceType.VERTEX -> Color(0xFFEA4335)
+        AiServiceType.MINIMAX -> Color(0xFFE11D48)
     }
 
     Card(

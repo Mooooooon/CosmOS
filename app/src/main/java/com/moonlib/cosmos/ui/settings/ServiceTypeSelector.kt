@@ -113,5 +113,6 @@ fun serviceTypeColor(type: AiServiceType): Color {
         AiServiceType.DEEP_SEEK -> Color(0xFF3B82F6)
         AiServiceType.GEMINI -> Color(0xFF8B5CF6)
         AiServiceType.VERTEX -> Color(0xFFEA4335)
+        AiServiceType.MINIMAX -> Color(0xFFE11D48)
     }
 }

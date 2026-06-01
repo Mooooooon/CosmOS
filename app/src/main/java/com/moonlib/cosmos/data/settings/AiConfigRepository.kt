@@ -138,7 +138,7 @@ class AiConfigRepository(context: Context) {
             apiKey        = json.getString("apiKey"),
             baseUrl       = json.getString("baseUrl"),
             modelName     = json.getString("modelName"),
-            temperature   = json.optDouble("temperature", 0.7).toFloat(),
+            temperature   = json.optDouble("temperature", 1.0).toFloat(),
             isActive      = json.optBoolean("isActive", false),
             thinkingLevel = json.optString("thinkingLevel", "default"),
             vertexRegion  = json.optString("vertexRegion", AiVertexConfig.DEFAULT_REGION)

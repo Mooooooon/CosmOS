@@ -68,7 +68,7 @@ fun AiIdeaInputDialog(
             },
             text = {
                 Text(
-                    text = "系统当前未检测到任何激活的 AI 模型服务。\n\n请先返回桌面进入【设置 -> AI模型服务配置】中添加并点击激活至少一个模型服务商（OpenAI、DeepSeek、Gemini），然后再试。",
+                    text = "系统当前未检测到任何激活的 AI 模型服务。\n\n请先返回桌面进入【设置 -> AI模型服务配置】中添加并点击激活至少一个模型服务商（OpenAI、DeepSeek、Gemini、MiniMax），然后再试。",
                     fontSize = 14.sp,
                     lineHeight = 20.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)

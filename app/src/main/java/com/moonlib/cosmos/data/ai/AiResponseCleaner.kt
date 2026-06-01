@@ -38,11 +38,18 @@ object AiResponseCleaner {
 
     fun removeThinking(rawResponse: String): String {
         var text = rawResponse.trim()
-        if (text.contains("</thinking>")) {
-            text = text.substringAfterLast("</thinking>").trim()
+        text = Regex("(?is)<think(?:ing)?\\b[^>]*>.*?</think(?:ing)?>")
+            .replace(text, "")
+            .trim()
+
+        val closingTag = Regex("(?is)</think(?:ing)?>").findAll(text).lastOrNull()
+        if (closingTag != null) {
+            text = text.substring(closingTag.range.last + 1).trim()
         }
-        if (text.contains("<thinking>")) {
-            text = text.substringBefore("<thinking>").trim()
+
+        val openingTag = Regex("(?is)<think(?:ing)?\\b[^>]*>").find(text)
+        if (openingTag != null) {
+            text = text.substring(0, openingTag.range.first).trim()
         }
         return text
     }

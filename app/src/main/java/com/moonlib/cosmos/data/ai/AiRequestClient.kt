@@ -68,7 +68,7 @@ object AiRequestClient {
 
         return AiSceneResult(
             rawResponse = rawResponse,
-            cleanedJson = if (request.expectsJson) AiResponseCleaner.cleanJson(rawResponse) else rawResponse.trim(),
+            cleanedJson = if (request.expectsJson) AiResponseCleaner.cleanJson(rawResponse) else AiResponseCleaner.removeThinking(rawResponse),
             promptForLog = prompt,
             modelName = activeProfile.modelName
         )

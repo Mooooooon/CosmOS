@@ -12,7 +12,8 @@ enum class AiServiceType(
     OPEN_AI("OpenAI", "https://api.openai.com/v1", "gpt-4o"),
     DEEP_SEEK("DeepSeek", "https://api.deepseek.com", "deepseek-chat"),
     GEMINI("Gemini", "https://generativelanguage.googleapis.com", "gemini-1.5-flash"),
-    VERTEX("Vertex", "https://aiplatform.googleapis.com/v1", "gemini-2.0-flash-001")
+    VERTEX("Vertex", "https://aiplatform.googleapis.com/v1", "gemini-2.0-flash-001"),
+    MINIMAX("MiniMax", "https://api.minimaxi.com/v1", "MiniMax-M3")
 }
 
 /**
@@ -26,7 +27,7 @@ data class AiProfile(
     val apiKey: String,
     val baseUrl: String,
     val modelName: String,
-    val temperature: Float = 0.7f,
+    val temperature: Float = 1.0f,
     val isActive: Boolean = false,
     val thinkingLevel: String = "default",
     val vertexRegion: String = "global"
