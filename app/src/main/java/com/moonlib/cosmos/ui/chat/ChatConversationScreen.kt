@@ -39,8 +39,7 @@ import com.moonlib.cosmos.ui.common.conversationInputInsets
 import com.moonlib.cosmos.ui.common.rememberImeVisible
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.*
+import java.util.UUID
 
 /**
  * 聊天会话对话界面
@@ -544,9 +543,12 @@ private fun TimeLabel(
     timestamp: Long,
     modifier: Modifier = Modifier
 ) {
-    val timeStr = remember(timestamp) {
-        val sdf = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
-        sdf.format(Date(timestamp))
+    val currentTimeMillis by VirtualTimeManager.currentTimeFlow.collectAsState()
+    val timeStr = remember(timestamp, currentTimeMillis) {
+        ChatTimeFormatter.formatTimelineTime(
+            timestamp = timestamp,
+            currentTimeMillis = currentTimeMillis
+        )
     }
     Text(
         text = timeStr,

@@ -11,6 +11,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,8 +25,7 @@ import androidx.compose.ui.unit.sp
 import com.moonlib.cosmos.data.chat.ChatContact
 import com.moonlib.cosmos.data.chat.ChatMessage
 import com.moonlib.cosmos.data.chat.ChatRepository
-import java.text.SimpleDateFormat
-import java.util.*
+import com.moonlib.cosmos.data.time.VirtualTimeManager
 
 /**
  * 消息会话包装实体
@@ -47,9 +48,10 @@ fun MessageListTab(
 ) {
     val context = LocalContext.current
     val chatRepo = remember { ChatRepository(context) }
+    val currentTimeMillis by VirtualTimeManager.currentTimeFlow.collectAsState()
     
     // 动态检索有历史聊天记录的会话
-    val activeSessions = remember {
+    val activeSessions = remember(currentTimeMillis) {
         val allContacts = chatRepo.getContacts()
         val sessions = mutableListOf<ActiveChatSession>()
         
@@ -61,7 +63,10 @@ fun MessageListTab(
                     ActiveChatSession(
                         contact = contact,
                         lastMessage = lastMsg,
-                        formattedTime = formatMessageTime(lastMsg.timestamp)
+                        formattedTime = ChatTimeFormatter.formatSessionTime(
+                            timestamp = lastMsg.timestamp,
+                            currentTimeMillis = currentTimeMillis
+                        )
                     )
                 )
             }
@@ -182,31 +187,5 @@ private fun MessageSessionItem(
                 fontSize = 13.sp
             )
         }
-    }
-}
-
-/**
- * 格式化消息时间戳的辅助函数
- */
-private fun formatMessageTime(timestamp: Long): String {
-    val now = System.currentTimeMillis()
-    val date = Date(timestamp)
-    
-    val calNow = Calendar.getInstance()
-    val calMsg = Calendar.getInstance()
-    calNow.timeInMillis = now
-    calMsg.timeInMillis = timestamp
-    
-    return if (calNow.get(Calendar.YEAR) == calMsg.get(Calendar.YEAR) &&
-        calNow.get(Calendar.DAY_OF_YEAR) == calMsg.get(Calendar.DAY_OF_YEAR)) {
-        // 如果是今天，格式化为 "HH:mm"
-        SimpleDateFormat("HH:mm", Locale.getDefault()).format(date)
-    } else if (calNow.get(Calendar.YEAR) == calMsg.get(Calendar.YEAR) &&
-        calNow.get(Calendar.DAY_OF_YEAR) - calMsg.get(Calendar.DAY_OF_YEAR) == 1) {
-        // 如果是昨天
-        "昨天"
-    } else {
-        // 其它时间显示 "MM-dd"
-        SimpleDateFormat("MM-dd", Locale.getDefault()).format(date)
     }
 }
