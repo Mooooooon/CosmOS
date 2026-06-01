@@ -153,6 +153,8 @@ class CharacterProfileRepository(private val context: Context) {
             prompt = json.getString("prompt"),
             isPlayer = json.optBoolean("isPlayer", false),
             avatar = json.optString("avatar", ""),
+            voiceId = json.optString("voiceId", ""),
+            voiceName = json.optString("voiceName", ""),
             keywords = keywords
         )
     }
@@ -164,6 +166,8 @@ class CharacterProfileRepository(private val context: Context) {
             put("prompt", profile.prompt)
             put("isPlayer", profile.isPlayer)
             put("avatar", profile.avatar)
+            put("voiceId", profile.voiceId)
+            put("voiceName", profile.voiceName)
             val keywordsArray = JSONArray()
             profile.keywords.forEach { keywordsArray.put(it) }
             put("keywords", keywordsArray)

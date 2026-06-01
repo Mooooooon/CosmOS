@@ -39,6 +39,7 @@ fun SpecialMessageBubble(
     msg: ChatMessage,
     isUser: Boolean,
     contactName: String,
+    contactCharacterId: String = "",
     onUpdateMessage: (ChatMessage) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -71,6 +72,7 @@ fun SpecialMessageBubble(
             "video" -> {
                 showMediaPreview = true
             }
+            "voice" -> Unit
             "location" -> {
                 // Toast.makeText(context, "导航去: ${msg.content}", Toast.LENGTH_SHORT).show()
             }
@@ -85,6 +87,12 @@ fun SpecialMessageBubble(
         when (msg.type) {
             "image" -> ImageBubble(content = msg.content)
             "video" -> VideoBubble(content = msg.content)
+            "voice" -> VoiceMessageBubble(
+                msg = msg,
+                isUser = isUser,
+                contactCharacterId = contactCharacterId,
+                onUpdateMessage = onUpdateMessage
+            )
             "red_packet" -> RedPacketBubble(msg = msg, isUser = isUser)
             "transfer" -> TransferBubble(msg = msg, isUser = isUser)
             "location" -> LocationBubble(content = msg.content)

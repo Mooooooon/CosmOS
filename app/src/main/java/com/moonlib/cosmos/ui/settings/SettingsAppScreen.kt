@@ -16,6 +16,8 @@ import com.moonlib.cosmos.data.settings.AiLogRepository
 import com.moonlib.cosmos.data.settings.SystemPromptRepository
 import com.moonlib.cosmos.data.settings.SystemPromptItem
 import com.moonlib.cosmos.data.settings.SaveManager
+import com.moonlib.cosmos.data.settings.VoiceServiceProfile
+import com.moonlib.cosmos.data.settings.VoiceServiceRepository
 
 /**
  * 设置内部的子页面路由状态
@@ -24,6 +26,8 @@ sealed interface SettingsScreenState {
     object Main : SettingsScreenState
     object ProfileList : SettingsScreenState
     data class AddEditProfile(val profileId: String?) : SettingsScreenState
+    object VoiceServiceList : SettingsScreenState
+    data class AddEditVoiceService(val profileId: String?) : SettingsScreenState
     object ThemeSettings : SettingsScreenState
     object AiLogsList : SettingsScreenState
     data class AiLogDetail(val logId: String) : SettingsScreenState
@@ -45,12 +49,15 @@ fun SettingsAppScreen(
 ) {
     val context = LocalContext.current
     val repository = remember { AiConfigRepository(context) }
+    val voiceRepository = remember { VoiceServiceRepository(context) }
     val promptRepository = remember { SystemPromptRepository(context) }
 
     // ── 核心状态管理 ──────────────────────────────────────────
     var currentScreen by remember { mutableStateOf<SettingsScreenState>(SettingsScreenState.Main) }
     var profiles by remember { mutableStateOf(emptyList<AiProfile>()) }
+    var voiceProfiles by remember { mutableStateOf(emptyList<VoiceServiceProfile>()) }
     var activeProfileName by remember { mutableStateOf("未配置") }
+    var activeVoiceServiceName by remember { mutableStateOf("未配置") }
     var promptItems by remember { mutableStateOf(emptyList<SystemPromptItem>()) }
 
     // ── 核心数据刷新逻辑 ──────────────────────────────────────
@@ -60,6 +67,14 @@ fun SettingsAppScreen(
         val active = repository.getActiveProfile()
         activeProfileName = if (active != null) {
             "${active.name} (${active.modelName})"
+        } else {
+            "未配置 (点击配置)"
+        }
+        val voiceList = voiceRepository.getProfiles()
+        voiceProfiles = voiceList
+        val activeVoice = voiceRepository.getActiveProfile()
+        activeVoiceServiceName = if (activeVoice != null) {
+            "${activeVoice.name} (${activeVoice.modelName})"
         } else {
             "未配置 (点击配置)"
         }
@@ -81,6 +96,8 @@ fun SettingsAppScreen(
             is SettingsScreenState.Main -> onGoBack()
             is SettingsScreenState.ProfileList -> currentScreen = SettingsScreenState.Main
             is SettingsScreenState.AddEditProfile -> currentScreen = SettingsScreenState.ProfileList
+            is SettingsScreenState.VoiceServiceList -> currentScreen = SettingsScreenState.Main
+            is SettingsScreenState.AddEditVoiceService -> currentScreen = SettingsScreenState.VoiceServiceList
             is SettingsScreenState.ThemeSettings -> currentScreen = SettingsScreenState.Main
             is SettingsScreenState.AiLogsList -> currentScreen = SettingsScreenState.Main
             is SettingsScreenState.AiLogDetail -> currentScreen = SettingsScreenState.AiLogsList
@@ -105,10 +122,15 @@ fun SettingsAppScreen(
             is SettingsScreenState.Main -> {
                 SettingsMainScreen(
                     activeProfileName = activeProfileName,
+                    activeVoiceServiceName = activeVoiceServiceName,
                     activeSaveName = SaveManager.getActiveSaveName(),
                     onModelServiceClick = {
                         refreshData()
                         currentScreen = SettingsScreenState.ProfileList
+                    },
+                    onVoiceServiceClick = {
+                        refreshData()
+                        currentScreen = SettingsScreenState.VoiceServiceList
                     },
                     onPromptClick = {
                         refreshPrompts()
@@ -172,6 +194,46 @@ fun SettingsAppScreen(
                         repository.saveProfile(profile)
                         refreshData()
                         currentScreen = SettingsScreenState.ProfileList
+                    }
+                )
+            }
+
+            is SettingsScreenState.VoiceServiceList -> {
+                VoiceServicesListScreen(
+                    profiles = voiceProfiles,
+                    onBackClick = {
+                        currentScreen = SettingsScreenState.Main
+                    },
+                    onAddClick = {
+                        currentScreen = SettingsScreenState.AddEditVoiceService(profileId = null)
+                    },
+                    onEditClick = { id ->
+                        currentScreen = SettingsScreenState.AddEditVoiceService(profileId = id)
+                    },
+                    onDeleteClick = { id ->
+                        voiceRepository.deleteProfile(id)
+                        refreshData()
+                    },
+                    onSelectActive = { id ->
+                        voiceRepository.setActiveProfile(id)
+                        refreshData()
+                    }
+                )
+            }
+
+            is SettingsScreenState.AddEditVoiceService -> {
+                val initialProfile = remember(screen.profileId, voiceProfiles) {
+                    screen.profileId?.let { id -> voiceProfiles.firstOrNull { it.id == id } }
+                }
+                VoiceServiceConfigScreen(
+                    initialProfile = initialProfile,
+                    onBackClick = {
+                        currentScreen = SettingsScreenState.VoiceServiceList
+                    },
+                    onSaveClick = { profile ->
+                        voiceRepository.saveProfile(profile)
+                        refreshData()
+                        currentScreen = SettingsScreenState.VoiceServiceList
                     }
                 )
             }

@@ -247,6 +247,16 @@ object ChatEngine {
         val processedPlayerPrompt = (playerProfile?.prompt ?: "普通用户，无更多公开身份设定。")
             .replace("{{char}}", charProfile.name)
             .replace("{{user}}", playerRealName)
+        val availableMessageTypes = if (charProfile.voiceId.isNotBlank()) {
+            "text、voice、image、video、red_packet、transfer、location"
+        } else {
+            "text、image、video、red_packet、transfer、location"
+        }
+        val voiceRequirement = if (charProfile.voiceId.isNotBlank()) {
+            "6. 可以按情境发送 text、voice、image、video、red_packet、transfer、location 类型消息；voice 表示一条可播放语音，content 填要说出口的短句。"
+        } else {
+            "6. 可以按情境发送 text、image、video、red_packet、transfer、location 类型消息；当前角色未绑定音色，禁止发送 voice 类型。"
+        }
 
         // ── 提前构建 wide history，供关键词匹配和后续 Prompt 组装共用 ──
         val recentMergedHistory = ConversationContextBuilder.buildWideHistoryForCharacters(
@@ -301,7 +311,7 @@ object ChatEngine {
                 3. 单次回复 1 到 3 条消息，每条 1 到 3 句话，建议单条不超过 50 字；但在表白、倾诉心情、发表深刻感想等情感浓度较高的特殊场合，允许单条适当延长，以充分表达情感。
                 4. 指代用户/玩家必须使用第二人称“你”，禁止使用“他/她”代指用户。
                 5. 严禁 emoji、颜文字、表情符号和小括号动作描写。
-                6. 可以按情境发送 text、image、video、red_packet、transfer、location 类型消息。
+                $voiceRequirement
                 7. 不要在 content 中添加 [线上聊天] 等历史前缀。
                 
                 【时空一致性（重要）】
@@ -331,10 +341,12 @@ object ChatEngine {
                 
                 约束：
                 - replies 数组包含 1 到 3 条消息。
+                - type 只能从 $availableMessageTypes 中选择。
                 - time 必须晚于当前虚拟时间 $currentVirtualTime，并符合 yyyy-MM-dd HH:mm:ss。
                 - 所有回复的 time 只能比当前虚拟时间晚 1 到 2 分钟，多条回复之间每条再递增 30 到 60 秒。严禁通过大幅跳跃 time（如跳跃数十分钟乃至数小时）来"合理化"角色位置或状态的突变——这是操纵剧情的违规行为。
                 - red_packet 的 content 填金额，extra 可填祝福语；transfer 的 content 填金额。
                 - location 的 content 填地名或地址。
+                - voice 的 content 填语音中实际说出口的内容，长度建议 5 到 35 字，避免标点堆叠、动作描写和括号说明。
                 - image 的 content 必须是一段生动具体的图片画面描述（20-50 字），描述画面中的主体、场景、氛围、色彩等细节，让人能在脑中清晰还原这张图片的样子，例如：「一张傍晚的街头照片，橙红色的晚霞铺满半边天，路灯刚刚亮起，行人撑着伞走过湿漉漉的人行道」。
                 - video 的 content 必须是一段生动具体的视频内容描述（20-50 字），描述视频中的动态画面、声音氛围、场景与情绪，让人能感受到视频的现场感，例如：「一段在演唱会现场拍的视频，台上灯光闪烁变换，台下人群跟着节奏挥动荧光棒，背景音乐和欢呼声混在一起，手持拍摄略有抖动」。
                 - 只返回纯 JSON，不要 markdown 代码块或解释文本。

@@ -151,6 +151,7 @@ object ConversationContextBuilder {
         return when (type) {
             "image" -> "[发送了图片：$content]"
             "video" -> "[发送了视频：$content]"
+            "voice" -> "[发送了语音：$content]"
             "red_packet" -> "[发送了红包：$content 元，留言：${extra ?: "恭喜发财，大吉大利"}]"
             "transfer" -> "[发送了转账：$content 元]"
             "location" -> "[发送了位置：$content]"

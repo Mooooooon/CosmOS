@@ -64,6 +64,8 @@ fun ProfileEditScreen(
     var name by remember { mutableStateOf(initialProfile?.name ?: "") }
     var prompt by remember { mutableStateOf(initialProfile?.prompt ?: "") }
     var avatarPath by remember { mutableStateOf(initialProfile?.avatar ?: "") }
+    var voiceId by remember { mutableStateOf(initialProfile?.voiceId ?: "") }
+    var voiceName by remember { mutableStateOf(initialProfile?.voiceName ?: "") }
     // 关键词列表以逗号分隔的字符串形式展示，保存时拆分为列表
     var keywordsText by remember { mutableStateOf(initialProfile?.keywords?.joinToString(", ") ?: "") }
 
@@ -85,12 +87,19 @@ fun ProfileEditScreen(
     }
 
     // ── 检查是否有未保存的改动 ────────────────────────────────
-    val hasChanges = remember(name, prompt, avatarPath, keywordsText, initialProfile) {
+    val hasChanges = remember(name, prompt, avatarPath, voiceId, voiceName, keywordsText, initialProfile) {
         val originalName = initialProfile?.name ?: ""
         val originalPrompt = initialProfile?.prompt ?: ""
         val originalAvatar = initialProfile?.avatar ?: ""
+        val originalVoiceId = initialProfile?.voiceId ?: ""
+        val originalVoiceName = initialProfile?.voiceName ?: ""
         val originalKeywords = initialProfile?.keywords?.joinToString(", ") ?: ""
-        name != originalName || prompt != originalPrompt || avatarPath != originalAvatar || keywordsText != originalKeywords
+        name != originalName ||
+            prompt != originalPrompt ||
+            avatarPath != originalAvatar ||
+            voiceId != originalVoiceId ||
+            voiceName != originalVoiceName ||
+            keywordsText != originalKeywords
     }
 
     // 物理返回键安全拦截
@@ -295,6 +304,15 @@ fun ProfileEditScreen(
 
                     // ── 关键词输入（仅非玩家角色显示） ──────────────────
                     if (!isPlayer) {
+                        ProfileVoiceBindingSection(
+                            voiceId = voiceId,
+                            voiceName = voiceName,
+                            onVoiceSelected = { option ->
+                                voiceId = option?.id.orEmpty()
+                                voiceName = option?.name.orEmpty()
+                            }
+                        )
+
                         Column(modifier = Modifier.fillMaxWidth()) {
                             Text(
                                 text = "关键词",
@@ -342,6 +360,8 @@ fun ProfileEditScreen(
                             prompt = prompt.trim(),
                             isPlayer = isPlayer,
                             avatar = avatarPath,
+                            voiceId = voiceId,
+                            voiceName = voiceName,
                             keywords = keywords
                         )
                         onSaveClick(finalProfile)

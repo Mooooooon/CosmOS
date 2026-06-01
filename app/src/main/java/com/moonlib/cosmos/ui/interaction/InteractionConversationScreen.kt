@@ -83,6 +83,7 @@ fun InteractionConversationScreen(
     // 2. 加载用户自身资料
     val userNickname = remember { chatRepo.getUserNickname() }
     val userAvatar = remember { chatRepo.getUserAvatar() }
+    val voicePlaybackState = rememberInteractionVoicePlaybackState(characterId)
 
     // 加载并 observe 状态卡全局及各个角色当前状态数据
     val settingsRepo = remember { com.moonlib.cosmos.data.interaction.InteractionSettingsRepository(context) }
@@ -414,9 +415,11 @@ fun InteractionConversationScreen(
                             }
                             else -> {
                                 CharacterInteractionRow(
+                                    messageId = msg.id,
                                     content = msg.content,
                                     characterName = character.name,
                                     characterAvatar = character.avatar,
+                                    voicePlaybackState = voicePlaybackState,
                                     onDelete = {
                                         interactionRepo.deleteMessage(characterId, msg.id)
                                         messages = interactionRepo.getMessages(characterId)
@@ -672,9 +675,11 @@ private fun UserInteractionRow(
  */
 @Composable
 private fun CharacterInteractionRow(
+    messageId: String,
     content: String,
     characterName: String,
     characterAvatar: String,
+    voicePlaybackState: InteractionVoicePlaybackState,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -725,6 +730,24 @@ private fun CharacterInteractionRow(
                 onDismissRequest = { showMenu = false },
                 modifier = Modifier.background(MaterialTheme.colorScheme.surface)
             ) {
+                if (voicePlaybackState.isAvailable) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = when {
+                                    voicePlaybackState.isLoading -> "正在生成语音..."
+                                    voicePlaybackState.isPlaying -> "停止播放"
+                                    else -> voicePlaybackState.statusText ?: "播放语音"
+                                },
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        onClick = {
+                            voicePlaybackState.play(messageId, content)
+                            showMenu = false
+                        }
+                    )
+                }
                 DropdownMenuItem(
                     text = { Text("删除", color = MaterialTheme.colorScheme.error) },
                     onClick = {

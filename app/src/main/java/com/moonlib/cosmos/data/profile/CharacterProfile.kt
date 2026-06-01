@@ -11,6 +11,8 @@ data class CharacterProfile(
     val prompt: String,
     val isPlayer: Boolean,
     val avatar: String = "",
+    val voiceId: String = "",
+    val voiceName: String = "",
     /**
      * 该角色的关键词列表（称呼、外号、代号等）。
      * 当用户最近 N 次输入中包含任意一个关键词时，该角色的人设会被自动追加到 personaPrompt 中。

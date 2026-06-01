@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.NetworkCell
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.Tune
@@ -41,8 +42,10 @@ import com.moonlib.cosmos.ui.theme.StarWhite
 @Composable
 fun SettingsMainScreen(
     activeProfileName: String,
+    activeVoiceServiceName: String,
     activeSaveName: String,
     onModelServiceClick: () -> Unit,
+    onVoiceServiceClick: () -> Unit,
     onPromptClick: () -> Unit,
     onThemeClick: () -> Unit,
     onLogsClick: () -> Unit,
@@ -107,6 +110,14 @@ fun SettingsMainScreen(
                     title = "模型服务",
                     subtitle = activeProfileName,
                     onClick = onModelServiceClick
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), thickness = 0.5.dp)
+                SettingItem(
+                    icon = Icons.Default.RecordVoiceOver,
+                    iconBgColor = Color(0xFFE11D48),
+                    title = "语音服务",
+                    subtitle = activeVoiceServiceName,
+                    onClick = onVoiceServiceClick
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), thickness = 0.5.dp)
                 SettingItem(
@@ -348,4 +359,3 @@ private fun SimulatedSettingItem(
         }
     }
 }
-

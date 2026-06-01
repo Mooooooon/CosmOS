@@ -372,6 +372,7 @@ fun ChatConversationScreen(
                                     msg = msg,
                                     userNickname = userNickname,
                                     userAvatar = userAvatar,
+                                    contactCharacterId = contact.characterId,
                                     onDelete = {
                                         chatRepo.deleteMessage(contactId, msg.id)
                                         messages = chatRepo.getMessages(contactId)
@@ -564,6 +565,7 @@ private fun UserMessageRow(
     msg: ChatMessage,
     userNickname: String,
     userAvatar: String,
+    contactCharacterId: String,
     onDelete: () -> Unit,
     onResend: () -> Unit,
     onUpdateMessage: (ChatMessage) -> Unit,
@@ -589,6 +591,7 @@ private fun UserMessageRow(
                     msg = msg,
                     isUser = true,
                     contactName = "",
+                    contactCharacterId = contactCharacterId,
                     onUpdateMessage = onUpdateMessage,
                     modifier = Modifier.pointerInput(Unit) {
                         detectTapGestures(
@@ -693,6 +696,7 @@ private fun ContactMessageRow(
                     msg = msg,
                     isUser = false,
                     contactName = contact.nickname,
+                    contactCharacterId = contact.characterId,
                     onUpdateMessage = onUpdateMessage,
                     modifier = Modifier.pointerInput(Unit) {
                         detectTapGestures(
