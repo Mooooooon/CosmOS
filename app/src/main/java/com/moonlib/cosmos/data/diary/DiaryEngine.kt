@@ -9,6 +9,8 @@ import com.moonlib.cosmos.data.ai.AiSceneRequest
 import com.moonlib.cosmos.data.ai.AiStatusUpdater
 import com.moonlib.cosmos.data.context.ConversationContextBuilder
 import com.moonlib.cosmos.data.chat.ChatRepository
+import com.moonlib.cosmos.data.memory.MemoryCaptureParser
+import com.moonlib.cosmos.data.memory.MemoryContextFormatter
 import com.moonlib.cosmos.data.profile.CharacterProfileRepository
 import com.moonlib.cosmos.data.profile.KeywordProfileMatcher
 import com.moonlib.cosmos.data.settings.AiSettingsRepository
@@ -193,6 +195,8 @@ object DiaryEngine {
                     4. 禁止假大空套话和词语堆砌。
                     5. 严禁 emoji、颜文字和表情符号。
                     
+                    ${MemoryContextFormatter.CAPTURE_REQUIREMENT}
+                    
                     时间推进要求（重要）：
                     创作结束后，根据剧情内容为本段场景确定一个合理的结束时刻（nextTime）：
                     - 若种子含时间锚点词，优先对齐其自然结束时刻（如"吃午饭"→ 约 12:30–13:30，"看电影"→ 约 2–3 小时后）。
@@ -203,7 +207,8 @@ object DiaryEngine {
                     {
                       "content": "高质量剧情场景完整正文，纯文字叙事",
                       "summary": "20到40字的一句话摘要",
-                      "nextTime": "yyyy-MM-dd HH:mm，根据剧情场景与时长灵活推断的合理结束时刻"${if (diaryStatusCardEnabled && statusKeys.isNotEmpty()) ",\n                      \"status\": {\n                        \"角色名\": {\n                          \"词条名\": \"仅当状态改变时填写更新值，未改变则不输出或设为 null\"\n                        }\n                      }" else ""}
+                      "nextTime": "yyyy-MM-dd HH:mm，根据剧情场景与时长灵活推断的合理结束时刻",
+                      "memories": []${if (diaryStatusCardEnabled && statusKeys.isNotEmpty()) ",\n                      \"status\": {\n                        \"角色名\": {\n                          \"词条名\": \"仅当状态改变时填写更新值，未改变则不输出或设为 null\"\n                        }\n                      }" else ""}
                     }
                     
                     约束：
@@ -224,6 +229,13 @@ object DiaryEngine {
         // 7. 解析大模型返回的 JSON
         val cleanJson = AiResponseCleaner.cleanJson(responseText)
         val jsonObj = JSONObject(cleanJson)
+        MemoryCaptureParser.captureFromResponse(
+            context = context,
+            jsonObj = jsonObj,
+            sceneType = AiSceneType.DIARY,
+            fallbackCharacterIds = involvedCharacterIds,
+            validCharacterIds = profileRepo.getProfiles().map { it.id }.toSet()
+        )
         val content = jsonObj.getString("content").trim()
         val summary = jsonObj.getString("summary").trim()
 

@@ -11,6 +11,8 @@ import com.moonlib.cosmos.data.chat.ChatRepository
 import com.moonlib.cosmos.data.chat.Moment
 import com.moonlib.cosmos.data.chat.MomentRepository
 import com.moonlib.cosmos.data.context.ConversationContextBuilder
+import com.moonlib.cosmos.data.memory.MemoryCaptureParser
+import com.moonlib.cosmos.data.memory.MemoryContextFormatter
 import com.moonlib.cosmos.data.profile.CharacterProfile
 import com.moonlib.cosmos.data.profile.CharacterProfileRepository
 import com.moonlib.cosmos.data.settings.AiSceneType
@@ -147,6 +149,8 @@ object TimeSkipEngine {
 
                 【通用规范】
                 所有文字严禁 emoji、颜文字和动作描写，指代玩家必须使用第二人称"你"。
+                
+                ${MemoryContextFormatter.CAPTURE_REQUIREMENT}
             """.trimIndent()
 
             val jsonStructure = """
@@ -159,7 +163,8 @@ object TimeSkipEngine {
                   ],
                   "simulated_tweets": [
                     {"character_id":"角色ID","content":"推特正文","has_image":false,"image_description":"如果 has_image=true，必填写一段生动具体的图片画面描述（20-50字）让人能在脑中清晰还原这张图片","time":"yyyy-MM-dd HH:mm:ss"}
-                  ]
+                  ],
+                  "memories": []
                 }
             """.trimIndent()
 
@@ -191,6 +196,13 @@ object TimeSkipEngine {
             )
 
             val jsonObj = JSONObject(AiResponseCleaner.cleanJson(result.rawResponse))
+            MemoryCaptureParser.captureFromResponse(
+                context = context,
+                jsonObj = jsonObj,
+                sceneType = AiSceneType.TIME_SKIP_ONLINE,
+                fallbackCharacterIds = candidateProfiles.map { it.id },
+                validCharacterIds = allProfiles.map { it.id }.toSet()
+            )
             val candidateMap = candidates.associateBy { it.characterId }
             val messageCount = saveSimulatedMessages(
                 jsonArray = jsonObj.optJSONArray("simulated_messages") ?: JSONArray(),

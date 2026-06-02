@@ -5,6 +5,7 @@ import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Forum
+import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Settings
@@ -57,6 +58,12 @@ val desktopApps = listOf(
         label = "日记",
         icon  = Icons.Default.BookmarkBorder, // BookmarkBorder 替代 MenuBook
         color = Color(0xFFD97706),
+    ),
+    DesktopApp(
+        id    = "memory",
+        label = "记忆",
+        icon  = Icons.Default.Memory,
+        color = Color(0xFF4F46E5),
     ),
     DesktopApp(
         id    = "twitter",

@@ -29,6 +29,7 @@ object AiJsonSchemaFactory {
                     put("type", "object")
                     put("additionalProperties", true)
                 })
+                put("memories", memoriesSchema())
             })
             put("required", JSONArray().put("replies"))
             put("_schema_name", schemaName)
@@ -52,6 +53,7 @@ object AiJsonSchemaFactory {
                     })
                     put("required", JSONArray().put("character_id").put("content").put("parent_id").put("time_offset_seconds"))
                 }))
+                put("memories", memoriesSchema())
             })
             put("required", JSONArray().put("replies"))
             put("_schema_name", schemaName)
@@ -70,6 +72,7 @@ object AiJsonSchemaFactory {
                     put("type", "object")
                     put("additionalProperties", true)
                 })
+                put("memories", memoriesSchema())
             })
             put("required", JSONArray().put("content").put("summary").put("nextTime"))
             put("_schema_name", schemaName)
@@ -94,6 +97,7 @@ object AiJsonSchemaFactory {
                 }))
                 put("simulated_moments", JSONArrayItemsSchema(socialPostSchema()))
                 put("simulated_tweets", JSONArrayItemsSchema(socialPostSchema()))
+                put("memories", memoriesSchema())
             })
             put("required", JSONArray().put("simulated_messages").put("simulated_moments").put("simulated_tweets"))
             put("_schema_name", schemaName)
@@ -155,6 +159,21 @@ object AiJsonSchemaFactory {
                 put("time", JSONObject().apply { put("type", "string") })
             })
         }
+    }
+
+    private fun memoriesSchema(): JSONObject {
+        return JSONArrayItemsSchema(JSONObject().apply {
+            put("type", "object")
+            put("additionalProperties", true)
+            put("properties", JSONObject().apply {
+                put("title", JSONObject().apply { put("type", "string") })
+                put("content", JSONObject().apply { put("type", "string") })
+                put("character_ids", JSONArrayItemsSchema(JSONObject().apply { put("type", "string") }))
+                put("tags", JSONArrayItemsSchema(JSONObject().apply { put("type", "string") }))
+                put("importance", JSONObject().apply { put("type", "integer") })
+            })
+            put("required", JSONArray().put("title").put("content").put("character_ids").put("tags").put("importance"))
+        })
     }
 
     private fun JSONArrayItemsSchema(itemSchema: JSONObject): JSONObject {

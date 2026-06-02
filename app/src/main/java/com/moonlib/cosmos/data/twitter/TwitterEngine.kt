@@ -7,6 +7,8 @@ import com.moonlib.cosmos.data.ai.AiRequestClient
 import com.moonlib.cosmos.data.ai.AiResponseCleaner
 import com.moonlib.cosmos.data.ai.AiSceneRequest
 import com.moonlib.cosmos.data.context.ConversationContextBuilder
+import com.moonlib.cosmos.data.memory.MemoryCaptureParser
+import com.moonlib.cosmos.data.memory.MemoryContextFormatter
 import com.moonlib.cosmos.data.profile.CharacterProfileRepository
 import com.moonlib.cosmos.data.settings.AiConfigRepository
 import com.moonlib.cosmos.data.settings.AiSettingsRepository
@@ -159,8 +161,10 @@ object TwitterEngine {
                     outputRequirement = """
                         你正在模拟 CosmOS 虚拟推特的评论盖楼。请根据角色性格、作息、关系与当前时间决定是否回复。
                         $replyCountRule 正文必须控制在 1 到 2 句话内，严禁 emoji、颜文字和动作描写，指代用户必须用“你”。
+                        
+                        ${MemoryContextFormatter.CAPTURE_REQUIREMENT}
                     """.trimIndent(),
-                    jsonStructure = """{"replies":[{"character_id":"回复角色ID","reply_to_username":"被回复用户名","content":"评论内容","parent_id":"$tweetId 或 reply_index_0","time_offset_seconds":15}]}""",
+                    jsonStructure = """{"replies":[{"character_id":"回复角色ID","reply_to_username":"被回复用户名","content":"评论内容","parent_id":"$tweetId 或 reply_index_0","time_offset_seconds":15}],"memories":[]}""",
                     historyText = """
                         【候选角色统一宽历史】
                         $mergedHistoryText
@@ -185,6 +189,13 @@ object TwitterEngine {
         val repliesArray = try {
             val cleanJson = AiResponseCleaner.cleanJson(responseText)
             val jsonObj = JSONObject(cleanJson)
+            MemoryCaptureParser.captureFromResponse(
+                context = context,
+                jsonObj = jsonObj,
+                sceneType = AiSceneType.SOCIAL_REPLY_TWITTER,
+                fallbackCharacterIds = allowedReplyCharacterIds.toList(),
+                validCharacterIds = systemProfiles.map { it.id }.toSet()
+            )
             jsonObj.optJSONArray("replies") ?: JSONArray()
         } catch (e: Exception) {
             JSONArray()

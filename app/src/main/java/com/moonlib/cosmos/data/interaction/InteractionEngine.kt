@@ -11,6 +11,8 @@ import com.moonlib.cosmos.data.ai.AiSceneRequest
 import com.moonlib.cosmos.data.ai.AiStatusUpdater
 import com.moonlib.cosmos.data.chat.ChatRepository
 import com.moonlib.cosmos.data.context.ConversationContextBuilder
+import com.moonlib.cosmos.data.memory.MemoryCaptureParser
+import com.moonlib.cosmos.data.memory.MemoryContextFormatter
 import com.moonlib.cosmos.data.profile.CharacterProfile
 import com.moonlib.cosmos.data.profile.CharacterProfileRepository
 import com.moonlib.cosmos.data.profile.KeywordProfileMatcher
@@ -97,6 +99,13 @@ object InteractionEngine {
             val cleanJson = AiResponseCleaner.cleanJson(responseText)
             val jsonObj = JSONObject(cleanJson)
             AiStatusUpdater.updateSingleCharacter(context, characterId, jsonObj)
+            MemoryCaptureParser.captureFromResponse(
+                context = context,
+                jsonObj = jsonObj,
+                sceneType = AiSceneType.INTERACTION,
+                fallbackCharacterIds = listOf(characterId),
+                validCharacterIds = profileRepo.getProfiles().map { it.id }.toSet()
+            )
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -311,6 +320,8 @@ object InteractionEngine {
                 5. 严禁 emoji、颜文字和表情符号。
                 6. 单次回复 1 到 3 条，每条 1 到 3 句话，建议单条不超过 60 字。
                 7. 如果状态卡发生改变，按“状态卡”段落要求在 JSON 外层输出 status。
+                
+                ${MemoryContextFormatter.CAPTURE_REQUIREMENT}
             """.trimIndent(),
             jsonStructure = """
                 {
@@ -321,7 +332,8 @@ object InteractionEngine {
                       "time": "yyyy-MM-dd HH:mm:ss",
                       "content": "（动作描写）回复内容"
                     }
-                  ]${if (statusPrompt.isNotBlank()) ",\n                  \"status\": {\n                    \"词条名称\": \"仅当该词条状态发生改变时更新的值，未改变的词条不输出或设为 null\"\n                  }" else ""}
+                  ],
+                  "memories": []${if (statusPrompt.isNotBlank()) ",\n                  \"status\": {\n                    \"词条名称\": \"仅当该词条状态发生改变时更新的值，未改变的词条不输出或设为 null\"\n                  }" else ""}
                 }
                 
                 约束：

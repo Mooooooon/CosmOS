@@ -75,4 +75,15 @@ class AiPipelineTest {
             AiReasoningRequestOptions.supportedLevelsFor(AiServiceType.MINIMAX, "MiniMax-M3")
         )
     }
+
+    @Test
+    fun storySchemasIncludeOptionalMemories() {
+        assertTrue(AiJsonSchemaFactory.chatRepliesSchema().getJSONObject("properties").has("memories"))
+        assertTrue(AiJsonSchemaFactory.socialRepliesSchema().getJSONObject("properties").has("memories"))
+        assertTrue(AiJsonSchemaFactory.diarySchema().getJSONObject("properties").has("memories"))
+        assertTrue(AiJsonSchemaFactory.timeSkipOnlineSchema().getJSONObject("properties").has("memories"))
+        assertTrue(!AiJsonSchemaFactory.contactMetadataSchema().getJSONObject("properties").has("memories"))
+        assertTrue(!AiJsonSchemaFactory.twitterProfileMetadataSchema().getJSONObject("properties").has("memories"))
+        assertTrue(!AiJsonSchemaFactory.characterNamesSchema().getJSONObject("properties").has("memories"))
+    }
 }

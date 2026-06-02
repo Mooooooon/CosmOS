@@ -18,6 +18,7 @@ import com.moonlib.cosmos.ui.settings.SettingsAppScreen
 import com.moonlib.cosmos.ui.chat.ChatAppScreen
 import com.moonlib.cosmos.ui.time.TimeAppScreen
 import com.moonlib.cosmos.ui.diary.DiaryAppScreen
+import com.moonlib.cosmos.ui.memory.MemoryAppScreen
 import com.moonlib.cosmos.ui.twitter.TwitterAppScreen
 import com.moonlib.cosmos.ui.theme.*
 import kotlin.random.Random
@@ -124,6 +125,11 @@ fun DesktopScreen() {
                     )
                 } else if (appId == "diary") {
                     DiaryAppScreen(
+                        onGoBack = { activeAppId = null },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else if (appId == "memory") {
+                    MemoryAppScreen(
                         onGoBack = { activeAppId = null },
                         modifier = Modifier.fillMaxSize()
                     )

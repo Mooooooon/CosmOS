@@ -9,6 +9,8 @@ import com.moonlib.cosmos.data.ai.AiRequestClient
 import com.moonlib.cosmos.data.ai.AiResponseCleaner
 import com.moonlib.cosmos.data.ai.AiSceneRequest
 import com.moonlib.cosmos.data.context.ConversationContextBuilder
+import com.moonlib.cosmos.data.memory.MemoryCaptureParser
+import com.moonlib.cosmos.data.memory.MemoryContextFormatter
 import com.moonlib.cosmos.data.profile.CharacterProfileRepository
 import com.moonlib.cosmos.data.profile.KeywordProfileMatcher
 import com.moonlib.cosmos.data.settings.AiConfigRepository
@@ -87,6 +89,19 @@ object ChatEngine {
             )
         )
         val responseText = result.rawResponse
+
+        try {
+            val jsonObj = JSONObject(AiResponseCleaner.cleanJson(responseText))
+            MemoryCaptureParser.captureFromResponse(
+                context = context,
+                jsonObj = jsonObj,
+                sceneType = AiSceneType.CHAT,
+                fallbackCharacterIds = listOf(charProfile.id),
+                validCharacterIds = profileRepo.getProfiles().map { it.id }.toSet()
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
 
         // 5. 组装、解析并保存 AI 的回复消息列表
         val currentVirtualTime = VirtualTimeManager.getCurrentTimeMillis()
@@ -317,6 +332,8 @@ object ChatEngine {
                 $voiceRequirement
                 7. 不要在 content 中添加 [线上聊天] 等历史前缀。
                 
+                ${MemoryContextFormatter.CAPTURE_REQUIREMENT}
+                
                 【时空一致性（重要）】
                 聊天消息之间往往只相隔几分钟甚至几秒，角色的位置和状态不可能发生突变。
                 - 回复前必须根据对话历史判断角色当前所处的位置与状态（在家、在公司、在外出途中……）。
@@ -339,7 +356,8 @@ object ChatEngine {
                       "time": "yyyy-MM-dd HH:mm:ss",
                       "content": "纯聊天文本"
                     }
-                  ]
+                  ],
+                  "memories": []
                 }
                 
                 约束：

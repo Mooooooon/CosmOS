@@ -12,6 +12,7 @@ import com.moonlib.cosmos.data.profile.CharacterProfileRepository
 import com.moonlib.cosmos.data.interaction.InteractionRepository
 import com.moonlib.cosmos.data.interaction.InteractionSettingsRepository
 import com.moonlib.cosmos.data.diary.DiaryRepository
+import com.moonlib.cosmos.data.memory.MemoryRepository
 import com.moonlib.cosmos.data.twitter.TwitterRepository
 import java.io.File
 
@@ -226,7 +227,8 @@ object SaveManager {
             "cosmos_interaction_settings_prefs",
             "cosmos_character_profiles_prefs",
             "cosmos_time_prefs",
-            "cosmos_twitter_prefs"
+            "cosmos_twitter_prefs",
+            MemoryRepository.PREF_NAME
         )
 
         for (baseName in saveRelatedPrefs) {
@@ -416,7 +418,11 @@ object SaveManager {
             val twitterRepo = TwitterRepository(context)
             twitterRepo.clearAllTweets()
 
-            // 7. 清理生成的推文配图以释放空间
+            // 7. 清除长期记忆
+            val memoryRepo = MemoryRepository(context)
+            memoryRepo.clearMemories()
+
+            // 8. 清理生成的推文配图以释放空间
             try {
                 val tweetImagesDir = java.io.File(context.filesDir, getAvatarDirName("twitter_images"))
                 if (tweetImagesDir.exists()) {

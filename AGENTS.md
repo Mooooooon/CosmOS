@@ -17,6 +17,7 @@
 - `app/src/main/java/com/moonlib/cosmos/data/settings`：AI 服务配置、模型参数、响应解析、授权头、Vertex 认证与端点解析、思考等级请求参数转换、模型列表缓存、日志、存档、系统提示词与主题配置持久化仓库。
 - `app/src/main/java/com/moonlib/cosmos/data/time`：系统时间状态、推进逻辑与基于时间跳过的内容生成编排。
 - `app/src/main/java/com/moonlib/cosmos/data/diary`：日记数据模型、多槽存档隔离日记仓库与日记 AI 生成引擎。
+- `app/src/main/java/com/moonlib/cosmos/data/memory`：长期记忆数据模型、记忆持久化仓库、AI 通讯返回记忆字段解析与上下文格式化逻辑。
 - `app/src/main/java/com/moonlib/cosmos/data/twitter`：推特式动态的数据模型、用户资料、持久化仓库与 AI 生成引擎。
 - `app/src/main/java/com/moonlib/cosmos/ui/chat`：聊天应用入口、主列表、会话页、附件面板、朋友圈列表 / 详情、特殊消息气泡、联系人编辑、联系人信息卡、头像组件与回复揭示动效。
 - `app/src/main/java/com/moonlib/cosmos/ui/common`：跨界面复用的通用 UI / Insets 工具。
@@ -27,6 +28,7 @@
 - `app/src/main/java/com/moonlib/cosmos/ui/theme`：Compose 主题、配色集（深浅双色板）与 CompositionLocal 定义。
 - `app/src/main/java/com/moonlib/cosmos/ui/time`：时间应用界面。
 - `app/src/main/java/com/moonlib/cosmos/ui/diary`：日记应用相关界面。包含入口控制页 (`DiaryAppScreen.kt`)、日记内容卡片与快照组件 (`DiaryCard.kt`)、底部已选标签与输入条 (`DiaryInputBar.kt`)、配置弹窗 (`DiarySettingsDialog.kt`) 及参与者多选弹窗 (`DiaryAtCharacterDialog.kt`) 等。
+- `app/src/main/java/com/moonlib/cosmos/ui/memory`：记忆应用相关界面。包含入口控制页、记忆列表、详情弹窗、编辑弹窗与角色筛选。
 - `app/src/main/java/com/moonlib/cosmos/ui/twitter`：推特式动态应用入口、时间线、发现页、发帖弹窗、资料编辑与帖子详情线程界面。
 - `app/src/main/java/com/moonlib/cosmos/utils`：跨层级复用的工具函数。
 - `app/src/main/res`：Android 资源文件。

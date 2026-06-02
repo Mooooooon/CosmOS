@@ -11,7 +11,8 @@ enum class AiHistorySource(val label: String) {
     INTERACTION("线下互动"),
     DIARY("剧情日记"),
     TWITTER("推特动态"),
-    MOMENT("朋友圈动态")
+    MOMENT("朋友圈动态"),
+    MEMORY("长期记忆")
 }
 
 /**
