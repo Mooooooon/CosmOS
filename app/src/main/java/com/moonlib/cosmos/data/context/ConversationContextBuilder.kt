@@ -60,9 +60,12 @@ object ConversationContextBuilder {
             }
         }
 
-        val interactionItems = involvedCharacterIds
+        val interactionMessages = involvedCharacterIds
             .flatMap { interactionRepo.getMessages(it) }
             .distinctBy { it.id }
+
+        val interactionItems = InteractionActionHistoryFilter
+            .filterForHistory(interactionMessages)
             .map { message ->
                 AiHistoryItem(
                     senderId = message.senderId,
