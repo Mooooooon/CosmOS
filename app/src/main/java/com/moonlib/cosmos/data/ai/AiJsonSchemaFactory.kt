@@ -192,13 +192,15 @@ object AiJsonSchemaFactory {
             put("type", "object")
             put("additionalProperties", true)
             put("properties", JSONObject().apply {
+                put("operation", JSONObject().apply { put("type", "string") })
+                put("target_id", JSONObject().apply { put("type", "string") })
                 put("title", JSONObject().apply { put("type", "string") })
                 put("content", JSONObject().apply { put("type", "string") })
                 put("character_ids", JSONArrayItemsSchema(JSONObject().apply { put("type", "string") }))
                 put("tags", JSONArrayItemsSchema(JSONObject().apply { put("type", "string") }))
                 put("importance", JSONObject().apply { put("type", "integer") })
             })
-            put("required", JSONArray().put("title").put("content").put("character_ids").put("tags").put("importance"))
+            put("required", JSONArray().put("operation").put("title").put("content").put("character_ids").put("tags").put("importance"))
         })
     }
 

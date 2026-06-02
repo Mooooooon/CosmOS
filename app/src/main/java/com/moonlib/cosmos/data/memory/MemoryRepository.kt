@@ -19,6 +19,103 @@ class MemoryRepository(private val context: Context) {
     companion object {
         const val PREF_NAME = "cosmos_memory_prefs"
         private const val KEY_MEMORIES = "memory_entries"
+
+        internal fun mergeCapturedMemories(
+            currentMemories: List<MemoryEntry>,
+            instructions: List<MemoryCaptureParser.CaptureInstruction>,
+            now: Long = System.currentTimeMillis()
+        ): Pair<List<MemoryEntry>, Int> {
+            val current = currentMemories.toMutableList()
+            var changed = 0
+            for (instruction in instructions) {
+                val memory = instruction.memory
+                if (memory.title.isBlank() || memory.content.isBlank() || memory.characterIds.isEmpty()) continue
+                val normalized = normalizeCapturedMemory(memory)
+
+                val explicitUpdateIndex = instruction.targetId
+                    ?.let { targetId -> current.indexOfFirst { it.id == targetId } }
+                    ?.takeIf { it >= 0 }
+
+                if (instruction.operation == "update" && explicitUpdateIndex != null) {
+                    current[explicitUpdateIndex] = current[explicitUpdateIndex].mergeWith(normalized, now)
+                    changed++
+                    continue
+                }
+
+                val mergeIndex = current.indexOfFirst { it.isLikelySameMemoryAs(normalized) }
+                if (mergeIndex >= 0) {
+                    current[mergeIndex] = current[mergeIndex].mergeWith(normalized, now)
+                    changed++
+                } else {
+                    current.add(normalized.copy(updatedAt = now))
+                    changed++
+                }
+            }
+            return current to changed
+        }
+
+        private fun normalizeCapturedMemory(memory: MemoryEntry): MemoryEntry {
+            return memory.copy(
+                title = memory.title.trim(),
+                content = memory.content.trim(),
+                characterIds = memory.characterIds.map { it.trim() }.filter { it.isNotBlank() }.distinct(),
+                tags = memory.tags.map { it.trim() }.filter { it.isNotBlank() }.distinct(),
+                importance = memory.importance.coerceIn(1, 3)
+            )
+        }
+
+        private fun MemoryEntry.isSameMemoryAs(other: MemoryEntry): Boolean {
+            return title.normalizedKey() == other.title.normalizedKey() &&
+                content.normalizedKey() == other.content.normalizedKey() &&
+                characterIds.sorted() == other.characterIds.sorted()
+        }
+
+        private fun MemoryEntry.isLikelySameMemoryAs(other: MemoryEntry): Boolean {
+            if (isSameMemoryAs(other)) return true
+            val characterOverlap = characterIds.intersect(other.characterIds.toSet()).isNotEmpty()
+            if (!characterOverlap) return false
+
+            var score = 0
+            val titleKey = title.normalizedKey()
+            val otherTitleKey = other.title.normalizedKey()
+            val sharedTags = tags.intersect(other.tags.toSet())
+
+            if (titleKey == otherTitleKey) score += 4
+            if (titleKey.contains(otherTitleKey) || otherTitleKey.contains(titleKey)) score += 3
+            if (sharedTags.isNotEmpty()) score += 2
+            if (content.charSimilarity(other.content) >= 0.35f) score += 3
+            if (titleKey.commonCharactersWith(otherTitleKey) >= 2) score += 2
+
+            return score >= 5
+        }
+
+        private fun MemoryEntry.mergeWith(other: MemoryEntry, now: Long): MemoryEntry {
+            return copy(
+                title = other.title.ifBlank { title },
+                content = other.content.ifBlank { content },
+                characterIds = (characterIds + other.characterIds).distinct(),
+                tags = (tags + other.tags).distinct(),
+                importance = maxOf(importance, other.importance),
+                sourceScene = other.sourceScene.ifBlank { sourceScene },
+                updatedAt = now,
+                isContextEnabled = isContextEnabled || other.isContextEnabled
+            )
+        }
+
+        private fun String.normalizedKey(): String {
+            return trim().lowercase().replace(Regex("\\s+"), "")
+        }
+
+        private fun String.commonCharactersWith(other: String): Int {
+            return toSet().intersect(other.toSet()).size
+        }
+
+        private fun String.charSimilarity(other: String): Float {
+            val left = normalizedKey().toSet()
+            val right = other.normalizedKey().toSet()
+            if (left.isEmpty() || right.isEmpty()) return 0f
+            return left.intersect(right).size.toFloat() / left.union(right).size.toFloat()
+        }
     }
 
     fun getMemories(): List<MemoryEntry> {
@@ -62,26 +159,21 @@ class MemoryRepository(private val context: Context) {
         saveMemories(current)
     }
 
+    fun applyCaptureInstructions(instructions: List<MemoryCaptureParser.CaptureInstruction>): Int {
+        if (instructions.isEmpty()) return 0
+        val (current, changed) = mergeCapturedMemories(getMemories(), instructions)
+        if (changed > 0) saveMemories(current)
+        return changed
+    }
+
     fun addFromCapture(memories: List<MemoryEntry>): Int {
-        if (memories.isEmpty()) return 0
-        val current = getMemories().toMutableList()
-        var added = 0
-        for (memory in memories) {
-            if (memory.title.isBlank() || memory.content.isBlank()) continue
-            val normalized = memory.copy(
-                title = memory.title.trim(),
-                content = memory.content.trim(),
-                characterIds = memory.characterIds.map { it.trim() }.filter { it.isNotBlank() }.distinct(),
-                tags = memory.tags.map { it.trim() }.filter { it.isNotBlank() }.distinct(),
-                importance = memory.importance.coerceIn(1, 3)
+        return applyCaptureInstructions(memories.map {
+            MemoryCaptureParser.CaptureInstruction(
+                operation = "create",
+                targetId = null,
+                memory = it
             )
-            if (current.none { it.isSameMemoryAs(normalized) }) {
-                current.add(normalized)
-                added++
-            }
-        }
-        if (added > 0) saveMemories(current)
-        return added
+        })
     }
 
     fun deleteMemory(id: String) {
@@ -102,16 +194,6 @@ class MemoryRepository(private val context: Context) {
                 memory.tags.any { it.contains(trimmed, ignoreCase = true) }
             matchesCharacter && matchesQuery
         }
-    }
-
-    private fun MemoryEntry.isSameMemoryAs(other: MemoryEntry): Boolean {
-        return title.normalizedKey() == other.title.normalizedKey() &&
-            content.normalizedKey() == other.content.normalizedKey() &&
-            characterIds.sorted() == other.characterIds.sorted()
-    }
-
-    private fun String.normalizedKey(): String {
-        return trim().lowercase().replace(Regex("\\s+"), "")
     }
 
     private fun serialize(memory: MemoryEntry): JSONObject {

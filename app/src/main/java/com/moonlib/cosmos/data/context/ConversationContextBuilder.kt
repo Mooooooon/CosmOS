@@ -152,7 +152,7 @@ object ConversationContextBuilder {
         val involvedCharacterIds = charProfiles.map { it.id }.toSet()
         if (involvedCharacterIds.isEmpty()) return ""
 
-        val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val memories = MemoryRepository(context).getMemories()
             .filter { memory ->
                 memory.isContextEnabled && memory.characterIds.any { it in involvedCharacterIds }

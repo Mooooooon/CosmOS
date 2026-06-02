@@ -88,4 +88,16 @@ class AiPipelineTest {
         assertTrue(!AiJsonSchemaFactory.twitterProfileMetadataSchema().getJSONObject("properties").has("memories"))
         assertTrue(!AiJsonSchemaFactory.characterNamesSchema().getJSONObject("properties").has("memories"))
     }
+
+    @Test
+    fun memorySchemaSupportsIncrementalUpdates() {
+        val memoryItem = AiJsonSchemaFactory.chatRepliesSchema()
+            .getJSONObject("properties")
+            .getJSONObject("memories")
+            .getJSONObject("items")
+            .getJSONObject("properties")
+
+        assertTrue(memoryItem.has("operation"))
+        assertTrue(memoryItem.has("target_id"))
+    }
 }
