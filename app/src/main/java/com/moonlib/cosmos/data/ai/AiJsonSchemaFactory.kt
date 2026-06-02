@@ -36,6 +36,32 @@ object AiJsonSchemaFactory {
         }
     }
 
+    fun multiInteractionRepliesSchema(schemaName: String = "cosmos_multi_interaction_replies"): JSONObject {
+        return JSONObject().apply {
+            put("type", "object")
+            put("additionalProperties", true)
+            put("properties", JSONObject().apply {
+                put("replies", JSONArrayItemsSchema(JSONObject().apply {
+                    put("type", "object")
+                    put("additionalProperties", true)
+                    put("properties", JSONObject().apply {
+                        put("character_id", JSONObject().apply { put("type", "string") })
+                        put("time", JSONObject().apply { put("type", "string") })
+                        put("content", JSONObject().apply { put("type", "string") })
+                    })
+                    put("required", JSONArray().put("character_id").put("time").put("content"))
+                }))
+                put("status", JSONObject().apply {
+                    put("type", "object")
+                    put("additionalProperties", true)
+                })
+                put("memories", memoriesSchema())
+            })
+            put("required", JSONArray().put("replies"))
+            put("_schema_name", schemaName)
+        }
+    }
+
     fun socialRepliesSchema(schemaName: String = "cosmos_social_replies"): JSONObject {
         return JSONObject().apply {
             put("type", "object")

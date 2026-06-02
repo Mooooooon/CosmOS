@@ -13,6 +13,7 @@ import com.moonlib.cosmos.data.interaction.InteractionRepository
 import com.moonlib.cosmos.data.memory.MemoryContextFormatter
 import com.moonlib.cosmos.data.memory.MemoryRepository
 import com.moonlib.cosmos.data.profile.CharacterProfile
+import com.moonlib.cosmos.data.profile.CharacterProfileRepository
 import com.moonlib.cosmos.data.twitter.Tweet
 import com.moonlib.cosmos.data.twitter.TwitterRepository
 import java.text.SimpleDateFormat
@@ -39,7 +40,7 @@ object ConversationContextBuilder {
         val diaryRepo = DiaryRepository(context)
         val twitterRepo = TwitterRepository(context)
         val momentRepo = MomentRepository(context)
-        val memoryRepo = MemoryRepository(context)
+        val allCharacterNameById = CharacterProfileRepository(context).getProfiles().associate { it.id to it.name }
 
         val contactsByCharacterId = chatRepo.getContacts()
             .filter { it.characterId in involvedCharacterIds }
@@ -59,17 +60,23 @@ object ConversationContextBuilder {
             }
         }
 
-        val interactionItems = involvedCharacterIds.flatMap { characterId ->
-            interactionRepo.getMessages(characterId).map { message ->
+        val interactionItems = involvedCharacterIds
+            .flatMap { interactionRepo.getMessages(it) }
+            .distinctBy { it.id }
+            .map { message ->
                 AiHistoryItem(
                     senderId = message.senderId,
-                    senderName = if (message.senderId == "user") playerName else characterNameById[characterId].orEmpty().ifBlank { "角色" },
+                    senderName = when (message.senderId) {
+                        "user" -> playerName
+                        "system" -> "系统"
+                        else -> allCharacterNameById[message.senderId]
+                            ?: characterNameById[message.senderId].orEmpty().ifBlank { "角色" }
+                    },
                     content = message.content,
                     timestamp = message.timestamp,
                     source = AiHistorySource.INTERACTION
                 )
             }
-        }
 
         val diaryItems = (diariesOverride ?: diaryRepo.getDiaries())
             .filter { diary -> diary.involvedCharacterIds.any { it in involvedCharacterIds } }
@@ -116,28 +123,12 @@ object ConversationContextBuilder {
                 )
             }
 
-        val memoryItems = memoryRepo.getMemories()
-            .filter { memory ->
-                memory.isContextEnabled && memory.characterIds.any { it in involvedCharacterIds }
-            }
-            .take(20)
-            .map { memory ->
-                AiHistoryItem(
-                    senderId = "memory",
-                    senderName = "长期记忆",
-                    content = MemoryContextFormatter.format(memory),
-                    timestamp = memory.updatedAt,
-                    source = AiHistorySource.MEMORY
-                )
-            }
-
         val candidates = (
             chatItems.map { HistoryCandidate(it) } +
                 interactionItems.map { HistoryCandidate(it) } +
                 diaryItems +
                 twitterItems.map { HistoryCandidate(it) } +
-                momentItems.map { HistoryCandidate(it) } +
-                memoryItems.map { HistoryCandidate(it) }
+                momentItems.map { HistoryCandidate(it) }
             ).sortedBy { it.item.timestamp }
 
         val fullDiaryIndex = candidates.indexOfLast { it.item.source == AiHistorySource.DIARY }
@@ -151,6 +142,41 @@ object ConversationContextBuilder {
                 candidate.item
             }
         }.takeLast(maxContextSize)
+    }
+
+    fun buildMemoryListForCharacters(
+        context: Context,
+        charProfiles: List<CharacterProfile>,
+        maxMemoriesPerCharacter: Int = 30
+    ): String {
+        val involvedCharacterIds = charProfiles.map { it.id }.toSet()
+        if (involvedCharacterIds.isEmpty()) return ""
+
+        val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        val memories = MemoryRepository(context).getMemories()
+            .filter { memory ->
+                memory.isContextEnabled && memory.characterIds.any { it in involvedCharacterIds }
+            }
+        if (memories.isEmpty()) return ""
+
+        return charProfiles.joinToString("\n\n") { profile ->
+            val characterMemories = memories
+                .filter { profile.id in it.characterIds }
+                .sortedBy { it.updatedAt }
+                .takeLast(maxMemoriesPerCharacter)
+
+            if (characterMemories.isEmpty()) {
+                ""
+            } else {
+                val body = characterMemories.joinToString("\n") { memory ->
+                    MemoryContextFormatter.formatForGroupedList(
+                        memory = memory,
+                        timeText = formatter.format(java.util.Date(memory.updatedAt))
+                    )
+                }
+                "【${profile.name}】\n$body"
+            }
+        }.split("\n\n").filter { it.isNotBlank() }.joinToString("\n\n")
     }
 
     private data class HistoryCandidate(

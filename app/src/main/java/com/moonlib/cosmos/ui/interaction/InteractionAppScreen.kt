@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
  */
 sealed interface InteractionNavigation {
     object List : InteractionNavigation
+    object Multi : InteractionNavigation
     data class Conversation(val characterId: String) : InteractionNavigation
     object Settings : InteractionNavigation // 新增设置页面导航
 }
@@ -72,6 +73,12 @@ fun InteractionAppScreen(
             is InteractionNavigation.Conversation -> {
                 InteractionConversationScreen(
                     characterId = screen.characterId,
+                    onGoBack = goBack,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+            is InteractionNavigation.Multi -> {
+                MultiInteractionScreen(
                     onGoBack = goBack,
                     modifier = Modifier.fillMaxSize()
                 )

@@ -132,6 +132,10 @@ object TwitterEngine {
             playerName = "玩家"
         )
         val mergedHistoryText = AiHistoryFormatter.formatHistoryItems(recentMergedHistory)
+        val memoryText = ConversationContextBuilder.buildMemoryListForCharacters(
+            context = context,
+            charProfiles = candidateProfiles
+        )
 
         // 4. 获取全局系统提示词基底与 AI 设置
         val systemPromptRepo = SystemPromptRepository(context)
@@ -165,6 +169,7 @@ object TwitterEngine {
                         ${MemoryContextFormatter.CAPTURE_REQUIREMENT}
                     """.trimIndent(),
                     jsonStructure = """{"replies":[{"character_id":"回复角色ID","reply_to_username":"被回复用户名","content":"评论内容","parent_id":"$tweetId 或 reply_index_0","time_offset_seconds":15}],"memories":[]}""",
+                    memoryText = memoryText,
                     historyText = """
                         【候选角色统一宽历史】
                         $mergedHistoryText

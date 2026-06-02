@@ -11,6 +11,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -85,6 +87,35 @@ fun InteractionListScreen(
                     titleContentColor = MaterialTheme.colorScheme.onBackground
                 )
             )
+        },
+        bottomBar = {
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.surface,
+                tonalElevation = 2.dp
+            ) {
+                NavigationBarItem(
+                    selected = true,
+                    onClick = {},
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "单人"
+                        )
+                    },
+                    label = { Text("单人") }
+                )
+                NavigationBarItem(
+                    selected = false,
+                    onClick = { onNavigateTo(InteractionNavigation.Multi) },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.Groups,
+                            contentDescription = "多人"
+                        )
+                    },
+                    label = { Text("多人") }
+                )
+            }
         },
         containerColor = MaterialTheme.colorScheme.background,
         modifier = modifier

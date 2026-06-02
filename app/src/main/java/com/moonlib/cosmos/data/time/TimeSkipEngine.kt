@@ -92,6 +92,10 @@ object TimeSkipEngine {
                 playerName = playerRealName
             )
             val mergedHistoryText = AiHistoryFormatter.formatHistoryItems(recentMergedHistory)
+            val memoryText = ConversationContextBuilder.buildMemoryListForCharacters(
+                context = context,
+                charProfiles = candidateProfiles
+            )
 
             val personaPrompt = candidates.joinToString("\n\n") { candidate ->
                 val processedPrompt = candidate.profile.prompt
@@ -184,6 +188,7 @@ object TimeSkipEngine {
                     personaPrompt = personaPrompt,
                     outputRequirement = outputRequirement,
                     jsonStructure = jsonStructure,
+                    memoryText = memoryText,
                     historyText = """
                         【候选角色统一宽历史】
                         $mergedHistoryText

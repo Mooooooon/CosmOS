@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.SharedPreferences
 import org.json.JSONArray
 import org.json.JSONObject
-import java.util.UUID
 import com.moonlib.cosmos.data.settings.SaveManager
 
 /**
@@ -20,6 +19,7 @@ class InteractionRepository(private val context: Context) {
     companion object {
         private const val PREF_NAME = "cosmos_interaction_prefs"
         private const val PREFIX_MESSAGES = "interaction_messages_"
+        private const val KEY_LAST_MULTI_PARTICIPANT_IDS = "last_multi_participant_ids"
     }
 
     /**
@@ -66,6 +66,37 @@ class InteractionRepository(private val context: Context) {
     }
 
     /**
+     * 保存一条共享互动消息到所有参与角色的互动记录。
+     */
+    fun saveSharedMessage(characterIds: List<String>, message: InteractionMessage) {
+        val participants = characterIds.distinct()
+        val sharedMessage = message.copy(participantIds = message.participantIds.ifEmpty { participants })
+        for (characterId in participants) {
+            saveMessage(characterId, sharedMessage)
+        }
+    }
+
+    /**
+     * 保存一组共享互动消息到所有参与角色的互动记录。
+     */
+    fun saveSharedMessages(characterIds: List<String>, messages: List<InteractionMessage>) {
+        val participants = characterIds.distinct()
+        for (message in messages) {
+            saveSharedMessage(participants, message)
+        }
+    }
+
+    fun getSharedMessagesForParticipants(characterIds: List<String>): List<InteractionMessage> {
+        val selectedSet = characterIds.toSet()
+        if (selectedSet.size < 2) return emptyList()
+        return characterIds
+            .flatMap { getMessages(it) }
+            .distinctBy { it.id }
+            .filter { it.participantIds.toSet() == selectedSet }
+            .sortedBy { it.timestamp }
+    }
+
+    /**
      * 删除单条指定的消息
      */
     fun deleteMessage(characterId: String, messageId: String) {
@@ -74,6 +105,17 @@ class InteractionRepository(private val context: Context) {
         if (index != -1) {
             current.removeAt(index)
             saveMessagesList(characterId, current)
+        }
+    }
+
+    /**
+     * 删除共享互动消息。旧单人消息没有参与者时不执行跨角色删除。
+     */
+    fun deleteSharedMessage(message: InteractionMessage) {
+        val participants = message.participantIds.distinct()
+        if (participants.isEmpty()) return
+        for (characterId in participants) {
+            deleteMessage(characterId, message.id)
         }
     }
 
@@ -96,6 +138,38 @@ class InteractionRepository(private val context: Context) {
         }
     }
 
+    /**
+     * 从共享消息所在位置开始，同步截断所有参与角色的互动记录。
+     */
+    fun deleteSharedMessagesAfter(message: InteractionMessage) {
+        val participants = message.participantIds.distinct()
+        if (participants.isEmpty()) return
+        for (characterId in participants) {
+            deleteMessagesAfter(characterId, message.id)
+        }
+    }
+
+    fun getLastMultiParticipantIds(): List<String> {
+        val jsonString = prefs.getString(KEY_LAST_MULTI_PARTICIPANT_IDS, null) ?: return emptyList()
+        return try {
+            val jsonArray = JSONArray(jsonString)
+            buildList {
+                for (i in 0 until jsonArray.length()) {
+                    add(jsonArray.getString(i))
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    fun setLastMultiParticipantIds(characterIds: List<String>) {
+        val jsonArray = JSONArray()
+        characterIds.distinct().forEach { jsonArray.put(it) }
+        prefs.edit().putString(KEY_LAST_MULTI_PARTICIPANT_IDS, jsonArray.toString()).apply()
+    }
+
     // ─── JSON 编解码助手 ─────────────────────────────────────────
 
     private fun parseMessage(json: JSONObject): InteractionMessage {
@@ -110,13 +184,45 @@ class InteractionRepository(private val context: Context) {
             map
         } else null
 
+        val participantIds = if (json.has("participantIds")) {
+            val jsonArray = json.getJSONArray("participantIds")
+            buildList {
+                for (i in 0 until jsonArray.length()) {
+                    add(jsonArray.getString(i))
+                }
+            }
+        } else {
+            emptyList()
+        }
+
+        val statusMapByCharacterId = if (json.has("statusMapByCharacterId")) {
+            val statusObj = json.getJSONObject("statusMapByCharacterId")
+            val result = mutableMapOf<String, Map<String, String>>()
+            val characterIds = statusObj.keys()
+            while (characterIds.hasNext()) {
+                val characterId = characterIds.next()
+                val innerObj = statusObj.getJSONObject(characterId)
+                val innerMap = mutableMapOf<String, String>()
+                val keys = innerObj.keys()
+                while (keys.hasNext()) {
+                    val key = keys.next()
+                    innerMap[key] = innerObj.getString(key)
+                }
+                result[characterId] = innerMap
+            }
+            result
+        } else null
+
         return InteractionMessage(
             id = json.getString("id"),
             senderId = json.getString("senderId"),
             content = json.getString("content"),
             timestamp = json.getLong("timestamp"),
             isPending = json.optBoolean("isPending", false),
-            statusMap = statusMap
+            statusMap = statusMap,
+            sceneId = json.optString("sceneId", "").ifBlank { null },
+            participantIds = participantIds,
+            statusMapByCharacterId = statusMapByCharacterId
         )
     }
 
@@ -127,12 +233,29 @@ class InteractionRepository(private val context: Context) {
             put("content", message.content)
             put("timestamp", message.timestamp)
             put("isPending", message.isPending)
+            message.sceneId?.let { put("sceneId", it) }
+            if (message.participantIds.isNotEmpty()) {
+                val participantsArray = JSONArray()
+                message.participantIds.distinct().forEach { participantsArray.put(it) }
+                put("participantIds", participantsArray)
+            }
             if (message.statusMap != null) {
                 val statusObj = JSONObject()
                 for ((key, value) in message.statusMap) {
                     statusObj.put(key, value)
                 }
                 put("statusMap", statusObj)
+            }
+            if (message.statusMapByCharacterId != null) {
+                val statusObj = JSONObject()
+                for ((characterId, innerMap) in message.statusMapByCharacterId) {
+                    val innerObj = JSONObject()
+                    for ((key, value) in innerMap) {
+                        innerObj.put(key, value)
+                    }
+                    statusObj.put(characterId, innerObj)
+                }
+                put("statusMapByCharacterId", statusObj)
             }
         }
     }

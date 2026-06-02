@@ -84,6 +84,7 @@ object InteractionEngine {
                 personaPrompt = promptData.personaPrompt,
                 outputRequirement = promptData.outputRequirement,
                 jsonStructure = promptData.jsonStructure,
+                memoryText = promptData.memoryText,
                 historyText = historyText,
                 statusCard = promptData.statusPrompt,
                 userInput = userInputText,
@@ -236,6 +237,7 @@ object InteractionEngine {
         val personaPrompt: String,
         val outputRequirement: String,
         val jsonStructure: String,
+        val memoryText: String,
         val statusPrompt: String,
         val recentMergedHistory: List<AiHistoryItem>
     )
@@ -265,6 +267,10 @@ object InteractionEngine {
             charProfiles = listOf(charProfile),
             maxContextSize = AiSettingsRepository(context).getMaxContextSize(),
             playerName = playerRealName
+        )
+        val memoryText = ConversationContextBuilder.buildMemoryListForCharacters(
+            context = context,
+            charProfiles = listOf(charProfile)
         )
 
         // ── 关键词匹配：从最近 5 条用户输入中检测是否提及其他角色 ──
@@ -343,6 +349,7 @@ object InteractionEngine {
                 - status 值不能包含中文或英文小括号。
                 - 只返回纯 JSON，不要 markdown 代码块或解释文本。
             """.trimIndent(),
+            memoryText = memoryText,
             statusPrompt = statusPrompt,
             recentMergedHistory = recentMergedHistory
         )

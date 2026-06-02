@@ -151,6 +151,10 @@ object DiaryEngine {
             playerName = playerRealName,
             diariesOverride = diariesContextOverride
         )
+        val memoryText = ConversationContextBuilder.buildMemoryListForCharacters(
+            context = context,
+            charProfiles = characterProfiles
+        )
 
         val userPrompt = """
             【本次剧情的起因/引子（请据此展开创作）】：
@@ -216,6 +220,7 @@ object DiaryEngine {
                     - nextTime 必须存在，格式严格为 yyyy-MM-dd HH:mm，且不早于起始时间。
                     - nextTime 的时刻必须符合剧情的自然节律，禁止随意给出与剧情内容不符的时间。
                 """.trimIndent(),
+                memoryText = memoryText,
                 historyText = historyText,
                 statusCard = charStatusPrompt,
                 userInput = userPrompt,

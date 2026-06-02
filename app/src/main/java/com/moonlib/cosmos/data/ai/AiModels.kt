@@ -44,6 +44,7 @@ data class AiSceneRequest(
     val personaPrompt: String,
     val outputRequirement: String,
     val jsonStructure: String,
+    val memoryText: String = "",
     val historyText: String = "",
     val statusCard: String = "",
     val userInput: String = "",

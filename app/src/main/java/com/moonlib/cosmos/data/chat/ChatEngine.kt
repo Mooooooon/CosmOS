@@ -81,6 +81,7 @@ object ChatEngine {
                 personaPrompt = promptData.personaPrompt,
                 outputRequirement = promptData.outputRequirement,
                 jsonStructure = promptData.jsonStructure,
+                memoryText = promptData.memoryText,
                 historyText = historyText,
                 userInput = userInputText,
                 logCharacterName = charProfile.name,
@@ -240,6 +241,7 @@ object ChatEngine {
         val personaPrompt: String,
         val outputRequirement: String,
         val jsonStructure: String,
+        val memoryText: String,
         val recentMergedHistory: List<AiHistoryItem>
     )
 
@@ -281,6 +283,10 @@ object ChatEngine {
             charProfiles = listOf(charProfile),
             maxContextSize = AiSettingsRepository(context).getMaxContextSize(),
             playerName = playerRealName
+        )
+        val memoryText = ConversationContextBuilder.buildMemoryListForCharacters(
+            context = context,
+            charProfiles = listOf(charProfile)
         )
 
         // ── 关键词匹配：从最近用户输入中检测是否提及其他角色 ──
@@ -372,6 +378,7 @@ object ChatEngine {
                 - video 的 content 必须是一段生动具体的视频内容描述（20-50 字），描述视频中的动态画面、声音氛围、场景与情绪，让人能感受到视频的现场感，例如：「一段在演唱会现场拍的视频，台上灯光闪烁变换，台下人群跟着节奏挥动荧光棒，背景音乐和欢呼声混在一起，手持拍摄略有抖动」。
                 - 只返回纯 JSON，不要 markdown 代码块或解释文本。
             """.trimIndent(),
+            memoryText = memoryText,
             recentMergedHistory = recentMergedHistory
         )
     }

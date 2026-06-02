@@ -12,7 +12,7 @@
 - `app/src/main/java/com/moonlib/cosmos/data/ai`：统一 AI 通讯基础层，负责请求发送、固定顺序 Prompt 组装、JSON Schema、响应清洗、通讯日志与状态卡更新。
 - `app/src/main/java/com/moonlib/cosmos/data/chat`：聊天联系人、消息模型、AI 回复解析、聊天引擎 / 仓库，以及朋友圈动态模型、生成引擎与持久化仓库。
 - `app/src/main/java/com/moonlib/cosmos/data/context`：跨聊天、互动、日记、推特与朋友圈等场景的统一宽历史构建与裁剪逻辑；业务 Engine 不应私自拼接角色历史。
-- `app/src/main/java/com/moonlib/cosmos/data/interaction`：互动消息、消息合并、互动配置、互动仓库与互动生成引擎。
+- `app/src/main/java/com/moonlib/cosmos/data/interaction`：互动消息、消息合并、互动配置、互动仓库、单人与多人互动生成引擎。
 - `app/src/main/java/com/moonlib/cosmos/data/profile`：角色档案模型、AI 档案生成与档案持久化仓库。
 - `app/src/main/java/com/moonlib/cosmos/data/settings`：AI 服务配置、模型参数、响应解析、授权头、Vertex 认证与端点解析、思考等级请求参数转换、模型列表缓存、日志、存档、系统提示词与主题配置持久化仓库。
 - `app/src/main/java/com/moonlib/cosmos/data/time`：系统时间状态、推进逻辑与基于时间跳过的内容生成编排。
@@ -22,7 +22,7 @@
 - `app/src/main/java/com/moonlib/cosmos/ui/chat`：聊天应用入口、主列表、会话页、附件面板、朋友圈列表 / 详情、特殊消息气泡、联系人编辑、联系人信息卡、头像组件与回复揭示动效。
 - `app/src/main/java/com/moonlib/cosmos/ui/common`：跨界面复用的通用 UI / Insets 工具。
 - `app/src/main/java/com/moonlib/cosmos/ui/desktop`：桌面主界面、应用网格、应用图标、桌面时钟、状态栏与自适应壁纸。
-- `app/src/main/java/com/moonlib/cosmos/ui/interaction`：互动应用入口、互动列表、互动会话与互动设置界面。
+- `app/src/main/java/com/moonlib/cosmos/ui/interaction`：互动应用入口、互动列表、单人会话、多人共享互动、互动输入 / 消息组件与互动设置界面。
 - `app/src/main/java/com/moonlib/cosmos/ui/profile`：角色档案应用入口、档案列表、档案编辑、AI 灵感输入与档案界面状态。
 - `app/src/main/java/com/moonlib/cosmos/ui/settings`：设置入口、AI 聊天设置、模型服务配置、服务商选择、模型选择、思考等级选择、日志列表 / 日志详情、存档、系统提示词与主题配置界面。
 - `app/src/main/java/com/moonlib/cosmos/ui/theme`：Compose 主题、配色集（深浅双色板）与 CompositionLocal 定义。

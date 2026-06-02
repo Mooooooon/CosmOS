@@ -20,4 +20,9 @@ object MemoryContextFormatter {
         val tags = if (memory.tags.isEmpty()) "" else " 标签：${memory.tags.joinToString("、")}"
         return "【${memory.title}】${memory.content}$tags"
     }
+
+    fun formatForGroupedList(memory: MemoryEntry, timeText: String): String {
+        val tags = if (memory.tags.isEmpty()) "" else "；标签：${memory.tags.joinToString("、")}"
+        return "- [$timeText] ${memory.title}：${memory.content}；重要度：${memory.importance}$tags"
+    }
 }

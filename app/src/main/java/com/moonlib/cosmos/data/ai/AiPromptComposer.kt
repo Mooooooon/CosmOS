@@ -14,6 +14,7 @@ object AiPromptComposer {
             AiPromptSection("人设提示词", request.personaPrompt),
             AiPromptSection("输出要求", request.outputRequirement),
             AiPromptSection("JSON结构", request.jsonStructure),
+            AiPromptSection("记忆列表", request.memoryText),
             AiPromptSection("历史记录", request.historyText),
             AiPromptSection("状态卡", request.statusCard),
             AiPromptSection("用户最新的发言", request.userInput)

@@ -20,6 +20,7 @@ class AiPipelineTest {
                 personaPrompt = "persona",
                 outputRequirement = "output",
                 jsonStructure = "json",
+                memoryText = "memory",
                 historyText = "history",
                 statusCard = "status",
                 userInput = "user",
@@ -27,7 +28,7 @@ class AiPipelineTest {
             )
         )
 
-        val expectedOrder = listOf("系统提示词", "人设提示词", "输出要求", "JSON结构", "历史记录", "状态卡", "用户最新的发言")
+        val expectedOrder = listOf("系统提示词", "人设提示词", "输出要求", "JSON结构", "记忆列表", "历史记录", "状态卡", "用户最新的发言")
         val actualOrder = expectedOrder.map { prompt.indexOf("【$it】") }
         assertTrue(actualOrder.all { it >= 0 })
         assertEquals(actualOrder.sorted(), actualOrder)
@@ -79,6 +80,7 @@ class AiPipelineTest {
     @Test
     fun storySchemasIncludeOptionalMemories() {
         assertTrue(AiJsonSchemaFactory.chatRepliesSchema().getJSONObject("properties").has("memories"))
+        assertTrue(AiJsonSchemaFactory.multiInteractionRepliesSchema().getJSONObject("properties").has("memories"))
         assertTrue(AiJsonSchemaFactory.socialRepliesSchema().getJSONObject("properties").has("memories"))
         assertTrue(AiJsonSchemaFactory.diarySchema().getJSONObject("properties").has("memories"))
         assertTrue(AiJsonSchemaFactory.timeSkipOnlineSchema().getJSONObject("properties").has("memories"))
