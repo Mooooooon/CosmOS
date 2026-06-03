@@ -76,6 +76,7 @@ object TimeSkipEngine {
             val candidates = buildOnlineCandidates(context, allProfiles)
 
             if (candidates.isEmpty()) {
+                saveTimeSkipHistory(context, startTimeMillis, endTimeMillis, userActivity)
                 VirtualTimeManager.updateTime(endTimeMillis)
                 return@withContext TimeSkipResult(success = true, simulatedMessageCount = 0)
             }
@@ -231,6 +232,7 @@ object TimeSkipEngine {
                 endTimeMillis = endTimeMillis
             )
 
+            saveTimeSkipHistory(context, startTimeMillis, endTimeMillis, userActivity)
             VirtualTimeManager.updateTime(endTimeMillis)
             TimeSkipResult(
                 success = true,
@@ -242,6 +244,23 @@ object TimeSkipEngine {
             e.printStackTrace()
             TimeSkipResult(false, 0, 0, 0, e.message ?: "时间跳过线上行为模拟失败")
         }
+    }
+
+    private fun saveTimeSkipHistory(
+        context: Context,
+        startTimeMillis: Long,
+        endTimeMillis: Long,
+        userActivity: String
+    ) {
+        TimeSkipHistoryRepository(context).addEntry(
+            TimeSkipHistoryEntry(
+                id = UUID.randomUUID().toString(),
+                startTimeMillis = startTimeMillis,
+                endTimeMillis = endTimeMillis,
+                userActivity = userActivity.trim(),
+                createdAt = System.currentTimeMillis()
+            )
+        )
     }
 
     private fun buildOnlineCandidates(

@@ -15,7 +15,7 @@
 - `app/src/main/java/com/moonlib/cosmos/data/interaction`：互动消息、消息合并、互动配置、互动仓库、单人与多人互动生成引擎。
 - `app/src/main/java/com/moonlib/cosmos/data/profile`：角色档案模型、AI 档案生成与档案持久化仓库。
 - `app/src/main/java/com/moonlib/cosmos/data/settings`：AI 服务配置、模型参数、响应解析、授权头、Vertex 认证与端点解析、思考等级请求参数转换、模型列表缓存、日志、存档、系统提示词与主题配置持久化仓库。
-- `app/src/main/java/com/moonlib/cosmos/data/time`：系统时间状态、推进逻辑与基于时间跳过的内容生成编排。
+- `app/src/main/java/com/moonlib/cosmos/data/time`：系统时间状态、推进逻辑、时间跳过历史记录与基于时间跳过的内容生成编排。
 - `app/src/main/java/com/moonlib/cosmos/data/diary`：日记数据模型、多槽存档隔离日记仓库与日记 AI 生成引擎。
 - `app/src/main/java/com/moonlib/cosmos/data/memory`：长期记忆数据模型、记忆持久化仓库、AI 通讯返回记忆字段解析与上下文格式化逻辑。
 - `app/src/main/java/com/moonlib/cosmos/data/twitter`：推特式动态的数据模型、用户资料、持久化仓库与 AI 生成引擎。

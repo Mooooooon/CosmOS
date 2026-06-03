@@ -14,9 +14,12 @@ import com.moonlib.cosmos.data.memory.MemoryContextFormatter
 import com.moonlib.cosmos.data.memory.MemoryRepository
 import com.moonlib.cosmos.data.profile.CharacterProfile
 import com.moonlib.cosmos.data.profile.CharacterProfileRepository
+import com.moonlib.cosmos.data.time.TimeSkipHistoryEntry
+import com.moonlib.cosmos.data.time.TimeSkipHistoryRepository
 import com.moonlib.cosmos.data.twitter.Tweet
 import com.moonlib.cosmos.data.twitter.TwitterRepository
 import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 /**
@@ -40,6 +43,7 @@ object ConversationContextBuilder {
         val diaryRepo = DiaryRepository(context)
         val twitterRepo = TwitterRepository(context)
         val momentRepo = MomentRepository(context)
+        val timeSkipHistoryRepo = TimeSkipHistoryRepository(context)
         val allProfiles = CharacterProfileRepository(context).getProfiles()
         val allCharacterNameById = allProfiles.associate { it.id to it.name }
 
@@ -129,12 +133,23 @@ object ConversationContextBuilder {
                 )
             }
 
+        val timeSkipItems = timeSkipHistoryRepo.getEntries().map { entry ->
+            AiHistoryItem(
+                senderId = "system",
+                senderName = "系统",
+                content = entry.formatForHistory(),
+                timestamp = entry.endTimeMillis,
+                source = AiHistorySource.TIME_SKIP
+            )
+        }
+
         val candidates = (
             chatItems.map { HistoryCandidate(it) } +
                 interactionItems.map { HistoryCandidate(it) } +
                 diaryItems +
                 twitterItems.map { HistoryCandidate(it) } +
-                momentItems.map { HistoryCandidate(it) }
+                momentItems.map { HistoryCandidate(it) } +
+                timeSkipItems.map { HistoryCandidate(it) }
             ).sortedBy { it.item.timestamp }
 
         val fullDiaryIndex = candidates.indexOfLast { it.item.source == AiHistorySource.DIARY }
@@ -262,5 +277,13 @@ object ConversationContextBuilder {
             if (parentProfile != null) append("回复了 ${parentProfile.nickname} 的动态评论: ")
             append(content)
         }
+    }
+
+    private fun TimeSkipHistoryEntry.formatForHistory(): String {
+        val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        val startText = formatter.format(Date(startTimeMillis))
+        val endText = formatter.format(Date(endTimeMillis))
+        val activityText = userActivity.ifBlank { "日常活动/未明确说明" }
+        return "玩家从 $startText 到 $endText 度过了一段时间；这段时间玩家正在：$activityText。"
     }
 }

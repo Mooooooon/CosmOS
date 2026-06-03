@@ -12,6 +12,7 @@ enum class AiHistorySource(val label: String) {
     DIARY("剧情日记"),
     TWITTER("推特动态"),
     MOMENT("朋友圈动态"),
+    TIME_SKIP("时间跳过"),
     MEMORY("长期记忆")
 }
 
