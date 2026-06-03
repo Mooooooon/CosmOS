@@ -40,7 +40,8 @@ object ConversationContextBuilder {
         val diaryRepo = DiaryRepository(context)
         val twitterRepo = TwitterRepository(context)
         val momentRepo = MomentRepository(context)
-        val allCharacterNameById = CharacterProfileRepository(context).getProfiles().associate { it.id to it.name }
+        val allProfiles = CharacterProfileRepository(context).getProfiles()
+        val allCharacterNameById = allProfiles.associate { it.id to it.name }
 
         val contactsByCharacterId = chatRepo.getContacts()
             .filter { it.characterId in involvedCharacterIds }
@@ -60,9 +61,11 @@ object ConversationContextBuilder {
             }
         }
 
-        val interactionMessages = involvedCharacterIds
-            .flatMap { interactionRepo.getMessages(it) }
-            .distinctBy { it.id }
+        val interactionMessages = InteractionContextHistoryCollector.collectForCharacters(
+            interactionRepo = interactionRepo,
+            targetCharacterIds = involvedCharacterIds,
+            allCharacterIds = allProfiles.filterNot { it.isPlayer }.map { it.id }.toSet()
+        )
 
         val interactionItems = InteractionActionHistoryFilter
             .filterForHistory(interactionMessages)
