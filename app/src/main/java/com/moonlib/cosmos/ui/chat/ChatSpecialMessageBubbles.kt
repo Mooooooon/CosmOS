@@ -24,8 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.moonlib.cosmos.data.chat.ChatMessage
-import com.moonlib.cosmos.data.chat.markRedPacketReceived
-import com.moonlib.cosmos.data.chat.redPacketState
+import com.moonlib.cosmos.data.chat.redPacketWish
 
 /**
  * 特殊消息气泡分发与渲染组件
@@ -38,6 +37,8 @@ fun SpecialMessageBubble(
     isUser: Boolean,
     contactName: String,
     contactCharacterId: String = "",
+    isReceived: Boolean,
+    onClaimMessage: (ChatMessage) -> Unit,
     onUpdateMessage: (ChatMessage) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -47,20 +48,13 @@ fun SpecialMessageBubble(
     val handleBubbleClick = {
         when (msg.type) {
             "red_packet" -> {
-                if (!msg.redPacketState().isReceived) {
+                if (!isUser && !isReceived) {
                     showRedPacketDialog = true
-                } else {
-                    // Toast.makeText(context, "红包已拆开，金额已存入零钱", Toast.LENGTH_SHORT).show()
                 }
             }
             "transfer" -> {
-                if (msg.extra != "collected") {
-                    // 模拟收钱交互
-                    val updated = msg.copy(extra = "collected")
-                    onUpdateMessage(updated)
-                    // Toast.makeText(context, "已确认收款，金额 ￥${msg.content} 已存入钱包", Toast.LENGTH_SHORT).show()
-                } else {
-                    // Toast.makeText(context, "已收钱，款项已存入钱包", Toast.LENGTH_SHORT).show()
+                if (!isUser && !isReceived) {
+                    onClaimMessage(msg)
                 }
             }
             "image" -> {
@@ -90,8 +84,9 @@ fun SpecialMessageBubble(
                 contactCharacterId = contactCharacterId,
                 onUpdateMessage = onUpdateMessage
             )
-            "red_packet" -> RedPacketBubble(msg = msg)
-            "transfer" -> TransferBubble(msg = msg)
+            "red_packet" -> RedPacketBubble(msg = msg, isReceived = isReceived)
+            "transfer" -> TransferBubble(msg = msg, isReceived = isReceived)
+            "transfer_receipt" -> TransferBubble(msg = msg, isReceived = true)
             "location" -> LocationBubble(content = msg.content)
         }
     }
@@ -99,14 +94,12 @@ fun SpecialMessageBubble(
     if (showRedPacketDialog) {
         RedPacketOpenDialog(
             senderName = if (isUser) "自己" else contactName,
-            wishText = msg.redPacketState().wish,
+            wishText = msg.redPacketWish(),
             amountText = msg.content,
             onDismiss = { showRedPacketDialog = false },
             onOpenSuccess = {
-                val updated = msg.markRedPacketReceived()
-                onUpdateMessage(updated)
+                onClaimMessage(msg)
                 showRedPacketDialog = false
-                // Toast.makeText(context, "成功领取红包 ￥${msg.content} 元！", Toast.LENGTH_LONG).show()
             }
         )
     }

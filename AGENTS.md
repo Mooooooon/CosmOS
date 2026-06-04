@@ -10,7 +10,7 @@
 
 - `app/src/main/java/com/moonlib/cosmos/MainActivity.kt`：应用入口 Activity，全局主题注入处。
 - `app/src/main/java/com/moonlib/cosmos/data/ai`：统一 AI 通讯基础层，负责请求发送、固定顺序 Prompt 组装、JSON Schema、响应清洗、通讯日志与状态卡更新。
-- `app/src/main/java/com/moonlib/cosmos/data/chat`：聊天联系人、消息模型、AI 回复解析、聊天引擎 / 仓库，以及朋友圈动态模型、生成引擎与持久化仓库。
+- `app/src/main/java/com/moonlib/cosmos/data/chat`：聊天联系人、消息模型、红包与转账领取回执、AI 回复解析、聊天引擎 / 仓库，以及朋友圈动态模型、生成引擎与持久化仓库。
 - `app/src/main/java/com/moonlib/cosmos/data/context`：跨聊天、互动、日记、推特与朋友圈等场景的统一宽历史构建与裁剪逻辑；业务 Engine 不应私自拼接角色历史。
 - `app/src/main/java/com/moonlib/cosmos/data/desktop`：桌面图标布局顺序的持久化仓库。
 - `app/src/main/java/com/moonlib/cosmos/data/interaction`：互动消息、消息合并、互动配置、互动仓库、单人与多人互动生成引擎。

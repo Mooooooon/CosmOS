@@ -32,6 +32,9 @@ import androidx.compose.ui.unit.sp
 import com.moonlib.cosmos.data.chat.ChatEngine
 import com.moonlib.cosmos.data.chat.ChatMessage
 import com.moonlib.cosmos.data.chat.ChatRepository
+import com.moonlib.cosmos.data.chat.TYPE_RED_PACKET_RECEIPT
+import com.moonlib.cosmos.data.chat.createReceipt
+import com.moonlib.cosmos.data.chat.hasReceiptFor
 import com.moonlib.cosmos.ui.theme.LocalThemeConfig
 import com.moonlib.cosmos.data.time.VirtualTimeManager
 import com.moonlib.cosmos.ui.common.conversationContentImeResize
@@ -123,6 +126,37 @@ fun ChatConversationScreen(
         }
     }
 
+    val requestAiReply: () -> Unit = {
+        if (!isAiGenerating) {
+            isAiGenerating = true
+            coroutineScope.launch {
+                try {
+                    delay(800)
+                    val aiReplies = ChatEngine.getAiResponse(context, contact)
+                    revealAiReplies(
+                        currentMessages = messages,
+                        replies = aiReplies,
+                        onMessagesChanged = { messages = it },
+                        onReplyRevealed = { scrollToBottom(true) }
+                    )
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    val errorMsg = ChatMessage(
+                        id = UUID.randomUUID().toString(),
+                        senderId = "system",
+                        content = "【系统提示】: ${e.localizedMessage ?: "AI 服务暂时开小差啦，请在系统设置中确认 AI 密钥。"}",
+                        timestamp = VirtualTimeManager.getCurrentTimeMillis()
+                    )
+                    chatRepo.saveMessage(contactId, errorMsg)
+                    messages = chatRepo.getMessages(contactId)
+                    scrollToBottom(true)
+                } finally {
+                    isAiGenerating = false
+                }
+            }
+        }
+    }
+
     // 消息发送核心方法
     val handleSend: (Boolean) -> Unit = { triggerAi ->
         val text = inputText.trim()
@@ -149,39 +183,7 @@ fun ChatConversationScreen(
             scrollToBottom(true)
 
             if (triggerAi) {
-                // 2.3 开启协程触发 AI 回复
-                isAiGenerating = true
-                coroutineScope.launch {
-                    try {
-                        // 模拟网络延迟输入，使“对方正在输入”动画状态更真实
-                        delay(800)
-                        
-                        // 调用 AI 聊天引擎（引擎在内部分析、保存并推进时间）
-                        val aiReplies = ChatEngine.getAiResponse(context, contact)
-
-                        revealAiReplies(
-                            currentMessages = messages,
-                            replies = aiReplies,
-                            onMessagesChanged = { messages = it },
-                            onReplyRevealed = { scrollToBottom(true) }
-                        )
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                        
-                        // 保存一个系统级假报错消息渲染在左侧，保障健壮性
-                        val errorMsg = ChatMessage(
-                            id = UUID.randomUUID().toString(),
-                            senderId = "system",
-                            content = "【系统提示】: ${e.localizedMessage ?: "AI 服务暂时开小差啦，请在系统设置中确认 AI 密钥。"}",
-                            timestamp = VirtualTimeManager.getCurrentTimeMillis()
-                        )
-                        chatRepo.saveMessage(contactId, errorMsg)
-                        messages = chatRepo.getMessages(contactId)
-                        scrollToBottom(true)
-                    } finally {
-                        isAiGenerating = false
-                    }
-                }
+                requestAiReply()
             } else {
                 // Toast.makeText(context, "已发送至记录 (未触发 AI 回复)", Toast.LENGTH_SHORT).show()
             }
@@ -205,6 +207,28 @@ fun ChatConversationScreen(
             // 发送特殊消息也向前微调虚拟时间 15 秒
             VirtualTimeManager.updateTime(currentVirtualTime + 15000L)
             messages = chatRepo.getMessages(contactId) // 刷新 UI
+            scrollToBottom(true)
+            if (type == "red_packet" || type == "transfer") {
+                requestAiReply()
+            }
+        }
+    }
+
+    val handleClaimMessage: (ChatMessage) -> Unit = { sourceMessage ->
+        val latestMessages = chatRepo.getMessages(contactId)
+        val receiptTime = maxOf(
+            VirtualTimeManager.getCurrentTimeMillis(),
+            sourceMessage.timestamp + 5000L,
+            (latestMessages.maxOfOrNull { it.timestamp } ?: 0L) + 1L
+        )
+        latestMessages.createReceipt(
+            sourceMessage = sourceMessage,
+            receiverId = "user",
+            timestamp = receiptTime
+        )?.let { receipt ->
+            chatRepo.saveMessage(contactId, receipt)
+            VirtualTimeManager.updateTime(receiptTime)
+            messages = chatRepo.getMessages(contactId)
             scrollToBottom(true)
         }
     }
@@ -365,13 +389,22 @@ fun ChatConversationScreen(
                         }
 
                         // 3.2 渲染气泡
-                        when (msg.senderId) {
-                            "user" -> {
+                        when {
+                            msg.type == TYPE_RED_PACKET_RECEIPT -> {
+                                val sourceMessage = messages.firstOrNull { it.id == msg.extra }
+                                RedPacketReceiptMessageRow(
+                                    receiverName = if (msg.senderId == "user") "你" else contact.nickname,
+                                    senderName = if (sourceMessage?.senderId == "user") "你" else contact.nickname
+                                )
+                            }
+                            msg.senderId == "user" -> {
                                 UserMessageRow(
                                     msg = msg,
                                     userNickname = userNickname,
                                     userAvatar = userAvatar,
                                     contactCharacterId = contact.characterId,
+                                    isReceived = messages.hasReceiptFor(msg.id),
+                                    onClaimMessage = handleClaimMessage,
                                     onDelete = {
                                         chatRepo.deleteMessage(contactId, msg.id)
                                         messages = chatRepo.getMessages(contactId)
@@ -385,33 +418,8 @@ fun ChatConversationScreen(
                                         chatRepo.deleteMessagesAfter(contactId, msg.id)
                                         messages = chatRepo.getMessages(contactId)
                                         
-                                        // 3. 重新发送ai请求
-                                        isAiGenerating = true
-                                        coroutineScope.launch {
-                                            try {
-                                                delay(800)
-                                                val aiReplies = ChatEngine.getAiResponse(context, contact)
-                                                revealAiReplies(
-                                                    currentMessages = messages,
-                                                    replies = aiReplies,
-                                                    onMessagesChanged = { messages = it },
-                                                    onReplyRevealed = { scrollToBottom(true) }
-                                                )
-                                            } catch (e: Exception) {
-                                                e.printStackTrace()
-                                                val errorMsg = ChatMessage(
-                                                    id = UUID.randomUUID().toString(),
-                                                    senderId = "system",
-                                                    content = "【系统提示】: ${e.localizedMessage ?: "AI 服务暂时开小差啦，请在系统设置中确认 AI 密钥。"}",
-                                                    timestamp = VirtualTimeManager.getCurrentTimeMillis()
-                                                )
-                                                chatRepo.saveMessage(contactId, errorMsg)
-                                                messages = chatRepo.getMessages(contactId)
-                                                scrollToBottom(true)
-                                            } finally {
-                                                isAiGenerating = false
-                                            }
-                                        }
+                                        // 3. 重新发送 AI 请求
+                                        requestAiReply()
                                     },
                                     onUpdateMessage = { updated ->
                                         chatRepo.updateMessage(contactId, updated)
@@ -419,7 +427,7 @@ fun ChatConversationScreen(
                                     }
                                 )
                             }
-                            "system" -> {
+                            msg.senderId == "system" -> {
                                 SystemMessageRow(
                                     content = msg.content,
                                     onDelete = {
@@ -433,6 +441,8 @@ fun ChatConversationScreen(
                                 ContactMessageRow(
                                     msg = msg,
                                     contact = contact,
+                                    isReceived = messages.hasReceiptFor(msg.id),
+                                    onClaimMessage = handleClaimMessage,
                                     onDelete = {
                                         chatRepo.deleteMessage(contactId, msg.id)
                                         messages = chatRepo.getMessages(contactId)
@@ -568,6 +578,8 @@ private fun UserMessageRow(
     userNickname: String,
     userAvatar: String,
     contactCharacterId: String,
+    isReceived: Boolean,
+    onClaimMessage: (ChatMessage) -> Unit,
     onDelete: () -> Unit,
     onResend: () -> Unit,
     onUpdateMessage: (ChatMessage) -> Unit,
@@ -594,6 +606,8 @@ private fun UserMessageRow(
                     isUser = true,
                     contactName = "",
                     contactCharacterId = contactCharacterId,
+                    isReceived = isReceived,
+                    onClaimMessage = onClaimMessage,
                     onUpdateMessage = onUpdateMessage,
                     modifier = Modifier.pointerInput(Unit) {
                         detectTapGestures(
@@ -667,6 +681,8 @@ private fun UserMessageRow(
 private fun ContactMessageRow(
     msg: ChatMessage,
     contact: com.moonlib.cosmos.data.chat.ChatContact,
+    isReceived: Boolean,
+    onClaimMessage: (ChatMessage) -> Unit,
     onDelete: () -> Unit,
     onUpdateMessage: (ChatMessage) -> Unit,
     modifier: Modifier = Modifier
@@ -699,6 +715,8 @@ private fun ContactMessageRow(
                     isUser = false,
                     contactName = contact.nickname,
                     contactCharacterId = contact.characterId,
+                    isReceived = isReceived,
+                    onClaimMessage = onClaimMessage,
                     onUpdateMessage = onUpdateMessage,
                     modifier = Modifier.pointerInput(Unit) {
                         detectTapGestures(

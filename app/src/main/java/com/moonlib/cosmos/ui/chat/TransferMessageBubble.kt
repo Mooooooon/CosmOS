@@ -28,12 +28,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.moonlib.cosmos.data.chat.ChatMessage
+import com.moonlib.cosmos.data.chat.TYPE_TRANSFER_RECEIPT
 import java.util.Locale
 
 @Composable
-internal fun TransferBubble(msg: ChatMessage) {
-    val isCollected = msg.extra == "collected"
-    val transferBackground = if (isCollected) {
+internal fun TransferBubble(msg: ChatMessage, isReceived: Boolean) {
+    val isReceipt = msg.type == TYPE_TRANSFER_RECEIPT
+    val transferBackground = if (isReceived || isReceipt) {
         MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.55f)
     } else {
         MaterialTheme.colorScheme.tertiaryContainer
@@ -67,14 +68,14 @@ internal fun TransferBubble(msg: ChatMessage) {
                     .size(36.dp)
                     .background(
                         MaterialTheme.colorScheme.onPrimary.copy(
-                            alpha = if (isCollected) 0.15f else 0.25f
+                            alpha = if (isReceived || isReceipt) 0.15f else 0.25f
                         ),
                         CircleShape
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = if (isCollected) Icons.Default.CheckCircle else Icons.Default.SwapHoriz,
+                    imageVector = if (isReceived || isReceipt) Icons.Default.CheckCircle else Icons.Default.SwapHoriz,
                     contentDescription = "转账",
                     tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(22.dp)
@@ -92,7 +93,11 @@ internal fun TransferBubble(msg: ChatMessage) {
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = if (isCollected) "已收款" else "微信转账 (待收款)",
+                    text = when {
+                        isReceipt -> "已收款"
+                        isReceived -> "已被接收"
+                        else -> "转账 (待收款)"
+                    },
                     color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
                     fontSize = 11.sp
                 )

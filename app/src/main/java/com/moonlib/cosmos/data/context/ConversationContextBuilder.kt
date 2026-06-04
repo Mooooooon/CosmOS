@@ -7,7 +7,9 @@ import com.moonlib.cosmos.data.chat.ChatMessage
 import com.moonlib.cosmos.data.chat.Moment
 import com.moonlib.cosmos.data.chat.MomentRepository
 import com.moonlib.cosmos.data.chat.ChatRepository
-import com.moonlib.cosmos.data.chat.redPacketState
+import com.moonlib.cosmos.data.chat.TYPE_RED_PACKET_RECEIPT
+import com.moonlib.cosmos.data.chat.TYPE_TRANSFER_RECEIPT
+import com.moonlib.cosmos.data.chat.redPacketWish
 import com.moonlib.cosmos.data.diary.DiaryEntry
 import com.moonlib.cosmos.data.diary.DiaryRepository
 import com.moonlib.cosmos.data.interaction.InteractionRepository
@@ -219,8 +221,10 @@ object ConversationContextBuilder {
             "image" -> "[发送了图片：$content]"
             "video" -> "[发送了视频：$content]"
             "voice" -> "[发送了语音：$content]"
-            "red_packet" -> "[发送了红包：$content 元，留言：${redPacketState().wish}]"
+            "red_packet" -> "[发送了红包：$content 元，留言：${redPacketWish()}]"
             "transfer" -> "[发送了转账：$content 元]"
+            TYPE_RED_PACKET_RECEIPT -> "[领取了对方的红包：$content 元]"
+            TYPE_TRANSFER_RECEIPT -> "[收取了对方的转账：$content 元]"
             "location" -> "[发送了位置：$content]"
             else -> content
         }

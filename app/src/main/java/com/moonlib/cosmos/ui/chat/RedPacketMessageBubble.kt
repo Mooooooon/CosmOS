@@ -41,12 +41,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.moonlib.cosmos.data.chat.ChatMessage
-import com.moonlib.cosmos.data.chat.redPacketState
+import com.moonlib.cosmos.data.chat.redPacketWish
 
 @Composable
-internal fun RedPacketBubble(msg: ChatMessage) {
-    val state = msg.redPacketState()
-    val redBackground = if (state.isReceived) {
+internal fun RedPacketBubble(msg: ChatMessage, isReceived: Boolean) {
+    val redBackground = if (isReceived) {
         MaterialTheme.colorScheme.error.copy(alpha = 0.55f)
     } else {
         MaterialTheme.colorScheme.error
@@ -59,7 +58,7 @@ internal fun RedPacketBubble(msg: ChatMessage) {
             .background(redBackground)
             .border(
                 1.dp,
-                if (state.isReceived) Color.Transparent else goldColor.copy(alpha = 0.4f),
+                if (isReceived) Color.Transparent else goldColor.copy(alpha = 0.4f),
                 RoundedCornerShape(16.dp)
             )
     ) {
@@ -73,7 +72,7 @@ internal fun RedPacketBubble(msg: ChatMessage) {
                 modifier = Modifier
                     .size(36.dp)
                     .background(
-                        if (state.isReceived) goldColor.copy(alpha = 0.5f) else goldColor,
+                        if (isReceived) goldColor.copy(alpha = 0.5f) else goldColor,
                         CircleShape
                     ),
                 contentAlignment = Alignment.Center
@@ -90,7 +89,7 @@ internal fun RedPacketBubble(msg: ChatMessage) {
 
             Column {
                 Text(
-                    text = state.wish,
+                    text = msg.redPacketWish(),
                     color = MaterialTheme.colorScheme.onPrimary,
                     fontSize = 14.sp,
                     maxLines = 1,
@@ -99,7 +98,7 @@ internal fun RedPacketBubble(msg: ChatMessage) {
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = if (state.isReceived) "已拆开" else "查看红包",
+                    text = if (isReceived) "已拆开" else "查看红包",
                     color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
                     fontSize = 11.sp
                 )

@@ -106,7 +106,12 @@ object ChatEngine {
 
         // 5. 组装、解析并保存 AI 的回复消息列表
         val currentVirtualTime = VirtualTimeManager.getCurrentTimeMillis()
-        val aiMessages = parseAiResponseJson(responseText, contact, currentVirtualTime)
+        val aiMessages = parseAiResponseJson(
+            jsonStr = responseText,
+            contact = contact,
+            defaultTimeMillis = currentVirtualTime,
+            existingMessages = chatRepo.getMessages(contact.id)
+        )
 
         for (msg in aiMessages) {
             chatRepo.saveMessage(contact.id, msg)
@@ -127,13 +132,16 @@ object ChatEngine {
     private fun parseAiResponseJson(
         jsonStr: String,
         contact: ChatContact,
-        defaultTimeMillis: Long
+        defaultTimeMillis: Long,
+        existingMessages: List<ChatMessage>
     ): List<ChatMessage> {
         val list = mutableListOf<ChatMessage>()
+        var parsedStructuredResponse = false
         try {
             val cleanJson = AiResponseCleaner.cleanJson(jsonStr)
             val jsonObj = JSONObject(cleanJson)
             val repliesArray = jsonObj.getJSONArray("replies")
+            parsedStructuredResponse = true
             
             val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
             var lastTime = defaultTimeMillis
@@ -144,7 +152,7 @@ object ChatEngine {
                 val timeStr = replyObj.optString("time", "")
                 val content = replyObj.optString("content", "")
                 
-                if (content.isBlank()) continue
+                if (content.isBlank() && type != TYPE_RED_PACKET_RECEIPT && type != TYPE_TRANSFER_RECEIPT) continue
 
                 val parsedTime = try {
                     if (timeStr.isNotBlank()) {
@@ -159,6 +167,20 @@ object ChatEngine {
                 // 确保时间始终是严格递增的线性时间
                 val finalTime = if (parsedTime > lastTime) parsedTime else lastTime + 5000L
                 lastTime = finalTime
+
+                val receiptSourceType = when (type) {
+                    TYPE_RED_PACKET_RECEIPT -> TYPE_RED_PACKET
+                    TYPE_TRANSFER_RECEIPT -> TYPE_TRANSFER
+                    else -> null
+                }
+                if (receiptSourceType != null) {
+                    (existingMessages + list).createLatestReceipt(
+                        sourceType = receiptSourceType,
+                        receiverId = contact.id,
+                        timestamp = finalTime
+                    )?.let(list::add)
+                    continue
+                }
                 
                 val extraVal = if (type == "red_packet") {
                     replyObj.optString("extra", "恭喜发财，大吉大利")
@@ -217,7 +239,7 @@ object ChatEngine {
         }
         
         // 若数组为空，也提供兜底
-        if (list.isEmpty()) {
+        if (list.isEmpty() && !parsedStructuredResponse) {
             list.add(
                 ChatMessage(
                     id = UUID.randomUUID().toString(),
@@ -267,14 +289,14 @@ object ChatEngine {
             .replace("{{char}}", charProfile.name)
             .replace("{{user}}", playerRealName)
         val availableMessageTypes = if (charProfile.voiceId.isNotBlank()) {
-            "text、voice、image、video、red_packet、transfer、location"
+            "text、voice、image、video、red_packet、transfer、red_packet_receipt、transfer_receipt、location"
         } else {
-            "text、image、video、red_packet、transfer、location"
+            "text、image、video、red_packet、transfer、red_packet_receipt、transfer_receipt、location"
         }
         val voiceRequirement = if (charProfile.voiceId.isNotBlank()) {
-            "6. 可以按情境发送 text、voice、image、video、red_packet、transfer、location 类型消息；voice 表示一条可播放语音，content 填要说出口的短句。"
+            "6. 可以按情境发送 text、voice、image、video、red_packet、transfer、red_packet_receipt、transfer_receipt、location 类型消息；voice 表示一条可播放语音，content 填要说出口的短句。"
         } else {
-            "6. 可以按情境发送 text、image、video、red_packet、transfer、location 类型消息；当前角色未绑定音色，禁止发送 voice 类型。"
+            "6. 可以按情境发送 text、image、video、red_packet、transfer、red_packet_receipt、transfer_receipt、location 类型消息；当前角色未绑定音色，禁止发送 voice 类型。"
         }
 
         // ── 提前构建 wide history，供关键词匹配和后续 Prompt 组装共用 ──
@@ -372,6 +394,7 @@ object ChatEngine {
                 - time 必须晚于当前虚拟时间 $currentVirtualTime，并符合 yyyy-MM-dd HH:mm:ss。
                 - 所有回复的 time 只能比当前虚拟时间晚 1 到 2 分钟，多条回复之间每条再递增 30 到 60 秒。严禁通过大幅跳跃 time（如跳跃数十分钟乃至数小时）来"合理化"角色位置或状态的突变——这是操纵剧情的违规行为。
                 - red_packet 的 content 填金额，extra 可填祝福语；transfer 的 content 填金额。
+                - 当用户发来了尚未领取的红包且角色决定领取时，使用 red_packet_receipt；当用户发来了尚未收取的转账且角色决定收款时，使用 transfer_receipt。这两种回执的 content 填空字符串。禁止在没有对应未领取消息时使用，也禁止重复领取。
                 - location 的 content 填地名或地址。
                 - voice 的 content 填语音中实际说出口的内容，长度建议 5 到 35 字，避免标点堆叠、动作描写和括号说明。
                 - image 的 content 必须是一段生动具体的图片画面描述（20-50 字），描述画面中的主体、场景、氛围、色彩等细节，让人能在脑中清晰还原这张图片的样子，例如：「一张傍晚的街头照片，橙红色的晚霞铺满半边天，路灯刚刚亮起，行人撑着伞走过湿漉漉的人行道」。
