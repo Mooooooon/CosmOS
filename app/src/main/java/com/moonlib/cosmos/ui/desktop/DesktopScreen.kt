@@ -87,7 +87,7 @@ fun DesktopScreen() {
 
                         DesktopClock(modifier = Modifier.fillMaxWidth())
 
-                        Spacer(modifier = Modifier.weight(1f))
+                        Spacer(modifier = Modifier.height(24.dp))
 
                         AppGrid(
                             onAppClick = { app ->
@@ -95,6 +95,7 @@ fun DesktopScreen() {
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .weight(1f)
                                 .padding(bottom = 24.dp),
                         )
                     }

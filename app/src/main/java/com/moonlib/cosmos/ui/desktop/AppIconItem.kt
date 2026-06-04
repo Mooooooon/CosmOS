@@ -33,6 +33,7 @@ fun AppIconItem(
     app: DesktopApp,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isDragging: Boolean = false,
 ) {
     val themeConfig = LocalThemeConfig.current
     val isDark = themeConfig.isDark
@@ -40,7 +41,11 @@ fun AppIconItem(
     // 点击缩放动画
     var pressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.88f else 1f,
+        targetValue = when {
+            isDragging -> 1.08f
+            pressed -> 0.88f
+            else -> 1f
+        },
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness    = Spring.StiffnessHigh,
