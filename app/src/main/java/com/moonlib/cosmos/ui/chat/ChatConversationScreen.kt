@@ -208,9 +208,6 @@ fun ChatConversationScreen(
             VirtualTimeManager.updateTime(currentVirtualTime + 15000L)
             messages = chatRepo.getMessages(contactId) // 刷新 UI
             scrollToBottom(true)
-            if (type == "red_packet" || type == "transfer") {
-                requestAiReply()
-            }
         }
     }
 
