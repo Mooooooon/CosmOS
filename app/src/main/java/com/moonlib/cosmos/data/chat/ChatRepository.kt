@@ -238,7 +238,8 @@ class ChatRepository(private val context: Context) {
             timestamp = json.getLong("timestamp"),
             isPending = json.optBoolean("isPending", false),
             type = json.optString("type", "text"),
-            extra = if (json.has("extra") && !json.isNull("extra")) json.getString("extra") else null
+            extra = if (json.has("extra") && !json.isNull("extra")) json.getString("extra") else null,
+            isRedPacketReceived = json.optBoolean("isRedPacketReceived", false)
         )
     }
 
@@ -251,6 +252,7 @@ class ChatRepository(private val context: Context) {
             put("isPending", message.isPending)
             put("type", message.type)
             put("extra", message.extra ?: JSONObject.NULL)
+            put("isRedPacketReceived", message.isRedPacketReceived)
         }
     }
 }

@@ -12,5 +12,6 @@ data class ChatMessage(
     val timestamp: Long,      // 发送时间戳
     val isPending: Boolean = false, // 是否正在发送中
     val type: String = "text", // 消息类型: text, image, video, voice, red_packet, transfer, location
-    val extra: String? = null // 附加字段（如红包/转账状态，红包留言等）
+    val extra: String? = null, // 附加字段（如红包留言、转账状态等）
+    val isRedPacketReceived: Boolean = false
 )

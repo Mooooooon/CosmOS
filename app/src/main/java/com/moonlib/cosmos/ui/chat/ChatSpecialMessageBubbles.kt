@@ -16,10 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
@@ -27,7 +24,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.moonlib.cosmos.data.chat.ChatMessage
-import java.util.Locale
+import com.moonlib.cosmos.data.chat.markRedPacketReceived
+import com.moonlib.cosmos.data.chat.redPacketState
 
 /**
  * 特殊消息气泡分发与渲染组件
@@ -43,14 +41,13 @@ fun SpecialMessageBubble(
     onUpdateMessage: (ChatMessage) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
     var showRedPacketDialog by remember { mutableStateOf(false) }
     var showMediaPreview by remember { mutableStateOf(false) }
 
     val handleBubbleClick = {
         when (msg.type) {
             "red_packet" -> {
-                if (msg.extra != "received") {
+                if (!msg.redPacketState().isReceived) {
                     showRedPacketDialog = true
                 } else {
                     // Toast.makeText(context, "红包已拆开，金额已存入零钱", Toast.LENGTH_SHORT).show()
@@ -93,8 +90,8 @@ fun SpecialMessageBubble(
                 contactCharacterId = contactCharacterId,
                 onUpdateMessage = onUpdateMessage
             )
-            "red_packet" -> RedPacketBubble(msg = msg, isUser = isUser)
-            "transfer" -> TransferBubble(msg = msg, isUser = isUser)
+            "red_packet" -> RedPacketBubble(msg = msg)
+            "transfer" -> TransferBubble(msg = msg)
             "location" -> LocationBubble(content = msg.content)
         }
     }
@@ -102,11 +99,11 @@ fun SpecialMessageBubble(
     if (showRedPacketDialog) {
         RedPacketOpenDialog(
             senderName = if (isUser) "自己" else contactName,
-            wishText = msg.extra ?: "恭喜发财，大吉大利",
+            wishText = msg.redPacketState().wish,
             amountText = msg.content,
             onDismiss = { showRedPacketDialog = false },
             onOpenSuccess = {
-                val updated = msg.copy(extra = "received")
+                val updated = msg.markRedPacketReceived()
                 onUpdateMessage(updated)
                 showRedPacketDialog = false
                 // Toast.makeText(context, "成功领取红包 ￥${msg.content} 元！", Toast.LENGTH_LONG).show()
@@ -224,160 +221,7 @@ private fun VideoBubble(content: String) {
     }
 }
 
-// ─── 3. 红包气泡 ───────────────────────────────────────────────
-@Composable
-private fun RedPacketBubble(msg: ChatMessage, isUser: Boolean) {
-    val isReceived = msg.extra == "received"
-    val redBg = if (isReceived) MaterialTheme.colorScheme.error.copy(alpha = 0.55f) else MaterialTheme.colorScheme.error
-    val goldColor = MaterialTheme.colorScheme.errorContainer
-
-    Column(
-        modifier = Modifier
-            .width(220.dp)
-            .background(redBg)
-            .border(
-                1.dp,
-                if (isReceived) Color.Transparent else goldColor.copy(alpha = 0.4f),
-                RoundedCornerShape(16.dp)
-            )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // 红包图标或“福”字
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .background(if (isReceived) goldColor.copy(alpha = 0.5f) else goldColor, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "褔",
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                )
-            }
-
-            Spacer(modifier = Modifier.width(10.dp))
-
-            Column {
-                Text(
-                    text = msg.extra ?: "恭喜发财，大吉大利",
-                    color = MaterialTheme.colorScheme.onPrimary, // 红色底上的白字/淡字
-                    fontSize = 14.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = if (isReceived) "已拆开" else "查看红包",
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
-                    fontSize = 11.sp
-                )
-            }
-        }
-
-        // 底部条
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.Black.copy(alpha = 0.05f))
-                .padding(horizontal = 14.dp, vertical = 6.dp)
-        ) {
-            Text(
-                text = "CosmOS红包",
-                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f),
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Light
-            )
-        }
-    }
-}
-
-// ─── 4. 转账气泡 ───────────────────────────────────────────────
-@Composable
-private fun TransferBubble(msg: ChatMessage, isUser: Boolean) {
-    val isCollected = msg.extra == "collected"
-    val transferBg = if (isCollected) MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.55f) else MaterialTheme.colorScheme.tertiaryContainer
-    val formattedAmount = remember(msg.content) {
-        try {
-            String.format(Locale.US, "%.2f", msg.content.toDouble())
-        } catch (e: Exception) {
-            msg.content
-        }
-    }
-
-    Column(
-        modifier = Modifier
-            .width(220.dp)
-            .background(transferBg)
-            .border(
-                1.dp,
-                MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.15f),
-                RoundedCornerShape(16.dp)
-            )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = if (isCollected) 0.15f else 0.25f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = if (isCollected) Icons.Default.CheckCircle else Icons.Default.SwapHoriz,
-                    contentDescription = "转账",
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(10.dp))
-
-            Column {
-                Text(
-                    text = "￥$formattedAmount",
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = if (isCollected) "已收款" else "微信转账 (待收款)",
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
-                    fontSize = 11.sp
-                )
-            }
-        }
-
-        // 底部条
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.Black.copy(alpha = 0.05f))
-                .padding(horizontal = 14.dp, vertical = 6.dp)
-        ) {
-            Text(
-                text = "CosmOS转账",
-                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f),
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Light
-            )
-        }
-    }
-}
-
-// ─── 5. 位置气泡 ───────────────────────────────────────────────
+// ─── 3. 位置气泡 ───────────────────────────────────────────────
 @Composable
 private fun LocationBubble(content: String) {
     Column(
@@ -478,144 +322,6 @@ private fun LocationBubble(content: String) {
                     tint = MaterialTheme.colorScheme.error,
                     modifier = Modifier.size(14.dp)
                 )
-            }
-        }
-    }
-}
-
-// ─── 6. 沉浸式红包领取仪式 Dialog ──────────────────────────────────────
-@Composable
-fun RedPacketOpenDialog(
-    senderName: String,
-    wishText: String,
-    amountText: String,
-    onDismiss: () -> Unit,
-    onOpenSuccess: () -> Unit
-) {
-    var isOpened by remember { mutableStateOf(false) }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.error
-            ),
-            modifier = Modifier
-                .width(280.dp)
-                .height(400.dp)
-        ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                // 上半部分流线微拱形装饰
-                val errorBgColor = MaterialTheme.colorScheme.error
-                val onErrorContainerColor = MaterialTheme.colorScheme.onErrorContainer
-                Canvas(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp)
-                ) {
-                    drawRect(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(errorBgColor, onErrorContainerColor)
-                        ),
-                        size = size
-                    )
-                }
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 24.dp, vertical = 32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
-                    // 头部信息
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(top = 16.dp)
-                    ) {
-                        Text(
-                            text = senderName,
-                            color = MaterialTheme.colorScheme.errorContainer,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "发给你一个红包",
-                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
-                            fontSize = 12.sp
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = wishText,
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            textAlign = TextAlign.Center,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-
-                    if (!isOpened) {
-                        // 未开启：展示金币大“開”按钮
-                        Box(
-                            modifier = Modifier
-                                .size(90.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.errorContainer)
-                                .border(4.dp, MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.8f), CircleShape)
-                                .clickable {
-                                    isOpened = true
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "開",
-                                color = MaterialTheme.colorScheme.onErrorContainer,
-                                fontWeight = FontWeight.Black,
-                                fontSize = 32.sp
-                            )
-                        }
-
-                        // 底部关闭
-                        TextButton(onClick = onDismiss) {
-                            Text("关闭", color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f), fontSize = 13.sp)
-                        }
-                    } else {
-                        // 已开启：展示金额和领取状态
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(
-                                text = "￥$amountText",
-                                color = MaterialTheme.colorScheme.errorContainer,
-                                fontSize = 36.sp,
-                                fontWeight = FontWeight.Black
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "已存入CosmOS钱包零钱",
-                                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
-                                fontSize = 11.sp
-                            )
-                        }
-
-                        // 确定关闭
-                        Button(
-                            onClick = onOpenSuccess,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer
-                            ),
-                            shape = RoundedCornerShape(20.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("放入钱包", color = MaterialTheme.colorScheme.onErrorContainer, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
             }
         }
     }
